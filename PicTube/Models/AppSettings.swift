@@ -22,15 +22,15 @@ enum ModifierKey: String, CaseIterable, Identifiable {
   var displayName: String {
     switch self {
     case .none:
-      return "无"
+      return NSLocalizedString("modifier_none", comment: "None modifier key")
     case .command:
-      return "⌘ Command"
+      return NSLocalizedString("modifier_command", comment: "Command modifier key")
     case .option:
-      return "⌥ Option"
+      return NSLocalizedString("modifier_option", comment: "Option modifier key")
     case .control:
-      return "⌃ Control"
+      return NSLocalizedString("modifier_control", comment: "Control modifier key")
     case .shift:
-      return "⇧ Shift"
+      return NSLocalizedString("modifier_shift", comment: "Shift modifier key")
     }
   }
 

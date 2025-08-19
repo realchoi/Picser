@@ -1,0 +1,56 @@
+/*
+  Localizable.strings (Simplified Chinese)
+  PicTube
+
+  Created by Eric Cai on 2025/1/27.
+  
+*/
+
+/* Menu Items */
+"settings_menu" = "偏好设置...";
+
+/* Settings Window */
+"settings_title" = "偏好设置";
+
+/* Tab Titles */
+"keyboard_tab" = "快捷键";
+"display_tab" = "显示";
+"behavior_tab" = "行为";
+
+/* Keyboard Settings */
+"keyboard_settings_title" = "快捷键设置";
+"zoom_shortcut_label" = "缩放快捷键";
+"zoom_shortcut_description" = "配合鼠标滚轮缩放图片";
+"pan_shortcut_label" = "拖拽快捷键";
+"pan_shortcut_description" = "配合鼠标滚轮拖拽图片";
+
+/* Display Settings */
+"display_settings_title" = "显示设置";
+"zoom_settings_group" = "缩放设置";
+"default_zoom_scale" = "默认缩放比例:";
+"zoom_sensitivity" = "缩放灵敏度:";
+"min_zoom_scale" = "最小缩放比例:";
+"max_zoom_scale" = "最大缩放比例:";
+
+/* Behavior Settings */
+"behavior_settings_title" = "行为设置";
+"image_change_behavior" = "图片切换时";
+"reset_zoom_on_change" = "重置缩放比例";
+"reset_pan_on_change" = "重置拖拽位置";
+
+/* Buttons */
+"record_button" = "录制";
+"stop_recording_button" = "停止录制";
+"clear_button" = "清除";
+"reset_defaults_button" = "重置为默认值";
+
+/* Key Recorder */
+"press_modifier_key" = "按下修饰键...";
+"no_modifier" = "无";
+
+/* Modifier Keys */
+"modifier_none" = "无";
+"modifier_command" = "⌘ Command";
+"modifier_option" = "⌥ Option";
+"modifier_control" = "⌃ Control";
+"modifier_shift" = "⇧ Shift";

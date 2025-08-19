@@ -29,7 +29,11 @@ struct KeyRecorderView: View {
         )
 
       // 录制按钮
-      Button(isRecording ? "停止录制" : "录制") {
+      Button(
+        isRecording
+          ? NSLocalizedString("stop_recording_button", comment: "Stop recording button")
+          : NSLocalizedString("record_button", comment: "Record button")
+      ) {
         if isRecording {
           stopRecording()
         } else {
@@ -39,7 +43,7 @@ struct KeyRecorderView: View {
       .buttonStyle(.bordered)
 
       // 清除按钮
-      Button("清除") {
+      Button(NSLocalizedString("clear_button", comment: "Clear button")) {
         selectedKey = .none
         updateDisplayText()
       }
@@ -59,7 +63,7 @@ struct KeyRecorderView: View {
 
   private func startRecording() {
     isRecording = true
-    displayText = "按下修饰键..."
+    displayText = NSLocalizedString("press_modifier_key", comment: "Press modifier key prompt")
 
     // 创建键盘录制窗口
     let recorder = KeyRecorderWindow { modifierKey in

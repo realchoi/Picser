@@ -1,0 +1,56 @@
+/*
+  Localizable.strings (English)
+  PicTube
+
+  Created by Eric Cai on 2025/1/27.
+  
+*/
+
+/* Menu Items */
+"settings_menu" = "Settings...";
+
+/* Settings Window */
+"settings_title" = "Settings";
+
+/* Tab Titles */
+"keyboard_tab" = "Keyboard";
+"display_tab" = "Display";
+"behavior_tab" = "Behavior";
+
+/* Keyboard Settings */
+"keyboard_settings_title" = "Keyboard Settings";
+"zoom_shortcut_label" = "Zoom Shortcut";
+"zoom_shortcut_description" = "Use with mouse wheel to zoom images";
+"pan_shortcut_label" = "Pan Shortcut";
+"pan_shortcut_description" = "Use with mouse wheel to pan images";
+
+/* Display Settings */
+"display_settings_title" = "Display Settings";
+"zoom_settings_group" = "Zoom Settings";
+"default_zoom_scale" = "Default Zoom Scale:";
+"zoom_sensitivity" = "Zoom Sensitivity:";
+"min_zoom_scale" = "Minimum Zoom Scale:";
+"max_zoom_scale" = "Maximum Zoom Scale:";
+
+/* Behavior Settings */
+"behavior_settings_title" = "Behavior Settings";
+"image_change_behavior" = "When changing images";
+"reset_zoom_on_change" = "Reset zoom scale";
+"reset_pan_on_change" = "Reset pan position";
+
+/* Buttons */
+"record_button" = "Record";
+"stop_recording_button" = "Stop Recording";
+"clear_button" = "Clear";
+"reset_defaults_button" = "Reset to Defaults";
+
+/* Key Recorder */
+"press_modifier_key" = "Press a modifier key...";
+"no_modifier" = "None";
+
+/* Modifier Keys */
+"modifier_none" = "None";
+"modifier_command" = "⌘ Command";
+"modifier_option" = "⌥ Option";
+"modifier_control" = "⌃ Control";
+"modifier_shift" = "⇧ Shift";

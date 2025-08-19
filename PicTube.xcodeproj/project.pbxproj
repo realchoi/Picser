@@ -20,6 +20,11 @@
 			path = PicTube;
 			sourceTree = "<group>";
 		};
+		07A3FBFD2E5324E800CF5189 /* Languages */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Languages;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,6 +43,7 @@
 			isa = PBXGroup;
 			children = (
 				07A3FBFC2E5324E800CF5188 /* PicTube */,
+				07A3FBFD2E5324E800CF5189 /* Languages */,
 				07A3FBFB2E5324E800CF5188 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -67,6 +73,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				07A3FBFC2E5324E800CF5188 /* PicTube */,
+				07A3FBFD2E5324E800CF5189 /* Languages */,
 			);
 			name = PicTube;
 			packageProductDependencies = (

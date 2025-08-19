@@ -16,19 +16,24 @@ struct SettingsView: View {
       // 快捷键设置页面
       KeyboardSettingsView(appSettings: appSettings)
         .tabItem {
-          Label("快捷键", systemImage: "keyboard")
+          Label(
+            NSLocalizedString("keyboard_tab", comment: "Keyboard tab title"),
+            systemImage: "keyboard")
         }
 
       // 显示设置页面
       DisplaySettingsView(appSettings: appSettings)
         .tabItem {
-          Label("显示", systemImage: "display")
+          Label(
+            NSLocalizedString("display_tab", comment: "Display tab title"), systemImage: "display")
         }
 
       // 行为设置页面
       BehaviorSettingsView(appSettings: appSettings)
         .tabItem {
-          Label("行为", systemImage: "gearshape")
+          Label(
+            NSLocalizedString("behavior_tab", comment: "Behavior tab title"),
+            systemImage: "gearshape")
         }
     }
     .frame(width: 500, height: 400)
@@ -52,7 +57,7 @@ struct KeyboardSettingsView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
-      Text("快捷键设置")
+      Text(NSLocalizedString("keyboard_settings_title", comment: "Keyboard settings title"))
         .font(.title2)
         .fontWeight(.semibold)
 
@@ -60,9 +65,9 @@ struct KeyboardSettingsView: View {
 
       // 缩放快捷键设置
       VStack(alignment: .leading, spacing: 8) {
-        Text("缩放快捷键")
+        Text(NSLocalizedString("zoom_shortcut_label", comment: "Zoom shortcut label"))
           .fontWeight(.medium)
-        Text("配合鼠标滚轮缩放图片")
+        Text(NSLocalizedString("zoom_shortcut_description", comment: "Zoom shortcut description"))
           .font(.caption)
           .foregroundColor(.secondary)
 
@@ -73,9 +78,9 @@ struct KeyboardSettingsView: View {
 
       // 拖拽快捷键设置
       VStack(alignment: .leading, spacing: 8) {
-        Text("拖拽快捷键")
+        Text(NSLocalizedString("pan_shortcut_label", comment: "Pan shortcut label"))
           .fontWeight(.medium)
-        Text("配合鼠标滚轮拖拽图片")
+        Text(NSLocalizedString("pan_shortcut_description", comment: "Pan shortcut description"))
           .font(.caption)
           .foregroundColor(.secondary)
 
@@ -87,7 +92,7 @@ struct KeyboardSettingsView: View {
       // 重置按钮
       HStack {
         Spacer()
-        Button("重置为默认值") {
+        Button(NSLocalizedString("reset_defaults_button", comment: "Reset defaults button")) {
           withAnimation {
             appSettings.zoomModifierKey = .control
             appSettings.panModifierKey = .none
@@ -107,7 +112,7 @@ struct DisplaySettingsView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
-      Text("显示设置")
+      Text(NSLocalizedString("display_settings_title", comment: "Display settings title"))
         .font(.title2)
         .fontWeight(.semibold)
 
@@ -115,12 +120,12 @@ struct DisplaySettingsView: View {
 
       // 缩放设置组
       VStack(alignment: .leading, spacing: 16) {
-        Text("缩放设置")
+        Text(NSLocalizedString("zoom_settings_group", comment: "Zoom settings group"))
           .fontWeight(.medium)
 
         // 默认缩放比例
         HStack {
-          Text("默认缩放比例:")
+          Text(NSLocalizedString("default_zoom_scale", comment: "Default zoom scale"))
             .frame(width: 120, alignment: .leading)
           Slider(
             value: $appSettings.defaultZoomScale,
@@ -134,7 +139,7 @@ struct DisplaySettingsView: View {
 
         // 缩放灵敏度
         HStack {
-          Text("缩放灵敏度:")
+          Text(NSLocalizedString("zoom_sensitivity", comment: "Zoom sensitivity"))
             .frame(width: 120, alignment: .leading)
           Slider(
             value: $appSettings.zoomSensitivity,
@@ -148,7 +153,7 @@ struct DisplaySettingsView: View {
 
         // 最小缩放比例
         HStack {
-          Text("最小缩放比例:")
+          Text(NSLocalizedString("min_zoom_scale", comment: "Minimum zoom scale"))
             .frame(width: 120, alignment: .leading)
           Slider(
             value: $appSettings.minZoomScale,
@@ -162,7 +167,7 @@ struct DisplaySettingsView: View {
 
         // 最大缩放比例
         HStack {
-          Text("最大缩放比例:")
+          Text(NSLocalizedString("max_zoom_scale", comment: "Maximum zoom scale"))
             .frame(width: 120, alignment: .leading)
           Slider(
             value: $appSettings.maxZoomScale,
@@ -202,7 +207,7 @@ struct BehaviorSettingsView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
-      Text("行为设置")
+      Text(NSLocalizedString("behavior_settings_title", comment: "Behavior settings title"))
         .font(.title2)
         .fontWeight(.semibold)
 
@@ -210,14 +215,20 @@ struct BehaviorSettingsView: View {
 
       // 图片切换行为
       VStack(alignment: .leading, spacing: 16) {
-        Text("图片切换时")
+        Text(NSLocalizedString("image_change_behavior", comment: "Image change behavior"))
           .fontWeight(.medium)
 
-        Toggle("重置缩放比例", isOn: $appSettings.resetZoomOnImageChange)
-          .toggleStyle(CheckboxToggleStyle())
+        Toggle(
+          NSLocalizedString("reset_zoom_on_change", comment: "Reset zoom on change"),
+          isOn: $appSettings.resetZoomOnImageChange
+        )
+        .toggleStyle(CheckboxToggleStyle())
 
-        Toggle("重置拖拽位置", isOn: $appSettings.resetPanOnImageChange)
-          .toggleStyle(CheckboxToggleStyle())
+        Toggle(
+          NSLocalizedString("reset_pan_on_change", comment: "Reset pan on change"),
+          isOn: $appSettings.resetPanOnImageChange
+        )
+        .toggleStyle(CheckboxToggleStyle())
       }
 
       Spacer()
@@ -225,7 +236,7 @@ struct BehaviorSettingsView: View {
       // 重置按钮
       HStack {
         Spacer()
-        Button("重置为默认值") {
+        Button(NSLocalizedString("reset_defaults_button", comment: "Reset defaults button")) {
           withAnimation {
             appSettings.resetZoomOnImageChange = true
             appSettings.resetPanOnImageChange = true
