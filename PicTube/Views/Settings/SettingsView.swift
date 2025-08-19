@@ -40,10 +40,10 @@ struct SettingsView: View {
     .onAppear {
       validateSettings()
     }
-    .onChange(of: appSettings.zoomSensitivity) { _ in validateSettings() }
-    .onChange(of: appSettings.minZoomScale) { _ in validateSettings() }
-    .onChange(of: appSettings.maxZoomScale) { _ in validateSettings() }
-    .onChange(of: appSettings.defaultZoomScale) { _ in validateSettings() }
+    .onChange(of: appSettings.zoomSensitivity) { validateSettings() }
+    .onChange(of: appSettings.minZoomScale) { validateSettings() }
+    .onChange(of: appSettings.maxZoomScale) { validateSettings() }
+    .onChange(of: appSettings.defaultZoomScale) { validateSettings() }
   }
 
   private func validateSettings() {

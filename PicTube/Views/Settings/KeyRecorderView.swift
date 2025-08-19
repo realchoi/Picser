@@ -52,7 +52,7 @@ struct KeyRecorderView: View {
     .onAppear {
       updateDisplayText()
     }
-    .onChange(of: selectedKey) { _ in
+    .onChange(of: selectedKey) {
       updateDisplayText()
     }
   }
