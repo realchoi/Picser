@@ -49,6 +49,11 @@ enum ModifierKey: String, CaseIterable, Identifiable {
       return .shift
     }
   }
+
+  // 返回用户可选择的修饰键选项
+  static func availableKeys() -> [ModifierKey] {
+    return [.none, .control, .command, .option]
+  }
 }
 
 // 应用设置管理器
