@@ -105,6 +105,11 @@ class CustomZoomableView<Content: View>: NSView {
   // 设置对象引用
   var appSettings: AppSettings?
 
+  // 拖动状态管理
+  private var isDragging = false
+  private var dragStartPoint: CGPoint = .zero
+  private var dragStartOffset: CGSize = .zero
+
   // 我们需要重写这个方法来告诉系统我们的 view 可以成为第一响应者，从而接收键盘和鼠标事件
   override var acceptsFirstResponder: Bool { true }
 
@@ -115,6 +120,9 @@ class CustomZoomableView<Content: View>: NSView {
       super.scrollWheel(with: event)
       return
     }
+
+    // 如果正在进行鼠标拖动，跳过滚轮处理避免冲突
+    guard !isDragging else { return }
 
     // 检查是否按下了缩放修饰键
     if settings.isModifierKeyPressed(event.modifierFlags, for: settings.zoomModifierKey) {
@@ -151,26 +159,76 @@ class CustomZoomableView<Content: View>: NSView {
       )
 
       coordinator?.handleScroll(scale: newScale, offset: newOffset)
-
-    } else if settings.isModifierKeyPressed(event.modifierFlags, for: settings.panModifierKey) {
-      guard let currentScale = coordinator?.parent.scale,
-        let currentOffset = coordinator?.parent.offset
-      else { return }
-
-      let newOffset = CGSize(
-        width: currentOffset.width + event.scrollingDeltaX,
-        height: currentOffset.height + event.scrollingDeltaY
-      )
-
-      coordinator?.handleScroll(scale: currentScale, offset: newOffset)
     } else {
-      // 如果按下了其他功能键，或者不希望处理，可以调用 super
+      // 如果没有按下缩放修饰键，调用默认行为
       super.scrollWheel(with: event)
     }
   }
 
-  // 如果需要，也可以在这里实现拖动手势
+  // 鼠标按下事件处理
+  override func mouseDown(with event: NSEvent) {
+    guard let settings = appSettings else {
+      super.mouseDown(with: event)
+      return
+    }
+
+    // 检查是否为左键点击
+    guard event.type == .leftMouseDown else {
+      super.mouseDown(with: event)
+      return
+    }
+
+    // 检查修饰键状态，决定是否开始拖动
+    let shouldStartDrag = settings.isModifierKeyPressed(
+      event.modifierFlags, for: settings.panModifierKey)
+
+    if shouldStartDrag {
+      // 初始化拖动状态
+      isDragging = true
+      dragStartPoint = self.convert(event.locationInWindow, from: nil)
+
+      // 记录当前偏移量
+      if let currentOffset = coordinator?.parent.offset {
+        dragStartOffset = currentOffset
+      }
+    } else {
+      super.mouseDown(with: event)
+    }
+  }
+
+  // 鼠标拖动事件处理
   override func mouseDragged(with event: NSEvent) {
-    // 可以实现鼠标左键拖动
+    guard isDragging else {
+      super.mouseDragged(with: event)
+      return
+    }
+
+    guard let currentScale = coordinator?.parent.scale else { return }
+
+    // 计算当前鼠标位置与起始位置的差值
+    let currentPoint = self.convert(event.locationInWindow, from: nil)
+    let deltaX = currentPoint.x - dragStartPoint.x
+    let deltaY = currentPoint.y - dragStartPoint.y
+
+    // 结合起始偏移量计算新的偏移量
+    let newOffset = CGSize(
+      width: dragStartOffset.width + deltaX,
+      height: dragStartOffset.height + deltaY
+    )
+
+    // 通过 coordinator 更新 SwiftUI 状态
+    coordinator?.handleScroll(scale: currentScale, offset: newOffset)
+  }
+
+  // 鼠标释放事件处理
+  override func mouseUp(with event: NSEvent) {
+    if isDragging {
+      // 结束拖动状态
+      isDragging = false
+      dragStartPoint = .zero
+      dragStartOffset = .zero
+    } else {
+      super.mouseUp(with: event)
+    }
   }
 }
