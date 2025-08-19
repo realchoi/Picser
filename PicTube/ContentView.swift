@@ -5,6 +5,7 @@
 //  Created by Eric Cai on 2025/8/18.
 //
 
+import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -16,18 +17,25 @@ struct ContentView: View {
   @State private var scale: CGFloat = 1.0  // 新增：缩放比例
   @State private var offset: CGSize = .zero  // 新增：拖动偏移量
 
+  // 接收设置对象
+  @EnvironmentObject var appSettings: AppSettings
+
   // 这个自定义 Binding 是实现切换逻辑的核心之一。
   // 当 List 的 selection 变化时，它会：
   // 1. 更新 selectedImageURL。
-  // 2. 将 scale 和 offset 重置为初始状态。
+  // 2. 根据设置决定是否重置 scale 和 offset。
   private var imageSelection: Binding<URL?> {
     Binding {
       selectedImageURL
     } set: { newURL in
       selectedImageURL = newURL
-      // 重置状态，以便新图片以正常大小显示
-      scale = 1.0
-      offset = .zero
+      // 根据设置决定是否重置状态
+      if appSettings.resetZoomOnImageChange {
+        scale = appSettings.defaultZoomScale
+      }
+      if appSettings.resetPanOnImageChange {
+        offset = .zero
+      }
     }
   }
 
@@ -123,8 +131,14 @@ struct ContentView: View {
         imageExtensions.contains(url.pathExtension.lowercased())
       }.sorted(by: { $0.lastPathComponent < $1.lastPathComponent })  // 按文件名排序
 
-      // 默认选中第一张图片
+      // 默认选中第一张图片，并根据设置初始化缩放和偏移
       self.selectedImageURL = self.imageURLs.first
+      if appSettings.resetZoomOnImageChange {
+        self.scale = appSettings.defaultZoomScale
+      }
+      if appSettings.resetPanOnImageChange {
+        self.offset = .zero
+      }
       print(
         "加载了 \(self.imageURLs.count) 张图片，默认选中: \(self.imageURLs.first?.lastPathComponent ?? "nil")")
     } catch {

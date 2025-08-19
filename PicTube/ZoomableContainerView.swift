@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Foundation
 import SwiftUI
 
 struct ZoomableContainerView<Content: View>: NSViewRepresentable {
@@ -13,6 +14,9 @@ struct ZoomableContainerView<Content: View>: NSViewRepresentable {
   @Binding var scale: CGFloat
   @Binding var offset: CGSize
   let content: Content  // 要被包裹和缩放的 SwiftUI 视图
+
+  // 接收设置对象
+  @EnvironmentObject var appSettings: AppSettings
 
   // 添加 @ViewBuilder 初始化器
   init(scale: Binding<CGFloat>, offset: Binding<CGSize>, @ViewBuilder content: () -> Content) {
@@ -28,6 +32,8 @@ struct ZoomableContainerView<Content: View>: NSViewRepresentable {
     let view = CustomZoomableView<Content>(frame: .zero)
     // 将 coordinator 赋值给 view，以便在 NSView 内部可以回调
     view.coordinator = context.coordinator
+    // 传递设置对象到 NSView
+    view.appSettings = appSettings
 
     // 创建一个 NSHostingView 来承载我们的 SwiftUI content
     let hostingView = NSHostingView(rootView: content)
@@ -61,6 +67,9 @@ struct ZoomableContainerView<Content: View>: NSViewRepresentable {
 
     // FIX 1: Apply the transform to the view's layer, not the view itself.
     nsView.hostingView?.layer?.setAffineTransform(transform)
+
+    // 更新设置对象引用
+    nsView.appSettings = appSettings
   }
 
   func makeCoordinator() -> Coordinator {
@@ -93,15 +102,22 @@ class CustomZoomableView<Content: View>: NSView {
   weak var coordinator: ZoomableContainerView<Content>.Coordinator?
   // CHANGED: The hostingView reference is now also strongly typed.
   weak var hostingView: NSHostingView<Content>?
+  // 设置对象引用
+  var appSettings: AppSettings?
 
   // 我们需要重写这个方法来告诉系统我们的 view 可以成为第一响应者，从而接收键盘和鼠标事件
   override var acceptsFirstResponder: Bool { true }
 
   // 当滚轮事件发生时，这个方法会被系统调用
   override func scrollWheel(with event: NSEvent) {
-    // 检查是否按下了 Control 键
-    // 你可以改成 .command, .option, .shift 等
-    if event.modifierFlags.contains(.control) {
+    guard let settings = appSettings else {
+      // 如果没有设置对象，使用默认行为
+      super.scrollWheel(with: event)
+      return
+    }
+
+    // 检查是否按下了缩放修饰键
+    if settings.isModifierKeyPressed(event.modifierFlags, for: settings.zoomModifierKey) {
       guard let currentScale = coordinator?.parent.scale,
         let currentOffset = coordinator?.parent.offset
       else {
@@ -109,9 +125,9 @@ class CustomZoomableView<Content: View>: NSView {
       }
 
       // --- 核心缩放逻辑 ---
-      let zoomSensitivity: CGFloat = 0.1
-      let minScale: CGFloat = 0.5
-      let maxScale: CGFloat = 10.0
+      let zoomSensitivity: CGFloat = settings.zoomSensitivity
+      let minScale: CGFloat = settings.minZoomScale
+      let maxScale: CGFloat = settings.maxZoomScale
 
       let delta = event.scrollingDeltaY
       var newScale = currentScale + delta * zoomSensitivity
@@ -136,7 +152,7 @@ class CustomZoomableView<Content: View>: NSView {
 
       coordinator?.handleScroll(scale: newScale, offset: newOffset)
 
-    } else if event.modifierFlags.isEmpty {
+    } else if settings.isModifierKeyPressed(event.modifierFlags, for: settings.panModifierKey) {
       guard let currentScale = coordinator?.parent.scale,
         let currentOffset = coordinator?.parent.offset
       else { return }
