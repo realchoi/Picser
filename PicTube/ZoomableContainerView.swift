@@ -14,14 +14,19 @@ struct ZoomableContainerView<Content: View>: NSViewRepresentable {
   @Binding var scale: CGFloat
   @Binding var offset: CGSize
   let content: Content  // 要被包裹和缩放的 SwiftUI 视图
+  let originalImageSize: CGSize  // 图片的原始尺寸
 
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
 
   // 添加 @ViewBuilder 初始化器
-  init(scale: Binding<CGFloat>, offset: Binding<CGSize>, @ViewBuilder content: () -> Content) {
+  init(
+    scale: Binding<CGFloat>, offset: Binding<CGSize>, originalImageSize: CGSize,
+    @ViewBuilder content: () -> Content
+  ) {
     self._scale = scale
     self._offset = offset
+    self.originalImageSize = originalImageSize
     self.content = content()
   }
 
@@ -34,6 +39,8 @@ struct ZoomableContainerView<Content: View>: NSViewRepresentable {
     view.coordinator = context.coordinator
     // 传递设置对象到 NSView
     view.appSettings = appSettings
+    // 传递图片原始尺寸到 NSView
+    view.originalImageSize = originalImageSize
 
     // 创建一个 NSHostingView 来承载我们的 SwiftUI content
     let hostingView = NSHostingView(rootView: content)
@@ -70,6 +77,8 @@ struct ZoomableContainerView<Content: View>: NSViewRepresentable {
 
     // 更新设置对象引用
     nsView.appSettings = appSettings
+    // 更新图片原始尺寸
+    nsView.originalImageSize = originalImageSize
   }
 
   func makeCoordinator() -> Coordinator {
@@ -104,6 +113,8 @@ class CustomZoomableView<Content: View>: NSView {
   weak var hostingView: NSHostingView<Content>?
   // 设置对象引用
   var appSettings: AppSettings?
+  // 图片原始尺寸
+  var originalImageSize: CGSize = .zero
 
   // 拖动状态管理
   private var isDragging = false
@@ -112,6 +123,92 @@ class CustomZoomableView<Content: View>: NSView {
 
   // 我们需要重写这个方法来告诉系统我们的 view 可以成为第一响应者，从而接收键盘和鼠标事件
   override var acceptsFirstResponder: Bool { true }
+
+  // MARK: - 辅助方法
+
+  // 获取当前图片的实际尺寸
+  private func getImageSize() -> CGSize? {
+    guard let hostingView = hostingView else { return nil }
+
+    // 获取 hostingView 的内在内容尺寸
+    let intrinsicSize = hostingView.intrinsicContentSize
+
+    // 如果内在尺寸无效，尝试获取 fittingSize
+    if intrinsicSize.width == NSView.noIntrinsicMetric
+      || intrinsicSize.height == NSView.noIntrinsicMetric
+    {
+      return hostingView.fittingSize
+    }
+
+    return intrinsicSize
+  }
+
+  // 判断是否应该启用拖动功能
+  private func shouldEnablePanning() -> Bool {
+    guard let currentScale = coordinator?.parent.scale else {
+      return false
+    }
+
+    // 计算图片在 aspectRatio(.fit) 模式下的实际渲染尺寸
+    let fittedImageSize = calculateFittedImageSize()
+
+    // 如果计算失败，返回 false
+    guard fittedImageSize.width > 0 && fittedImageSize.height > 0 else {
+      return false
+    }
+
+    // 计算图片在当前缩放下的最终显示尺寸
+    let scaledImageSize = CGSize(
+      width: fittedImageSize.width * currentScale,
+      height: fittedImageSize.height * currentScale
+    )
+
+    // 获取容器尺寸
+    let containerSize = self.bounds.size
+
+    // 如果图片任一维度超出容器，则启用拖动
+    return scaledImageSize.width > containerSize.width
+      || scaledImageSize.height > containerSize.height
+  }
+
+  // 获取容器中心点坐标
+  private func getContainerCenter() -> CGPoint {
+    let containerSize = self.bounds.size
+    return CGPoint(
+      x: containerSize.width / 2,
+      y: containerSize.height / 2
+    )
+  }
+
+  // 计算 aspectRatio(.fit) 模式下的实际渲染尺寸
+  private func calculateFittedImageSize() -> CGSize {
+    let containerSize = self.bounds.size
+
+    // 如果容器尺寸为零或图片尺寸为零，返回零尺寸
+    guard
+      containerSize.width > 0 && containerSize.height > 0 && originalImageSize.width > 0
+        && originalImageSize.height > 0
+    else {
+      return .zero
+    }
+
+    // 计算图片和容器的宽高比
+    let imageAspectRatio = originalImageSize.width / originalImageSize.height
+    let containerAspectRatio = containerSize.width / containerSize.height
+
+    // 根据 aspectRatio(.fit) 的逻辑计算适配后的尺寸
+    if imageAspectRatio > containerAspectRatio {
+      // 图片更宽，以容器宽度为准
+      let fittedWidth = containerSize.width
+      let fittedHeight = fittedWidth / imageAspectRatio
+      return CGSize(width: fittedWidth, height: fittedHeight)
+    } else {
+      // 图片更高，以容器高度为准
+      let fittedHeight = containerSize.height
+      let fittedWidth = fittedHeight * imageAspectRatio
+      return CGSize(width: fittedWidth, height: fittedHeight)
+    }
+  }
 
   // 当滚轮事件发生时，这个方法会被系统调用
   override func scrollWheel(with event: NSEvent) {
@@ -141,21 +238,16 @@ class CustomZoomableView<Content: View>: NSView {
       var newScale = currentScale + delta * zoomSensitivity
       newScale = max(minScale, min(newScale, maxScale))
 
-      let mouseLocation = self.convert(event.locationInWindow, from: nil)
+      // 使用容器中心作为缩放点，而不是鼠标位置
+      let containerCenter = getContainerCenter()
 
-      let pointInContent = CGPoint(
-        x: (mouseLocation.x - currentOffset.width) / currentScale,
-        y: (mouseLocation.y - currentOffset.height) / currentScale
-      )
+      // 计算缩放比例变化
+      let scaleRatio = newScale / currentScale
 
-      let newPointInScaledContent = CGPoint(
-        x: pointInContent.x * newScale,
-        y: pointInContent.y * newScale
-      )
-
+      // 计算新的偏移量，确保图片相对于容器中心进行缩放
       let newOffset = CGSize(
-        width: mouseLocation.x - newPointInScaledContent.x,
-        height: mouseLocation.y - newPointInScaledContent.y
+        width: containerCenter.x + (currentOffset.width - containerCenter.x) * scaleRatio,
+        height: containerCenter.y + (currentOffset.height - containerCenter.y) * scaleRatio
       )
 
       coordinator?.handleScroll(scale: newScale, offset: newOffset)
@@ -178,9 +270,12 @@ class CustomZoomableView<Content: View>: NSView {
       return
     }
 
-    // 检查修饰键状态，决定是否开始拖动
-    let shouldStartDrag = settings.isModifierKeyPressed(
+    // 检查修饰键状态和图片尺寸，决定是否开始拖动
+    let modifierKeyPressed = settings.isModifierKeyPressed(
       event.modifierFlags, for: settings.panModifierKey)
+
+    // 智能拖动启用：当图片超出容器时自动启用，或者按下修饰键时强制启用
+    let shouldStartDrag = shouldEnablePanning() || modifierKeyPressed
 
     if shouldStartDrag {
       // 初始化拖动状态
@@ -198,6 +293,7 @@ class CustomZoomableView<Content: View>: NSView {
 
   // 鼠标拖动事件处理
   override func mouseDragged(with event: NSEvent) {
+    // 确保拖动状态已启用
     guard isDragging else {
       super.mouseDragged(with: event)
       return

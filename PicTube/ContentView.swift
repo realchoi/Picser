@@ -14,28 +14,16 @@ struct ContentView: View {
   // 当这个变量改变时，SwiftUI 会自动刷新相关的视图
   @State private var imageURLs: [URL] = []  // 文件夹中所有图片的 URL 列表
   @State private var selectedImageURL: URL?  // 当前选中的图片 URL
-  @State private var scale: CGFloat = 1.0  // 新增：缩放比例
-  @State private var offset: CGSize = .zero  // 新增：拖动偏移量
 
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
 
-  // 这个自定义 Binding 是实现切换逻辑的核心之一。
-  // 当 List 的 selection 变化时，它会：
-  // 1. 更新 selectedImageURL。
-  // 2. 根据设置决定是否重置 scale 和 offset。
+  // 简化的图片选择绑定，原生 NSScrollView 会自动处理缩放重置
   private var imageSelection: Binding<URL?> {
     Binding {
       selectedImageURL
     } set: { newURL in
       selectedImageURL = newURL
-      // 根据设置决定是否重置状态
-      if appSettings.resetZoomOnImageChange {
-        scale = appSettings.defaultZoomScale
-      }
-      if appSettings.resetPanOnImageChange {
-        offset = .zero
-      }
     }
   }
 
@@ -76,18 +64,10 @@ struct ContentView: View {
       // 详情视图依赖于 `selectedImageURL`
       // 当 `selectedImageURL` 改变时，这里会自动刷新
       if let url = selectedImageURL, let nsImage = NSImage(contentsOf: url) {
-        // 使用 ZoomableContainerView 包裹 Image
-        ZoomableContainerView(scale: $scale, offset: $offset) {
-          Image(nsImage: nsImage)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-          // 注意：scaleEffect 和 offset 修改器现在由 NSView 的 transform 控制，
-          // 所以我们不需要在 SwiftUI 视图上再次添加它们。
-        }
-        .id(selectedImageURL)  // 关键：强制视图在图片变化时重建
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))  // 添加背景色以便观察
-        .clipped()  // 裁剪超出边界的内容
+        // 使用原生的 NativeZoomableImageView
+        NativeZoomableImageView(image: nsImage)
+          .id(selectedImageURL)  // 关键：强制视图在图片变化时重建
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
         Text("请在左侧选择一张图片")
           .font(.title)
@@ -131,14 +111,8 @@ struct ContentView: View {
         imageExtensions.contains(url.pathExtension.lowercased())
       }.sorted(by: { $0.lastPathComponent < $1.lastPathComponent })  // 按文件名排序
 
-      // 默认选中第一张图片，并根据设置初始化缩放和偏移
+      // 默认选中第一张图片
       self.selectedImageURL = self.imageURLs.first
-      if appSettings.resetZoomOnImageChange {
-        self.scale = appSettings.defaultZoomScale
-      }
-      if appSettings.resetPanOnImageChange {
-        self.offset = .zero
-      }
       print(
         "加载了 \(self.imageURLs.count) 张图片，默认选中: \(self.imageURLs.first?.lastPathComponent ?? "nil")")
     } catch {
