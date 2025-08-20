@@ -36,6 +36,11 @@ class ZoomableScrollView: NSScrollView {
   private let centeringClipView = CenteringClipView()
   private let imageView = NSImageView()
 
+  // --- 新增：拖动状态管理 ---
+  private var isPanning = false
+  private var panStartPoint: NSPoint = .zero
+  // -------------------------
+
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     commonInit()
@@ -64,6 +69,16 @@ class ZoomableScrollView: NSScrollView {
     allowsMagnification = true
     minMagnification = 0.1
     maxMagnification = 10.0
+
+    // --- 新增：添加追踪区域以接收鼠标进入/退出事件 ---
+    let trackingArea = NSTrackingArea(
+      rect: bounds,
+      options: [.mouseEnteredAndExited, .activeInKeyWindow],
+      owner: self,
+      userInfo: nil
+    )
+    addTrackingArea(trackingArea)
+    // -----------------------------------------
   }
 
   /// 统一的入口方法：设置或更新显示的图片，并重置视图状态
@@ -124,26 +139,72 @@ class ZoomableScrollView: NSScrollView {
     }
   }
 
-  // --- 已完善的拖动逻辑 ---
+  // MARK: - 拖动功能核心实现
+
+  // --- 已重写：处理鼠标按下事件 ---
   override func mouseDown(with event: NSEvent) {
     guard let settings = appSettings, let documentView = self.documentView else {
       super.mouseDown(with: event)
       return
     }
 
-    // 首要条件：内容是否大于预览区？
     let contentIsLargerThanBounds =
       documentView.frame.width > bounds.width || documentView.frame.height > bounds.height
 
-    // 只有在内容大于预览区时，才检查拖动快捷键
-    if contentIsLargerThanBounds {
-      // isModifierKeyPressed 会正确处理 .none 的情况（要求没有修饰键按下）
-      // 和其他修饰键（要求对应修饰键被按下）
-      if settings.isModifierKeyPressed(event.modifierFlags, for: settings.panModifierKey) {
-        // 条件满足，允许拖动
-        super.mouseDown(with: event)
-      }
+    if contentIsLargerThanBounds
+      && settings.isModifierKeyPressed(event.modifierFlags, for: settings.panModifierKey)
+    {
+      // 条件满足，开始拖动
+      isPanning = true
+      panStartPoint = event.locationInWindow
+      NSCursor.closedHand.set()  // 设置为“抓紧”光标
+    } else {
+      super.mouseDown(with: event)
     }
+  }
+
+  // --- 新增：处理鼠标拖动事件 ---
+  override func mouseDragged(with event: NSEvent) {
+    if isPanning {
+      let currentPoint = event.locationInWindow
+      let deltaX = currentPoint.x - panStartPoint.x
+      let deltaY = currentPoint.y - panStartPoint.y
+
+      var newOrigin = contentView.bounds.origin
+      newOrigin.x -= deltaX
+      newOrigin.y -= deltaY  // AppKit 坐标系 Y 轴向上
+
+      contentView.scroll(to: newOrigin)
+
+      // 更新起点以便下次计算
+      panStartPoint = currentPoint
+    } else {
+      super.mouseDragged(with: event)
+    }
+  }
+
+  // --- 新增：处理鼠标释放事件 ---
+  override func mouseUp(with event: NSEvent) {
+    if isPanning {
+      isPanning = false
+      NSCursor.openHand.set()  // 恢复为“可抓”光标
+    } else {
+      super.mouseUp(with: event)
+    }
+  }
+
+  // --- 新增：处理鼠标进入和退出视图区域的事件 ---
+  override func mouseEntered(with event: NSEvent) {
+    guard let documentView = self.documentView else { return }
+    let contentIsLargerThanBounds =
+      documentView.frame.width > bounds.width || documentView.frame.height > bounds.height
+    if contentIsLargerThanBounds {
+      NSCursor.openHand.set()  // 设置为“可抓”光标
+    }
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    NSCursor.arrow.set()  // 恢复为箭头光标
   }
 }
 
