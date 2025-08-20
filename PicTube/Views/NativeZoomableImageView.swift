@@ -2,7 +2,7 @@
 //  NativeZoomableImageView.swift
 //  PicTube
 //
-//  Created by AI on 2025/8/20.
+//  Created by Eric Cai on 2025/8/20.
 //
 
 import AppKit
@@ -140,25 +140,30 @@ class CustomScrollView: NSScrollView {
 
     let currentSize = bounds.size
 
-    // 检查是否需要重新布局：首次布局或容器尺寸发生变化
-    let shouldLayout =
-      !hasPerformedInitialLayout
-      || (currentSize.width > 0 && currentSize.height > 0
-        && (abs(currentSize.width - lastContainerSize.width) > 1
-          || abs(currentSize.height - lastContainerSize.height) > 1))
+    // 检查容器尺寸是否发生了变化，或者是否是首次布局
+    let isFirstLayout = !hasPerformedInitialLayout
+    let sizeChanged =
+      abs(currentSize.width - lastContainerSize.width) > 1
+      || abs(currentSize.height - lastContainerSize.height) > 1
 
-    if shouldLayout, let imageView = documentView as? NSImageView {
-      let isFirstLayout = !hasPerformedInitialLayout
+    if isFirstLayout || sizeChanged {
+      // --- 问题修复开始 ---
+
+      // 修复问题2: 当窗口大小变化时，重置缩放比例。
+      // 这会使图片以原始的 "fit" 模式重新适应并填充新的预览区。
+      self.magnification = 1.0
+
+      if let imageView = documentView as? NSImageView {
+        // 重新设置 imageView 的 frame 等同于预览区的大小。
+        // 结合 NSImageView 的 .alignCenter 属性，可以确保图片内容始终居中。
+        // 这个操作同时解决了问题1，因为当缩放比例重置为1.0时，图片会自然居中。
+        imageView.frame = bounds
+      }
+
+      // 更新布局状态
       hasPerformedInitialLayout = true
       lastContainerSize = currentSize
-
-      // 设置 imageView 的 frame 为容器尺寸，让 NSImageView 内部处理图片的居中和缩放
-      imageView.frame = bounds
-
-      // 只在首次布局时重置缩放比例，窗口尺寸变化时保持用户的缩放状态
-      if isFirstLayout {
-        magnification = 1.0
-      }
+      // --- 问题修复结束 ---
     }
   }
 
