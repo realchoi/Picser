@@ -52,10 +52,11 @@ class ZoomableScrollView: NSScrollView {
     documentView = imageView
     imageView.translatesAutoresizingMaskIntoConstraints = true
 
-    // --- 关键修复：移除滚动条 ---
-    hasVerticalScroller = false
-    hasHorizontalScroller = false
-    // --------------------------
+    // --- 关键修复：恢复滚动条机制，但使其自动隐藏 ---
+    hasVerticalScroller = true
+    hasHorizontalScroller = true
+    scrollerStyle = .overlay  // 滚动条只在滚动时浮现，平时隐藏
+    // ------------------------------------------
 
     // --- 标准配置 ---
     drawsBackground = true
@@ -118,8 +119,30 @@ class ZoomableScrollView: NSScrollView {
 
       setMagnification(newMagnification, centeredAt: pointInDoc)
     } else {
-      // 注意：当没有滚动条时，super.scrollWheel 将不会产生滚动效果
+      // 当没有按下修饰键时，允许正常的滚轮滚动
       super.scrollWheel(with: event)
+    }
+  }
+
+  // --- 已完善的拖动逻辑 ---
+  override func mouseDown(with event: NSEvent) {
+    guard let settings = appSettings, let documentView = self.documentView else {
+      super.mouseDown(with: event)
+      return
+    }
+
+    // 首要条件：内容是否大于预览区？
+    let contentIsLargerThanBounds =
+      documentView.frame.width > bounds.width || documentView.frame.height > bounds.height
+
+    // 只有在内容大于预览区时，才检查拖动快捷键
+    if contentIsLargerThanBounds {
+      // isModifierKeyPressed 会正确处理 .none 的情况（要求没有修饰键按下）
+      // 和其他修饰键（要求对应修饰键被按下）
+      if settings.isModifierKeyPressed(event.modifierFlags, for: settings.panModifierKey) {
+        // 条件满足，允许拖动
+        super.mouseDown(with: event)
+      }
     }
   }
 }
