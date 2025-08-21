@@ -8,72 +8,25 @@
 import Foundation
 import SwiftUI
 
-// 定义修饰键枚举
-enum ModifierKey: String, CaseIterable, Identifiable {
-  case none = "none"
-  case command = "command"
-  case option = "option"
-  case control = "control"
-  case shift = "shift"
-
-  var id: String { rawValue }
-
-  // 显示名称
-  var displayName: String {
-    switch self {
-    case .none:
-      return NSLocalizedString("modifier_none", comment: "None modifier key")
-    case .command:
-      return NSLocalizedString("modifier_command", comment: "Command modifier key")
-    case .option:
-      return NSLocalizedString("modifier_option", comment: "Option modifier key")
-    case .control:
-      return NSLocalizedString("modifier_control", comment: "Control modifier key")
-    case .shift:
-      return NSLocalizedString("modifier_shift", comment: "Shift modifier key")
-    }
-  }
-
-  // 转换为 NSEvent.ModifierFlags
-  var nsEventModifierFlags: NSEvent.ModifierFlags {
-    switch self {
-    case .none:
-      return []
-    case .command:
-      return .command
-    case .option:
-      return .option
-    case .control:
-      return .control
-    case .shift:
-      return .shift
-    }
-  }
-
-  // 返回用户可选择的修饰键选项
-  static func availableKeys() -> [ModifierKey] {
-    return [.none, .control, .command, .option]
-  }
-}
-
-// 应用设置管理器
+/// 应用设置管理器
 class AppSettings: ObservableObject {
 
   // MARK: - 快捷键设置
 
+  /// 缩放快捷键（UserDefaults 存储）
   @AppStorage("zoomModifierKey") private var zoomModifierKeyStorage: String = ModifierKey.control
     .rawValue
+  /// 拖拽快捷键（UserDefaults 存储）
   @AppStorage("panModifierKey") private var panModifierKeyStorage: String = ModifierKey.none
     .rawValue
 
-  // 缩放快捷键
+  /// 缩放快捷键（UI 显示）
   @Published var zoomModifierKey: ModifierKey = .control {
     didSet {
       zoomModifierKeyStorage = zoomModifierKey.rawValue
     }
   }
-
-  // 拖拽快捷键
+  /// 拖拽快捷键（UI 显示）
   @Published var panModifierKey: ModifierKey = .none {
     didSet {
       panModifierKeyStorage = panModifierKey.rawValue
@@ -82,27 +35,33 @@ class AppSettings: ObservableObject {
 
   // MARK: - 显示设置
 
+  /// 默认缩放比例（UserDefaults 存储）
   @AppStorage("defaultZoomScale") var defaultZoomScale: Double = 1.0
+  /// 缩放灵敏度（UserDefaults 存储）
   @AppStorage("zoomSensitivity") var zoomSensitivity: Double = 0.1
+  /// 最小缩放比例（UserDefaults 存储）
   @AppStorage("minZoomScale") var minZoomScale: Double = 0.5
+  /// 最大缩放比例（UserDefaults 存储）
   @AppStorage("maxZoomScale") var maxZoomScale: Double = 10.0
 
   // MARK: - 行为设置
 
+  /// 图片切换时是否重置缩放（UserDefaults 存储）
   @AppStorage("resetZoomOnImageChange") var resetZoomOnImageChange: Bool = true
+  /// 图片切换时是否重置拖拽（UserDefaults 存储）
   @AppStorage("resetPanOnImageChange") var resetPanOnImageChange: Bool = true
 
   // MARK: - 初始化
 
   init() {
-    // 从 UserDefaults 加载保存的值
+    // 从 UserDefaults 加载保存的修饰键值
     self.zoomModifierKey = ModifierKey(rawValue: zoomModifierKeyStorage) ?? .control
     self.panModifierKey = ModifierKey(rawValue: panModifierKeyStorage) ?? .none
   }
 
   // MARK: - 公共方法
 
-  // 重置所有设置到默认值
+  /// 重置所有设置到默认值
   func resetToDefaults() {
     zoomModifierKey = .control
     panModifierKey = .none
@@ -114,7 +73,7 @@ class AppSettings: ObservableObject {
     resetPanOnImageChange = true
   }
 
-  // 验证设置的有效性
+  /// 验证设置的有效性
   func validateSettings() -> [String] {
     var errors: [String] = []
 
@@ -137,7 +96,7 @@ class AppSettings: ObservableObject {
     return errors
   }
 
-  // 检查快捷键是否匹配指定的修饰键
+  /// 检查快捷键是否匹配指定的修饰键
   func isModifierKeyPressed(_ modifierFlags: NSEvent.ModifierFlags, for keyType: ModifierKey)
     -> Bool
   {
@@ -150,5 +109,53 @@ class AppSettings: ObservableObject {
       // 检查是否按下了指定的修饰键
       return modifierFlags.contains(targetFlags)
     }
+  }
+}
+
+/// 定义修饰键枚举，用于快捷键设置
+enum ModifierKey: String, CaseIterable, Identifiable {
+  case none = "none"
+  case command = "command"
+  case option = "option"
+  case control = "control"
+  case shift = "shift"
+
+  var id: String { rawValue }
+
+  /// 修饰键显示名称
+  var displayName: String {
+    switch self {
+    case .none:
+      return NSLocalizedString("modifier_none", comment: "无修饰键")
+    case .command:
+      return NSLocalizedString("modifier_command", comment: "Command(⌘)")
+    case .option:
+      return NSLocalizedString("modifier_option", comment: "Option(⌥)")
+    case .control:
+      return NSLocalizedString("modifier_control", comment: "Control(⌃)")
+    case .shift:
+      return NSLocalizedString("modifier_shift", comment: "Shift(⇧)")
+    }
+  }
+
+  /// 转换为 NSEvent.ModifierFlags
+  var nsEventModifierFlags: NSEvent.ModifierFlags {
+    switch self {
+    case .none:
+      return []
+    case .command:
+      return .command
+    case .option:
+      return .option
+    case .control:
+      return .control
+    case .shift:
+      return .shift
+    }
+  }
+
+  /// 返回用户可选择的修饰键选项
+  static func availableKeys() -> [ModifierKey] {
+    return [.none, .control, .command, .option]
   }
 }
