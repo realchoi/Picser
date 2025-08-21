@@ -64,8 +64,8 @@ struct ContentView: View {
       // 详情视图依赖于 `selectedImageURL`
       // 当 `selectedImageURL` 改变时，这里会自动刷新
       if let url = selectedImageURL, let nsImage = NSImage(contentsOf: url) {
-        // 使用原生的 NativeZoomableImageView
-        NativeZoomableImageView(image: nsImage)
+        // 使用原生的 ZoomableContainerView
+        ZoomableContainerView(image: nsImage)
           .id(selectedImageURL)  // 关键：强制视图在图片变化时重建
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
