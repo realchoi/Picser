@@ -54,7 +54,7 @@ struct ZoomableImageView: View {
           .overlay(
             ScrollWheelHandler { deltaY in
               // 检查是否应该响应滚轮缩放（修饰键检测）
-              guard shouldRespondToGesture() else { return }
+              guard shouldRespondToZoomGesture() else { return }
 
               // 处理滚轮缩放
               let zoomFactor = 1.0 + (deltaY * appSettings.zoomSensitivity)
@@ -71,12 +71,16 @@ struct ZoomableImageView: View {
             // 拖拽手势
             DragGesture()
               .onChanged { value in
+                // 检查是否应该响应拖拽（修饰键检测）
+                guard shouldRespondToPanGesture() else { return }
                 offset = CGSize(
                   width: lastOffset.width + value.translation.width,
                   height: lastOffset.height + value.translation.height
                 )
               }
               .onEnded { value in
+                // 检查是否应该响应拖拽（修饰键检测）
+                guard shouldRespondToPanGesture() else { return }
                 lastOffset = offset
               }
           )
@@ -117,8 +121,8 @@ struct ZoomableImageView: View {
 
   // MARK: - 私有方法
 
-  /// 检查是否应该响应手势（修饰键检测）
-  private func shouldRespondToGesture() -> Bool {
+  /// 检查是否应该响应缩放手势（修饰键检测）
+  private func shouldRespondToZoomGesture() -> Bool {
     // 如果修饰键设置为none，始终允许手势
     if appSettings.zoomModifierKey == .none {
       return true
@@ -127,6 +131,18 @@ struct ZoomableImageView: View {
     // 否则检查是否按下了指定的修饰键
     guard let event = NSApplication.shared.currentEvent else { return false }
     return appSettings.isModifierKeyPressed(event.modifierFlags, for: appSettings.zoomModifierKey)
+  }
+
+  /// 检查是否应该响应拖拽手势（修饰键检测）
+  private func shouldRespondToPanGesture() -> Bool {
+    // 如果修饰键设置为none，始终允许拖拽
+    if appSettings.panModifierKey == .none {
+      return true
+    }
+
+    // 否则检查是否按下了指定的修饰键
+    guard let event = NSApplication.shared.currentEvent else { return false }
+    return appSettings.isModifierKeyPressed(event.modifierFlags, for: appSettings.panModifierKey)
   }
 
   /// 设置初始状态
