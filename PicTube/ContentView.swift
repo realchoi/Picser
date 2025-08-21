@@ -64,10 +64,10 @@ struct ContentView: View {
       // 详情视图依赖于 `selectedImageURL`
       // 当 `selectedImageURL` 改变时，这里会自动刷新
       if let url = selectedImageURL, let nsImage = NSImage(contentsOf: url) {
-        // 使用原生的 ZoomableContainerView
-        ZoomableContainerView(image: nsImage)
+        // 使用新的纯SwiftUI实现的ZoomableImageView
+        ZoomableImageView(image: nsImage)
           .id(selectedImageURL)  // 关键：强制视图在图片变化时重建
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .frame(maxWidth: CGFloat.infinity, maxHeight: CGFloat.infinity)
       } else {
         Text("请在左侧选择一张图片")
           .font(.title)
