@@ -53,6 +53,9 @@ struct ZoomableImageView: View {
           // 使用overlay添加滚轮处理
           .overlay(
             ScrollWheelHandler { deltaY in
+              // 检查是否应该响应滚轮缩放（修饰键检测）
+              guard shouldRespondToGesture() else { return }
+
               // 处理滚轮缩放
               let zoomFactor = 1.0 + (deltaY * appSettings.zoomSensitivity)
               let newScale = scale * zoomFactor
