@@ -12,34 +12,43 @@ struct SettingsView: View {
   @State private var validationErrors: [String] = []
 
   var body: some View {
-    TabView {
-      // 快捷键设置页面
-      KeyboardSettingsView(appSettings: appSettings)
-        .tabItem {
-          Label(
-            NSLocalizedString("keyboard_tab", comment: "Keyboard tab title"),
-            systemImage: "keyboard")
-        }
+    VStack(spacing: 0) {
+      TabView {
+        // 快捷键设置页面
+        KeyboardSettingsView(appSettings: appSettings)
+          .tabItem {
+            Label(
+              NSLocalizedString("keyboard_tab", comment: "Keyboard tab title"),
+              systemImage: "keyboard")
+          }
 
-      // 显示设置页面
-      DisplaySettingsView(appSettings: appSettings)
-        .tabItem {
-          Label(
-            NSLocalizedString("display_tab", comment: "Display tab title"), systemImage: "display")
-        }
+        // 显示设置页面
+        DisplaySettingsView(appSettings: appSettings)
+          .tabItem {
+            Label(
+              NSLocalizedString("display_tab", comment: "Display tab title"), systemImage: "display"
+            )
+          }
+      }
 
-      // 行为设置页面
-      BehaviorSettingsView(appSettings: appSettings)
-        .tabItem {
-          Label(
-            NSLocalizedString("behavior_tab", comment: "Behavior tab title"),
-            systemImage: "gearshape")
+      if !validationErrors.isEmpty {
+        Divider()
+        VStack(alignment: .leading, spacing: 6) {
+          ForEach(validationErrors, id: \.self) { err in
+            HStack(spacing: 8) {
+              Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.yellow)
+              Text(err)
+                .font(.footnote)
+                .foregroundColor(.secondary)
+            }
+          }
         }
+        .padding(12)
+      }
     }
     .frame(width: 500, height: 400)
-    .onAppear {
-      validateSettings()
-    }
+    .onAppear { validateSettings() }
     .onChange(of: appSettings.zoomSensitivity) { validateSettings() }
     .onChange(of: appSettings.minZoomScale) { validateSettings() }
     .onChange(of: appSettings.maxZoomScale) { validateSettings() }
@@ -93,8 +102,7 @@ struct KeyboardSettingsView: View {
         Spacer()
         Button(NSLocalizedString("reset_defaults_button", comment: "Reset defaults button")) {
           withAnimation {
-            appSettings.zoomModifierKey = .none
-            appSettings.panModifierKey = .none
+            appSettings.resetToDefaults()
           }
         }
         .buttonStyle(.bordered)
@@ -172,9 +180,7 @@ struct DisplaySettingsView: View {
         Spacer()
         Button(NSLocalizedString("reset_defaults_button", comment: "Reset defaults button")) {
           withAnimation {
-            appSettings.zoomSensitivity = 0.01
-            appSettings.minZoomScale = 0.5
-            appSettings.maxZoomScale = 10.0
+            appSettings.resetToDefaults()
           }
         }
         .buttonStyle(.bordered)
@@ -182,70 +188,6 @@ struct DisplaySettingsView: View {
     }
     .padding()
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-  }
-}
-
-// 行为设置页面
-struct BehaviorSettingsView: View {
-  @ObservedObject var appSettings: AppSettings
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 20) {
-      Text(NSLocalizedString("behavior_settings_title", comment: "Behavior settings title"))
-        .font(.title2)
-        .fontWeight(.semibold)
-
-      Divider()
-
-      // 图片切换行为
-      VStack(alignment: .leading, spacing: 16) {
-        Text(NSLocalizedString("image_change_behavior", comment: "Image change behavior"))
-          .fontWeight(.medium)
-
-        Toggle(
-          NSLocalizedString("reset_zoom_on_change", comment: "Reset zoom on change"),
-          isOn: $appSettings.resetZoomOnImageChange
-        )
-        .toggleStyle(CheckboxToggleStyle())
-
-        Toggle(
-          NSLocalizedString("reset_pan_on_change", comment: "Reset pan on change"),
-          isOn: $appSettings.resetPanOnImageChange
-        )
-        .toggleStyle(CheckboxToggleStyle())
-      }
-
-      Spacer()
-
-      // 重置按钮
-      HStack {
-        Spacer()
-        Button(NSLocalizedString("reset_defaults_button", comment: "Reset defaults button")) {
-          withAnimation {
-            appSettings.resetZoomOnImageChange = true
-            appSettings.resetPanOnImageChange = true
-          }
-        }
-        .buttonStyle(.bordered)
-      }
-    }
-    .padding()
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-  }
-}
-
-// 自定义复选框样式
-struct CheckboxToggleStyle: ToggleStyle {
-  func makeBody(configuration: Configuration) -> some View {
-    HStack {
-      Image(systemName: configuration.isOn ? "checkmark.square" : "square")
-        .foregroundColor(configuration.isOn ? .accentColor : .secondary)
-        .onTapGesture {
-          configuration.isOn.toggle()
-        }
-
-      configuration.label
-    }
   }
 }
 

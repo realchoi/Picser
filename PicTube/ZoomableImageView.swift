@@ -5,6 +5,7 @@
 //  Created by Eric Cai on 2025/8/21.
 //
 
+import AppKit
 import SwiftUI
 
 /// 纯SwiftUI实现的缩放图片视图
@@ -120,7 +121,7 @@ struct ZoomableImageView: View {
         setupInitialState(geometry: geometry)
       }
       .onChange(of: image) { _, _ in
-        // 图片变化时总是重新适应视图
+        // 图片变化时按设置决定是否重置缩放
         DispatchQueue.main.async {
           fitImageToView(geometry: geometry)
         }
@@ -136,9 +137,7 @@ struct ZoomableImageView: View {
     }
     .onChange(of: image) { _, _ in
       // 图片变化时重置拖拽状态（缩放重置在GeometryReader内部处理）
-      if appSettings.resetPanOnImageChange {
-        resetPan()
-      }
+      resetPan()
     }
     .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResizeNotification)) { _ in
       // 窗口大小变化时重新适应 - 需要在GeometryReader内部处理

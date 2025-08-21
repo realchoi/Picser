@@ -5,6 +5,7 @@
 //  Created by Eric Cai on 2025/8/19.
 //
 
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -36,18 +37,28 @@ class AppSettings: ObservableObject {
   // MARK: - 显示设置
 
   /// 缩放灵敏度（UserDefaults 存储）
-  @AppStorage("zoomSensitivity") var zoomSensitivity: Double = 0.01
+  @AppStorage("zoomSensitivity") var zoomSensitivity: Double = 0.05 {
+    didSet {
+      // 约束到有效范围 0.01...0.1
+      if zoomSensitivity < 0.01 { zoomSensitivity = 0.01 }
+      if zoomSensitivity > 0.1 { zoomSensitivity = 0.1 }
+    }
+  }
   /// 最小缩放比例（UserDefaults 存储）
-  @AppStorage("minZoomScale") var minZoomScale: Double = 0.5
+  @AppStorage("minZoomScale") var minZoomScale: Double = 0.1 {
+    didSet {
+      // 合理边界，并保持小于最大值
+      if minZoomScale <= 0 { minZoomScale = 0.1 }
+      if minZoomScale >= maxZoomScale { minZoomScale = max(0.1, maxZoomScale - 0.1) }
+    }
+  }
   /// 最大缩放比例（UserDefaults 存储）
-  @AppStorage("maxZoomScale") var maxZoomScale: Double = 10.0
-
-  // MARK: - 行为设置
-
-  /// 图片切换时是否重置缩放（UserDefaults 存储）
-  @AppStorage("resetZoomOnImageChange") var resetZoomOnImageChange: Bool = true
-  /// 图片切换时是否重置拖拽（UserDefaults 存储）
-  @AppStorage("resetPanOnImageChange") var resetPanOnImageChange: Bool = true
+  @AppStorage("maxZoomScale") var maxZoomScale: Double = 10.0 {
+    didSet {
+      // 必须大于最小值
+      if maxZoomScale <= minZoomScale { maxZoomScale = minZoomScale + 0.1 }
+    }
+  }
 
   // MARK: - 初始化
 
@@ -91,6 +102,15 @@ class AppSettings: ObservableObject {
       // 检查是否按下了指定的修饰键
       return modifierFlags.contains(targetFlags)
     }
+  }
+
+  /// 重置所有设置为默认值
+  func resetToDefaults() {
+    zoomModifierKey = .none
+    panModifierKey = .none
+    zoomSensitivity = 0.05
+    minZoomScale = 0.1
+    maxZoomScale = 10.0
   }
 }
 
@@ -138,6 +158,6 @@ enum ModifierKey: String, CaseIterable, Identifiable {
 
   /// 返回用户可选择的修饰键选项
   static func availableKeys() -> [ModifierKey] {
-    return [.none, .control, .command, .option]
+    return [.none, .control, .command, .option, .shift]
   }
 }
