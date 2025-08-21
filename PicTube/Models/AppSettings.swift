@@ -14,14 +14,14 @@ class AppSettings: ObservableObject {
   // MARK: - 快捷键设置
 
   /// 缩放快捷键（UserDefaults 存储）
-  @AppStorage("zoomModifierKey") private var zoomModifierKeyStorage: String = ModifierKey.control
+  @AppStorage("zoomModifierKey") private var zoomModifierKeyStorage: String = ModifierKey.none
     .rawValue
   /// 拖拽快捷键（UserDefaults 存储）
   @AppStorage("panModifierKey") private var panModifierKeyStorage: String = ModifierKey.none
     .rawValue
 
   /// 缩放快捷键（UI 显示）
-  @Published var zoomModifierKey: ModifierKey = .control {
+  @Published var zoomModifierKey: ModifierKey = .none {
     didSet {
       zoomModifierKeyStorage = zoomModifierKey.rawValue
     }
@@ -35,10 +35,8 @@ class AppSettings: ObservableObject {
 
   // MARK: - 显示设置
 
-  /// 默认缩放比例（UserDefaults 存储）
-  @AppStorage("defaultZoomScale") var defaultZoomScale: Double = 1.0
   /// 缩放灵敏度（UserDefaults 存储）
-  @AppStorage("zoomSensitivity") var zoomSensitivity: Double = 0.1
+  @AppStorage("zoomSensitivity") var zoomSensitivity: Double = 0.01
   /// 最小缩放比例（UserDefaults 存储）
   @AppStorage("minZoomScale") var minZoomScale: Double = 0.5
   /// 最大缩放比例（UserDefaults 存储）
@@ -55,30 +53,18 @@ class AppSettings: ObservableObject {
 
   init() {
     // 从 UserDefaults 加载保存的修饰键值
-    self.zoomModifierKey = ModifierKey(rawValue: zoomModifierKeyStorage) ?? .control
+    self.zoomModifierKey = ModifierKey(rawValue: zoomModifierKeyStorage) ?? .none
     self.panModifierKey = ModifierKey(rawValue: panModifierKeyStorage) ?? .none
   }
 
   // MARK: - 公共方法
 
-  /// 重置所有设置到默认值
-  func resetToDefaults() {
-    zoomModifierKey = .control
-    panModifierKey = .none
-    defaultZoomScale = 1.0
-    zoomSensitivity = 0.1
-    minZoomScale = 0.5
-    maxZoomScale = 10.0
-    resetZoomOnImageChange = true
-    resetPanOnImageChange = true
-  }
-
   /// 验证设置的有效性
   func validateSettings() -> [String] {
     var errors: [String] = []
 
-    if zoomSensitivity <= 0 || zoomSensitivity > 1.0 {
-      errors.append("缩放灵敏度必须在 0.1 到 1.0 之间")
+    if zoomSensitivity <= 0 || zoomSensitivity > 0.1 {
+      errors.append("缩放灵敏度必须在 0.01 到 0.1 之间")
     }
 
     if minZoomScale <= 0 || minZoomScale >= maxZoomScale {
@@ -87,10 +73,6 @@ class AppSettings: ObservableObject {
 
     if maxZoomScale <= minZoomScale {
       errors.append("最大缩放比例必须大于最小缩放比例")
-    }
-
-    if defaultZoomScale < minZoomScale || defaultZoomScale > maxZoomScale {
-      errors.append("默认缩放比例必须在最小和最大缩放比例之间")
     }
 
     return errors

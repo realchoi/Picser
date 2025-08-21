@@ -43,7 +43,6 @@ struct SettingsView: View {
     .onChange(of: appSettings.zoomSensitivity) { validateSettings() }
     .onChange(of: appSettings.minZoomScale) { validateSettings() }
     .onChange(of: appSettings.maxZoomScale) { validateSettings() }
-    .onChange(of: appSettings.defaultZoomScale) { validateSettings() }
   }
 
   private func validateSettings() {
@@ -94,7 +93,7 @@ struct KeyboardSettingsView: View {
         Spacer()
         Button(NSLocalizedString("reset_defaults_button", comment: "Reset defaults button")) {
           withAnimation {
-            appSettings.zoomModifierKey = .control
+            appSettings.zoomModifierKey = .none
             appSettings.panModifierKey = .none
           }
         }
@@ -123,27 +122,13 @@ struct DisplaySettingsView: View {
         Text(NSLocalizedString("zoom_settings_group", comment: "Zoom settings group"))
           .fontWeight(.medium)
 
-        // 默认缩放比例
-        HStack {
-          Text(NSLocalizedString("default_zoom_scale", comment: "Default zoom scale"))
-            .frame(width: 120, alignment: .leading)
-          Slider(
-            value: $appSettings.defaultZoomScale,
-            in: 0.1...3.0,
-            step: 0.1
-          )
-          Text(String(format: "%.1f", appSettings.defaultZoomScale))
-            .frame(width: 40, alignment: .trailing)
-            .monospaced()
-        }
-
         // 缩放灵敏度
         HStack {
           Text(NSLocalizedString("zoom_sensitivity", comment: "Zoom sensitivity"))
             .frame(width: 120, alignment: .leading)
           Slider(
             value: $appSettings.zoomSensitivity,
-            in: 0.01...0.5,
+            in: 0.01...0.1,
             step: 0.01
           )
           Text(String(format: "%.2f", appSettings.zoomSensitivity))
@@ -185,10 +170,9 @@ struct DisplaySettingsView: View {
       // 重置按钮
       HStack {
         Spacer()
-        Button("重置为默认值") {
+        Button(NSLocalizedString("reset_defaults_button", comment: "Reset defaults button")) {
           withAnimation {
-            appSettings.defaultZoomScale = 1.0
-            appSettings.zoomSensitivity = 0.1
+            appSettings.zoomSensitivity = 0.01
             appSettings.minZoomScale = 0.5
             appSettings.maxZoomScale = 10.0
           }
