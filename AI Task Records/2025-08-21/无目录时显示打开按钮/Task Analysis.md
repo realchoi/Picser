@@ -47,5 +47,12 @@ Implementation Checklist:
     *   Reason: 执行计划步骤 2-4
     *   Blockers: None
     *   User Confirmation Status: Pending
+*   2025-08-21 00:00
+    *   Step: 增强多选能力，支持选择多张图片或混合目录与图片
+    *   Modifications: 更新 `PicTube/ContentView.swift` 中 `openFileOrFolder()`，允许 `allowsMultipleSelection = true`，并收集所选目录与文件中的所有受支持图片，去重排序后载入
+    *   Change Summary: 一次可选择多个图片，左侧展示所有被选图片缩略图
+    *   Reason: 用户提出的新需求
+    *   Blockers: None
+    *   User Confirmation Status: Pending
 # Final Review (Populated by REVIEW mode)
 

@@ -105,20 +105,51 @@ struct ContentView: View {
     let openPanel = NSOpenPanel()
     openPanel.canChooseFiles = true
     openPanel.canChooseDirectories = true
-    openPanel.allowsMultipleSelection = false
+    openPanel.allowsMultipleSelection = true
     openPanel.allowedContentTypes = [UTType.image]
 
     if openPanel.runModal() == .OK {
-      guard let url = openPanel.url else { return }
-      if url.hasDirectoryPath {
-        loadImages(from: url)
-      } else {
-        let imageExtensions = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
-        if imageExtensions.contains(url.pathExtension.lowercased()) {
-          self.imageURLs = [url]
-          self.selectedImageURL = url
+      let urls = openPanel.urls
+      if urls.isEmpty { return }
+
+      let imageExtensions = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
+      var collectedImageURLs: [URL] = []
+
+      for url in urls {
+        if url.hasDirectoryPath {
+          do {
+            let fileURLs = try FileManager.default.contentsOfDirectory(
+              at: url,
+              includingPropertiesForKeys: nil
+            )
+            let imagesInDir = fileURLs.filter { fileURL in
+              imageExtensions.contains(fileURL.pathExtension.lowercased())
+            }
+            collectedImageURLs.append(contentsOf: imagesInDir)
+          } catch {
+            print(
+              "Error while enumerating files in directory: \(url.path) - \(error.localizedDescription)"
+            )
+          }
+        } else {
+          if imageExtensions.contains(url.pathExtension.lowercased()) {
+            collectedImageURLs.append(url)
+          }
         }
       }
+
+      // 去重并排序
+      let uniqueSorted = Array(Set(collectedImageURLs)).sorted {
+        $0.lastPathComponent < $1.lastPathComponent
+      }
+
+      if uniqueSorted.isEmpty {
+        // 没有可用图片，保持现状
+        return
+      }
+
+      self.imageURLs = uniqueSorted
+      self.selectedImageURL = uniqueSorted.first
     }
   }
 
