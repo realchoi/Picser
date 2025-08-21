@@ -44,6 +44,9 @@
 "clear_button" = "清除";
 "reset_defaults_button" = "重置为默认值";
 
+/* File/Folder Open */
+"open_file_or_folder_button" = "打开图片/文件夹";
+
 /* Key Recorder */
 "press_modifier_key" = "按下修饰键...";
 "no_modifier" = "无";

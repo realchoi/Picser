@@ -44,6 +44,9 @@
 "clear_button" = "Clear";
 "reset_defaults_button" = "Reset to Defaults";
 
+/* File/Folder Open */
+"open_file_or_folder_button" = "Open Image/Folder";
+
 /* Key Recorder */
 "press_modifier_key" = "Press a modifier key...";
 "no_modifier" = "None";

@@ -61,9 +61,21 @@ struct ContentView: View {
       }
       .frame(minWidth: 150)  // 给侧边栏一个最小宽度
     } detail: {
-      // 详情视图依赖于 `selectedImageURL`
-      // 当 `selectedImageURL` 改变时，这里会自动刷新
-      if let url = selectedImageURL, let nsImage = NSImage(contentsOf: url) {
+      // 详情视图：当没有任何图片时，显示一个醒目的“打开图片/文件夹”按钮
+      if imageURLs.isEmpty {
+        Button {
+          openFileOrFolder()
+        } label: {
+          Label(
+            NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"),
+            systemImage: "folder")
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .font(.title2)
+        .labelStyle(.titleAndIcon)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else if let url = selectedImageURL, let nsImage = NSImage(contentsOf: url) {
         // 使用新的纯SwiftUI实现的ZoomableImageView
         ZoomableImageView(image: nsImage)
           .id(selectedImageURL)  // 关键：强制视图在图片变化时重建
@@ -76,13 +88,38 @@ struct ContentView: View {
     }
     .toolbar {
       ToolbarItem {
-        Button("打开文件夹", systemImage: "folder") {
-          openFolder()
+        Button {
+          openFileOrFolder()
+        } label: {
+          Label(
+            NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"),
+            systemImage: "folder")
         }
       }
     }
     // 当窗口大小变化时，你可能希望重置缩放和偏移
     // .onChange(of: geometry.size) { ... } (需要 GeometryReader)
+  }
+
+  private func openFileOrFolder() {
+    let openPanel = NSOpenPanel()
+    openPanel.canChooseFiles = true
+    openPanel.canChooseDirectories = true
+    openPanel.allowsMultipleSelection = false
+    openPanel.allowedContentTypes = [UTType.image]
+
+    if openPanel.runModal() == .OK {
+      guard let url = openPanel.url else { return }
+      if url.hasDirectoryPath {
+        loadImages(from: url)
+      } else {
+        let imageExtensions = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
+        if imageExtensions.contains(url.pathExtension.lowercased()) {
+          self.imageURLs = [url]
+          self.selectedImageURL = url
+        }
+      }
+    }
   }
 
   private func openFolder() {
