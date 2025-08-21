@@ -18,73 +18,20 @@ struct ContentView: View {
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
 
-  // 简化的图片选择绑定，原生 NSScrollView 会自动处理缩放重置
-  private var imageSelection: Binding<URL?> {
-    Binding {
-      selectedImageURL
-    } set: { newURL in
-      selectedImageURL = newURL
-    }
-  }
-
   var body: some View {
     NavigationSplitView {
-      // 左侧边栏：显示缩略图列表
-      // 重点：List 的 'selection' 参数绑定到 imageSelection
-      // 这就是实现点击切换的全部魔法。
-      // 当用户点击一行时，SwiftUI 会自动将该行的 `url` 赋值给 `imageSelection`。
-      List(imageURLs, id: \.self, selection: imageSelection) { url in
-        // 使用 ZStack 将图片和文件名叠在一起
-        ZStack(alignment: .bottomLeading) {
-          // 我们需要异步加载图片或确保图片很小，否则列表会卡顿
-          // 但对于这个项目，直接加载是可以的
-          if let image = NSImage(contentsOf: url) {
-            Image(nsImage: image)
-              .resizable()
-              .aspectRatio(contentMode: .fill)
-              .frame(height: 80)
-              .clipped()
-              .cornerRadius(8)
-          }
-
-          // 文件名蒙层
-          Text(url.lastPathComponent)
-            .font(.caption)
-            .lineLimit(1)
-            .foregroundColor(.white)
-            .padding(4)
-            .background(Color.black.opacity(0.6))
-            .cornerRadius(4)
-            .padding(4)
-        }
-        .padding(.vertical, 2)
+      SidebarView(imageURLs: imageURLs, selectedImageURL: selectedImageURL) { url in
+        selectedImageURL = url
       }
-      .frame(minWidth: 150)  // 给侧边栏一个最小宽度
+      .frame(minWidth: 150)
     } detail: {
-      // 详情视图：当没有任何图片时，显示一个醒目的“打开图片/文件夹”按钮
-      if imageURLs.isEmpty {
-        Button {
-          openFileOrFolder()
-        } label: {
-          Label(
-            NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"),
-            systemImage: "folder")
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .font(.title2)
-        .labelStyle(.titleAndIcon)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if let url = selectedImageURL, let nsImage = NSImage(contentsOf: url) {
-        // 使用新的纯SwiftUI实现的ZoomableImageView
-        ZoomableImageView(image: nsImage)
-          .id(selectedImageURL)  // 关键：强制视图在图片变化时重建
-          .frame(maxWidth: CGFloat.infinity, maxHeight: CGFloat.infinity)
-      } else {
-        Text("请在左侧选择一张图片")
-          .font(.title)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      }
+      DetailView(imageURLs: imageURLs, selectedImageURL: selectedImageURL, onOpen: openFileOrFolder)
+        .environmentObject(appSettings)
+    }
+    .onChange(of: selectedImageURL) { _, newURL in
+      guard let newURL else { return }
+      prefetchNeighbors(around: newURL)
+      ImageLoader.shared.trimMemoryAfterSelection()
     }
     .toolbar {
       ToolbarItem {
@@ -112,82 +59,129 @@ struct ContentView: View {
       let urls = openPanel.urls
       if urls.isEmpty { return }
 
-      let imageExtensions = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
-      var collectedImageURLs: [URL] = []
+      // 后台线程枚举与排序，主线程仅更新状态
+      Task {
+        let uniqueSorted = await computeImageURLs(from: urls)
+        if uniqueSorted.isEmpty { return }
+        self.imageURLs = uniqueSorted
+        self.selectedImageURL = uniqueSorted.first
+      }
+    }
+  }
 
-      for url in urls {
-        if url.hasDirectoryPath {
-          do {
-            let fileURLs = try FileManager.default.contentsOfDirectory(
-              at: url,
-              includingPropertiesForKeys: nil
-            )
-            let imagesInDir = fileURLs.filter { fileURL in
-              imageExtensions.contains(fileURL.pathExtension.lowercased())
+  // 在后台线程枚举与筛选图片，避免阻塞主线程
+  private func computeImageURLs(from inputs: [URL]) async -> [URL] {
+    let imageExtensions = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
+    return await withCheckedContinuation { continuation in
+      DispatchQueue.global(qos: .userInitiated).async {
+        var collected: [URL] = []
+        let fm = FileManager.default
+        for url in inputs {
+          if url.hasDirectoryPath {
+            if let files = try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil) {
+              collected.append(
+                contentsOf: files.filter { imageExtensions.contains($0.pathExtension.lowercased()) }
+              )
             }
-            collectedImageURLs.append(contentsOf: imagesInDir)
-          } catch {
-            print(
-              "Error while enumerating files in directory: \(url.path) - \(error.localizedDescription)"
-            )
-          }
-        } else {
-          if imageExtensions.contains(url.pathExtension.lowercased()) {
-            collectedImageURLs.append(url)
+          } else if imageExtensions.contains(url.pathExtension.lowercased()) {
+            collected.append(url)
           }
         }
-      }
-
-      // 去重并排序
-      let uniqueSorted = Array(Set(collectedImageURLs)).sorted {
-        $0.lastPathComponent < $1.lastPathComponent
-      }
-
-      if uniqueSorted.isEmpty {
-        // 没有可用图片，保持现状
-        return
-      }
-
-      self.imageURLs = uniqueSorted
-      self.selectedImageURL = uniqueSorted.first
-    }
-  }
-
-  private func openFolder() {
-    let openPanel = NSOpenPanel()
-    openPanel.canChooseFiles = false
-    openPanel.canChooseDirectories = true
-    openPanel.allowsMultipleSelection = false
-
-    if openPanel.runModal() == .OK {
-      if let folderURL = openPanel.url {
-        loadImages(from: folderURL)
+        let result = Array(Set(collected)).sorted { $0.lastPathComponent < $1.lastPathComponent }
+        continuation.resume(returning: result)
       }
     }
   }
+}
 
-  private func loadImages(from folderURL: URL) {
-    let fileManager = FileManager.default
-    let imageExtensions = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
+// MARK: - Helpers
+extension ContentView {
+  private func prefetchNeighbors(around url: URL) {
+    guard let idx = imageURLs.firstIndex(of: url) else { return }
+    var neighbors: [URL] = []
+    if idx > 0 { neighbors.append(imageURLs[idx - 1]) }
+    if idx + 1 < imageURLs.count { neighbors.append(imageURLs[idx + 1]) }
+    // 仅预热缩略图，降低内存与 IO
+    let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+    ThumbnailService.prefetch(urls: neighbors, size: CGSize(width: 120, height: 120), scale: scale)
+    // 额外：预解码较低像素的下采样图，优先速度（约 2048px）
+    ImageLoader.shared.prefetch(urls: neighbors, maxPixel: 2048)
+  }
+}
 
-    do {
-      let fileURLs = try fileManager.contentsOfDirectory(
-        at: folderURL,
-        includingPropertiesForKeys: nil
-      )
-      self.imageURLs = fileURLs.filter { url in
-        imageExtensions.contains(url.pathExtension.lowercased())
-      }.sorted(by: { $0.lastPathComponent < $1.lastPathComponent })  // 按文件名排序
+// MARK: - Subviews
 
-      // 默认选中第一张图片
-      self.selectedImageURL = self.imageURLs.first
-      print(
-        "加载了 \(self.imageURLs.count) 张图片，默认选中: \(self.imageURLs.first?.lastPathComponent ?? "nil")")
-    } catch {
-      print(
-        "Error while enumerating files \(folderURL.path): \(error.localizedDescription)"
-      )
+private struct SidebarView: View {
+  let imageURLs: [URL]
+  let selectedImageURL: URL?
+  let onSelect: (URL) -> Void
+
+  var body: some View {
+    List {
+      ForEach(imageURLs, id: \.self) { url in
+        ZStack(alignment: .bottomLeading) {
+          ThumbnailImageView(url: url, height: 80)
+            .cornerRadius(8)
+
+          Text(url.lastPathComponent)
+            .font(.caption)
+            .lineLimit(1)
+            .foregroundColor(.white)
+            .padding(4)
+            .background(Color.black.opacity(0.6))
+            .cornerRadius(4)
+            .padding(4)
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .onTapGesture { onSelect(url) }
+        .overlay(
+          RoundedRectangle(cornerRadius: 8)
+            .stroke((selectedImageURL == url) ? Color.accentColor : Color.clear, lineWidth: 2)
+        )
+      }
     }
+  }
+}
+
+private struct DetailView: View {
+  let imageURLs: [URL]
+  let selectedImageURL: URL?
+  let onOpen: () -> Void
+  @EnvironmentObject var appSettings: AppSettings
+
+  var body: some View {
+    Group {
+      if imageURLs.isEmpty {
+        EmptyHint(onOpen: onOpen)
+      } else if let url = selectedImageURL {
+        AsyncZoomableImageContainer(url: url)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else {
+        Text("请在左侧选择一张图片")
+          .font(.title)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
+    }
+  }
+}
+
+private struct EmptyHint: View {
+  let onOpen: () -> Void
+
+  var body: some View {
+    Button {
+      onOpen()
+    } label: {
+      Label(
+        NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"),
+        systemImage: "folder")
+    }
+    .buttonStyle(.borderedProminent)
+    .controlSize(.large)
+    .font(.title2)
+    .labelStyle(.titleAndIcon)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
 

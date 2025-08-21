@@ -181,57 +181,6 @@ struct ZoomableImageView: View {
     }
   }
 
-  /// 处理缩放手势变化
-  private func handleMagnificationChange(_ value: CGFloat) {
-    // 性能优化：缩放过程中不进行复杂计算，只更新状态
-    // 实际的缩放限制检查在onEnded中进行，避免频繁计算
-  }
-
-  /// 处理缩放手势结束
-  private func handleMagnificationEnd(_ value: CGFloat) {
-    let newScale = scale * value
-
-    // 确保缩放比例在有效范围内
-    let clampedScale = max(minScale, min(maxScale, newScale))
-
-    // 如果缩放比例超出范围，添加动画效果
-    if clampedScale != newScale {
-      withAnimation(.easeInOut(duration: 0.2)) {
-        scale = clampedScale
-      }
-    } else {
-      scale = clampedScale
-    }
-
-    lastScale = scale
-  }
-
-  /// 处理拖拽手势变化
-  private func handleDragChange(_ value: DragGesture.Value) {
-    // 性能优化：拖拽过程中不进行边界检查，只更新状态
-    // 实际的边界限制检查在onEnded中进行，避免频繁计算
-  }
-
-  /// 处理拖拽手势结束
-  private func handleDragEnd(_ value: DragGesture.Value, geometry: GeometryProxy) {
-    let newOffset = CGSize(
-      width: offset.width + value.translation.width,
-      height: offset.height + value.translation.height
-    )
-
-    // 计算拖拽边界限制
-    let maxOffset = calculateMaxOffset(geometry: geometry)
-    let clampedOffset = CGSize(
-      width: max(-maxOffset.width, min(maxOffset.width, newOffset.width)),
-      height: max(-maxOffset.height, min(maxOffset.height, newOffset.height))
-    )
-
-    withAnimation(.easeInOut(duration: 0.2)) {
-      offset = clampedOffset
-    }
-    lastOffset = offset
-  }
-
   /// 计算最大拖拽偏移量
   private func calculateMaxOffset(geometry: GeometryProxy) -> CGSize {
     // 根据当前缩放比例和实际视图尺寸计算最大拖拽范围
@@ -285,10 +234,7 @@ struct ZoomableImageView: View {
     let viewSize = geometry.size
     let imageSize = image.size
 
-    print("FitImageToView - ViewSize: \(viewSize), ImageSize: \(imageSize)")
-
     guard imageSize.width > 0, imageSize.height > 0, viewSize.width > 0, viewSize.height > 0 else {
-      print("FitImageToView - Invalid sizes, setting scale to 1.0")
       scale = 1.0
       lastScale = 1.0
       return
@@ -299,8 +245,6 @@ struct ZoomableImageView: View {
 
     let fitScale = min(scaleX, scaleY)
     baseFitScale = fitScale
-
-    print("FitImageToView - ScaleX: \(scaleX), ScaleY: \(scaleY), FitScale(base): \(fitScale)")
 
     withAnimation(.easeInOut(duration: 0.25)) {
       // 相对缩放设置为1.0（表示在基础适配尺寸上不额外缩放）
