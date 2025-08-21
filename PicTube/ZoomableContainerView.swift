@@ -67,8 +67,8 @@ class ZoomableScrollView: NSScrollView {
     drawsBackground = true
     backgroundColor = .windowBackgroundColor
     allowsMagnification = true
-    minMagnification = 0.1
-    maxMagnification = 10.0
+    minMagnification = appSettings?.minZoomScale ?? 0.1
+    maxMagnification = appSettings?.maxZoomScale ?? 10.0
 
     // --- 新增：添加追踪区域以接收鼠标进入/退出事件 ---
     let trackingArea = NSTrackingArea(
@@ -110,6 +110,7 @@ class ZoomableScrollView: NSScrollView {
     let oldSize = frame.size
     super.setFrameSize(newSize)
     if !CGSizeEqualToSize(oldSize, newSize) {
+      // 窗口大小变化时，重新计算适应比例
       fitImageToView()
     }
   }
@@ -123,10 +124,14 @@ class ZoomableScrollView: NSScrollView {
 
     if settings.isModifierKeyPressed(event.modifierFlags, for: settings.zoomModifierKey) {
       let zoomSensitivity = settings.zoomSensitivity
-      let minMagnification = settings.minZoomScale
-      let maxMagnification = settings.maxZoomScale
+      // 关键修复：直接使用 NSScrollView 自身的 min/max Magnification 属性，
+      // 这两个值之前由 AppSettings 控制，现在由 NSScrollView 自身控制。
+      let minMagnification = self.minMagnification
+      let maxMagnification = self.maxMagnification
       let delta = event.scrollingDeltaY
       var newMagnification = magnification + delta * zoomSensitivity
+
+      // 使用正确的上下限来限制缩放
       newMagnification = max(minMagnification, min(newMagnification, maxMagnification))
 
       let pointInView = convert(event.locationInWindow, from: nil)
@@ -149,7 +154,8 @@ class ZoomableScrollView: NSScrollView {
     }
 
     let contentIsLargerThanBounds =
-      documentView.frame.width > bounds.width || documentView.frame.height > bounds.height
+      documentView.frame.width * magnification > bounds.width
+      || documentView.frame.height * magnification > bounds.height
 
     if contentIsLargerThanBounds
       && settings.isModifierKeyPressed(event.modifierFlags, for: settings.panModifierKey)
@@ -197,7 +203,8 @@ class ZoomableScrollView: NSScrollView {
   override func mouseEntered(with event: NSEvent) {
     guard let documentView = self.documentView else { return }
     let contentIsLargerThanBounds =
-      documentView.frame.width > bounds.width || documentView.frame.height > bounds.height
+      documentView.frame.width * magnification > bounds.width
+      || documentView.frame.height * magnification > bounds.height
     if contentIsLargerThanBounds {
       NSCursor.openHand.set()  // 设置为“可抓”光标
     }
