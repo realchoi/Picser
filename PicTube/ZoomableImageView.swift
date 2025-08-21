@@ -2,10 +2,9 @@
 //  ZoomableImageView.swift
 //  PicTube
 //
-//  Created by Eric Cai on 2025/8/20.
+//  Created by Eric Cai on 2025/8/21.
 //
 
-import AppKit
 import SwiftUI
 
 /// 纯SwiftUI实现的缩放图片视图
@@ -64,6 +63,11 @@ struct ZoomableImageView: View {
               withAnimation(.easeInOut(duration: 0.1)) {
                 scale = clampedScale
                 lastScale = clampedScale
+                // 缩放后约束偏移量，防止越界
+                // 注意：此处位于 GeometryReader 内部，可使用 geometry 计算边界
+                let maxOffset = calculateMaxOffset(geometry: geometry)
+                offset = clamp(offset, to: maxOffset)
+                lastOffset = clamp(lastOffset, to: maxOffset)
               }
             }
           )
@@ -73,15 +77,37 @@ struct ZoomableImageView: View {
               .onChanged { value in
                 // 检查是否应该响应拖拽（修饰键检测）
                 guard shouldRespondToPanGesture() else { return }
-                offset = CGSize(
+                // 仅当图片超过预览区域边界时允许拖拽
+                let maxOffset = calculateMaxOffset(geometry: geometry)
+                let canPanNow = (maxOffset.width > 0.0) || (maxOffset.height > 0.0)
+                guard canPanNow else { return }
+
+                if !isDragging {
+                  isDragging = true
+                  NSCursor.closedHand.set()
+                }
+
+                let proposed = CGSize(
                   width: lastOffset.width + value.translation.width,
                   height: lastOffset.height + value.translation.height
                 )
+                offset = clamp(proposed, to: maxOffset)
               }
               .onEnded { value in
                 // 检查是否应该响应拖拽（修饰键检测）
                 guard shouldRespondToPanGesture() else { return }
-                lastOffset = offset
+                let maxOffset = calculateMaxOffset(geometry: geometry)
+                let proposed = CGSize(
+                  width: lastOffset.width + value.translation.width,
+                  height: lastOffset.height + value.translation.height
+                )
+                let clamped = clamp(proposed, to: maxOffset)
+                withAnimation(.easeInOut(duration: 0.2)) {
+                  offset = clamped
+                }
+                lastOffset = clamped
+                isDragging = false
+                NSCursor.arrow.set()
               }
           )
           .onTapGesture(count: 2) {
@@ -219,6 +245,14 @@ struct ZoomableImageView: View {
     let maxOffsetY = max(0, (displayedHeight - viewSize.height) / 2)
 
     return CGSize(width: maxOffsetX, height: maxOffsetY)
+  }
+
+  /// 将给定偏移量限制在最大边界内
+  private func clamp(_ value: CGSize, to maxOffset: CGSize) -> CGSize {
+    CGSize(
+      width: max(-maxOffset.width, min(maxOffset.width, value.width)),
+      height: max(-maxOffset.height, min(maxOffset.height, value.height))
+    )
   }
 
   /// 确保缩放比例在有效范围内
