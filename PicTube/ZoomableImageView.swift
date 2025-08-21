@@ -32,6 +32,11 @@ struct ZoomableImageView: View {
   // MARK: - 计算属性
   // 基础适配缩放比例（使图片恰好"适配"预览区域），实际显示尺寸 = 原始尺寸 * baseFitScale * scale
   @State private var baseFitScale: CGFloat = 1.0
+
+  // MARK: - 轻量级缓存（仅用于滚轮缩放优化）
+  @State private var cachedMaxOffset: CGSize?
+  @State private var cachedScale: CGFloat = 1.0
+
   private var effectiveScale: CGFloat {
     scale
   }
@@ -65,10 +70,12 @@ struct ZoomableImageView: View {
                 scale = clampedScale
                 lastScale = clampedScale
                 // 缩放后约束偏移量，防止越界
-                // 注意：此处位于 GeometryReader 内部，可使用 geometry 计算边界
-                let maxOffset = calculateMaxOffset(geometry: geometry)
+                // 使用缓存的 maxOffset 避免重复计算
+                let maxOffset = getCachedMaxOffset(geometry: geometry)
                 offset = clamp(offset, to: maxOffset)
                 lastOffset = clamp(lastOffset, to: maxOffset)
+                // 缓存计算结果，避免下次滚轮缩放时重复计算
+                cacheMaxOffset(maxOffset, for: clampedScale)
               }
             }
           )
@@ -130,17 +137,21 @@ struct ZoomableImageView: View {
     .onChange(of: appSettings.minZoomScale) { _, newValue in
       minScale = newValue
       ensureValidScale()
+      invalidateCache()  // 缩放限制变化时清除缓存
     }
     .onChange(of: appSettings.maxZoomScale) { _, newValue in
       maxScale = newValue
       ensureValidScale()
+      invalidateCache()  // 缩放限制变化时清除缓存
     }
     .onChange(of: image) { _, _ in
       // 图片变化时重置拖拽状态（缩放重置在GeometryReader内部处理）
       resetPan()
+      invalidateCache()  // 图片变化时清除缓存
     }
     .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResizeNotification)) { _ in
       // 窗口大小变化时重新适应 - 需要在GeometryReader内部处理
+      invalidateCache()  // 窗口大小变化时清除缓存
     }
   }
 
@@ -217,6 +228,11 @@ struct ZoomableImageView: View {
     withAnimation(.easeInOut(duration: 0.3)) {
       scale = 1.0
       lastScale = 1.0
+      // 重置缩放时也要重置偏移量，确保图片在视野范围内
+      offset = .zero
+      lastOffset = .zero
+      // 清除缓存，因为缩放比例已改变
+      invalidateCache()
     }
   }
 
@@ -251,7 +267,37 @@ struct ZoomableImageView: View {
       lastScale = 1.0
       offset = .zero
       lastOffset = .zero
+      // 基础适配比例变化时清除缓存
+      invalidateCache()
     }
+  }
+
+  /// 缓存最大偏移量
+  private func cacheMaxOffset(_ maxOffset: CGSize, for scale: CGFloat) {
+    cachedMaxOffset = maxOffset
+    cachedScale = scale
+  }
+
+  /// 获取缓存的缩放比例
+  private func getCachedScale() -> CGFloat {
+    cachedScale
+  }
+
+  /// 获取缓存的缩放比例对应的偏移量
+  private func getCachedMaxOffset(geometry: GeometryProxy) -> CGSize {
+    // 检查缓存是否有效（缩放比例是否匹配）
+    if let cached = cachedMaxOffset, abs(cachedScale - scale) < 0.001 {
+      return cached
+    }
+
+    // 缓存无效，重新计算
+    let maxOffset = calculateMaxOffset(geometry: geometry)
+    return maxOffset
+  }
+
+  /// 清除缓存（在需要时调用）
+  private func invalidateCache() {
+    cachedMaxOffset = nil
   }
 }
 
