@@ -6,9 +6,6 @@
   
 */
 
-/* Menu Items */
-"settings_menu" = "偏好设置...";
-
 /* Settings Window */
 "settings_title" = "偏好设置";
 
@@ -16,40 +13,28 @@
 "keyboard_tab" = "快捷键";
 "display_tab" = "显示";
 "behavior_tab" = "行为";
+"cache_tab" = "缓存";
 
 /* Keyboard Settings */
 "keyboard_settings_title" = "快捷键设置";
 "zoom_shortcut_label" = "缩放快捷键";
 "zoom_shortcut_description" = "配合鼠标滚轮缩放图片";
 "pan_shortcut_label" = "拖拽快捷键";
-"pan_shortcut_description" = "配合鼠标滚轮拖拽图片";
+"pan_shortcut_description" = "配合鼠标左键拖拽图片";
 
 /* Display Settings */
 "display_settings_title" = "显示设置";
 "zoom_settings_group" = "缩放设置";
-"default_zoom_scale" = "默认缩放比例:";
 "zoom_sensitivity" = "缩放灵敏度:";
 "min_zoom_scale" = "最小缩放比例:";
 "max_zoom_scale" = "最大缩放比例:";
 
-/* Behavior Settings */
-"behavior_settings_title" = "行为设置";
-"image_change_behavior" = "图片切换时";
-"reset_zoom_on_change" = "重置缩放比例";
-"reset_pan_on_change" = "重置拖拽位置";
-
 /* Buttons */
-"record_button" = "录制";
-"stop_recording_button" = "停止录制";
 "clear_button" = "清除";
 "reset_defaults_button" = "重置为默认值";
 
 /* File/Folder Open */
 "open_file_or_folder_button" = "打开图片/文件夹";
-
-/* Key Recorder */
-"press_modifier_key" = "按下修饰键...";
-"no_modifier" = "无";
 
 /* Modifier Keys */
 "modifier_none" = "无";
@@ -57,3 +42,18 @@
 "modifier_option" = "⌥ Option";
 "modifier_control" = "⌃ Control";
 "modifier_shift" = "⇧ Shift";
+
+/* Cache Settings */
+"cache_settings_title" = "缓存管理";
+"cache_info_group" = "缓存信息";
+"cache_size_label" = "缓存大小:";
+"cache_size_description" = "显示当前图片缓存占用的磁盘空间";
+"cache_actions_group" = "缓存操作";
+"clear_cache_button" = "清空缓存";
+"open_cache_directory" = "打开缓存目录";
+"cache_actions_description" = "清空缓存将删除所有缓存的图片，打开目录可在 Finder 中查看缓存文件";
+"refresh_cache_size" = "刷新缓存大小";
+"clear_cache_alert_title" = "确认清空缓存";
+"clear_cache_alert_message" = "删除所有缓存可能会拖慢打开图片的速度，确定要继续吗？";
+"cancel_button" = "取消";
+"clear_button" = "清空";

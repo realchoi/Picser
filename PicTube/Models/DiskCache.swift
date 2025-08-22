@@ -35,6 +35,43 @@ actor DiskCache {
     byteLimit = max(64 * 1_024 * 1_024, bytes)
   }
 
+  /// 获取缓存目录总大小（字节）
+  func getCacheSize() -> Int64 {
+    guard
+      let files = try? fileManager.contentsOfDirectory(
+        at: baseURL, includingPropertiesForKeys: [.fileSizeKey], options: .skipsHiddenFiles)
+    else { return 0 }
+
+    var total: Int64 = 0
+    for file in files {
+      if let values = try? file.resourceValues(forKeys: [.fileSizeKey]), let size = values.fileSize
+      {
+        total += Int64(size)
+      }
+    }
+    return total
+  }
+
+  /// 清空所有缓存文件
+  func clearCache() async throws {
+    guard
+      let files = try? fileManager.contentsOfDirectory(
+        at: baseURL, includingPropertiesForKeys: [], options: .skipsHiddenFiles)
+    else { return }
+
+    for file in files {
+      try fileManager.removeItem(at: file)
+    }
+  }
+
+  /// 格式化文件大小显示
+  func formatFileSize(_ bytes: Int64) -> String {
+    let formatter = ByteCountFormatter()
+    formatter.allowedUnits = [.useKB, .useMB, .useGB]
+    formatter.countStyle = .file
+    return formatter.string(fromByteCount: bytes)
+  }
+
   /// 依据键检索图片文件 URL（若存在则返回）
   func retrieve(forKey key: String) -> URL? {
     if let url = existingFileURL(forKey: key) {

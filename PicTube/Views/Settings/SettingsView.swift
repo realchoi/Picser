@@ -29,6 +29,15 @@ struct SettingsView: View {
               NSLocalizedString("display_tab", comment: "Display tab title"), systemImage: "display"
             )
           }
+
+        // 缓存管理页面
+        CacheSettingsView()
+          .tabItem {
+            Label(
+              NSLocalizedString("cache_tab", comment: "Cache tab title"),
+              systemImage: "externaldrive"
+            )
+          }
       }
 
       if !validationErrors.isEmpty {

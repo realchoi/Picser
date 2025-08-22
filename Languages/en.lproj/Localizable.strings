@@ -6,9 +6,6 @@
   
 */
 
-/* Menu Items */
-"settings_menu" = "Settings...";
-
 /* Settings Window */
 "settings_title" = "Settings";
 
@@ -16,40 +13,28 @@
 "keyboard_tab" = "Keyboard";
 "display_tab" = "Display";
 "behavior_tab" = "Behavior";
+"cache_tab" = "Cache";
 
 /* Keyboard Settings */
 "keyboard_settings_title" = "Keyboard Settings";
 "zoom_shortcut_label" = "Zoom Shortcut";
 "zoom_shortcut_description" = "Use with mouse wheel to zoom images";
 "pan_shortcut_label" = "Pan Shortcut";
-"pan_shortcut_description" = "Use with mouse wheel to pan images";
+"pan_shortcut_description" = "Use with left mouse button to pan images";
 
 /* Display Settings */
 "display_settings_title" = "Display Settings";
 "zoom_settings_group" = "Zoom Settings";
-"default_zoom_scale" = "Default Zoom Scale:";
 "zoom_sensitivity" = "Zoom Sensitivity:";
 "min_zoom_scale" = "Minimum Zoom Scale:";
 "max_zoom_scale" = "Maximum Zoom Scale:";
 
-/* Behavior Settings */
-"behavior_settings_title" = "Behavior Settings";
-"image_change_behavior" = "When changing images";
-"reset_zoom_on_change" = "Reset zoom scale";
-"reset_pan_on_change" = "Reset pan position";
-
 /* Buttons */
-"record_button" = "Record";
-"stop_recording_button" = "Stop Recording";
 "clear_button" = "Clear";
 "reset_defaults_button" = "Reset to Defaults";
 
 /* File/Folder Open */
 "open_file_or_folder_button" = "Open Image/Folder";
-
-/* Key Recorder */
-"press_modifier_key" = "Press a modifier key...";
-"no_modifier" = "None";
 
 /* Modifier Keys */
 "modifier_none" = "None";
@@ -57,3 +42,18 @@
 "modifier_option" = "⌥ Option";
 "modifier_control" = "⌃ Control";
 "modifier_shift" = "⇧ Shift";
+
+/* Cache Settings */
+"cache_settings_title" = "Cache Management";
+"cache_info_group" = "Cache Information";
+"cache_size_label" = "Cache Size:";
+"cache_size_description" = "Shows the disk space used by cached images";
+"cache_actions_group" = "Cache Actions";
+"clear_cache_button" = "Clear Cache";
+"open_cache_directory" = "Open Cache Directory";
+"cache_actions_description" = "Clearing cache will delete all cached images. Opening directory allows you to view cache files in Finder.";
+"refresh_cache_size" = "Refresh cache size";
+"clear_cache_alert_title" = "Confirm Clear Cache";
+"clear_cache_alert_message" = "Deleting all caches may slow down opening images, sure you want to continue?";
+"cancel_button" = "Cancel";
+"clear_button" = "Clear";
