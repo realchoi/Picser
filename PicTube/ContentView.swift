@@ -31,7 +31,6 @@ struct ContentView: View {
     .onChange(of: selectedImageURL) { _, newURL in
       guard let newURL else { return }
       prefetchNeighbors(around: newURL)
-      ImageLoader.shared.trimMemoryAfterSelection()
     }
     .toolbar {
       ToolbarItem {
@@ -105,7 +104,7 @@ extension ContentView {
     let scale = NSScreen.main?.backingScaleFactor ?? 2.0
     ThumbnailService.prefetch(urls: neighbors, size: CGSize(width: 120, height: 120), scale: scale)
     // 额外：预解码较低像素的下采样图，优先速度（约 2048px）
-    ImageLoader.shared.prefetch(urls: neighbors, maxPixel: 2048)
+    ImageLoader.shared.prefetch(urls: neighbors)
   }
 }
 

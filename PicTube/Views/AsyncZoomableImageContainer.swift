@@ -51,14 +51,9 @@ struct AsyncZoomableImageContainer: View {
             previewImage = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
           } else {
             // 回退
-            previewImage = await ImageLoader.shared.loadThumbnail(
-              for: url, maxPixel: Int(previewPoints * scale))
+            previewImage = await ImageLoader.shared.loadThumbnail(for: url)
           }
         }
-
-        // 2) 按视口像素尺寸进行下采样解码（避免加载原始大图，降低内存）
-        let targetMaxPixel = Int(
-          min(2048.0, max(geometry.size.width, geometry.size.height) * scale * 1.0))
 
         // 先尝试使用系统高质量缩略图作为 viewport 图，加速首切换
         if let cg = await ThumbnailService.generateHigh(
@@ -68,13 +63,13 @@ struct AsyncZoomableImageContainer: View {
         ) {
           viewportImage = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
         } else {
-          viewportImage = await ImageLoader.shared.loadFullImage(for: url, maxPixel: targetMaxPixel)
+          viewportImage = await ImageLoader.shared.loadFullImage(for: url)
         }
 
         // 稍作延时再进行较重的下采样解码，避免阻塞首帧
         try? await Task.sleep(nanoseconds: 30_000_000)  // 30ms
         if viewportImage == previewImage {
-          viewportImage = await ImageLoader.shared.loadFullImage(for: url, maxPixel: targetMaxPixel)
+          viewportImage = await ImageLoader.shared.loadFullImage(for: url)
         }
 
         // 3) 完成后释放预览图，降低内存峰值

@@ -1,203 +1,163 @@
-//
-//  ImageLoader.swift
-//  PicTube
-//
-//  Created by Eric Cai on 2025/8/21.
-//
+// PicTube/Models/ImageLoader.swift
 
 import AppKit
 import Foundation
 import ImageIO
 
-/// 负责异步解码图片与内存缓存，避免在主线程阻塞
+/// 最终升级版 ImageLoader，负责协调内存缓存、元数据磁盘缓存和高保真图片加载。
 final class ImageLoader: @unchecked Sendable {
   static let shared = ImageLoader()
 
-  private let fullImageCache = NSCache<NSURL, NSImage>()
+  // 内存缓存：仍然用于存储已解码的 NSImage 对象，避免重复创建，速度最快。
   private let thumbnailCache = NSCache<NSString, NSImage>()
-  private let downsampleCache = NSCache<NSString, NSImage>()
+  private let fullImageCache = NSCache<NSURL, NSImage>()
+
   private let ioQueue = DispatchQueue(label: "image.loader.queue", qos: .userInitiated)
 
   private init() {
-    // 适度限制缓存，防止占用过多内存（按需可调）
-    fullImageCache.countLimit = 50
+    // 适度限制内存缓存
     thumbnailCache.countLimit = 200
-    downsampleCache.countLimit = 150
-    // 估算内存上限（字节）。整体降低阈值
-    fullImageCache.totalCostLimit = 256 * 1024 * 1024
-    thumbnailCache.totalCostLimit = 128 * 1024 * 1024
-    downsampleCache.totalCostLimit = 256 * 1024 * 1024
-
-    Task {
-      let dir = await DiskCache.shared.cacheDirectoryURL()
-      print("DiskCache directory:", dir.path)
-    }
+    thumbnailCache.totalCostLimit = 128 * 1024 * 1024  // 128MB
+    fullImageCache.countLimit = 50
+    fullImageCache.totalCostLimit = 256 * 1024 * 1024  // 256MB
   }
 
-  /// 异步加载缩略图，返回已解码的 NSImage
+  // MARK: - 核心加载方法
+
+  /// 加载用于UI显示的缩略图 (Thumbnail)
+  /// 这是UI列表的“生命线”，必须极速响应。
   @MainActor
-  func loadThumbnail(for url: URL, maxPixel: Int) async -> NSImage? {
-    let cacheKey = thumbnailKey(url: url, maxPixel: maxPixel)
-    if let cached = thumbnailCache.object(forKey: cacheKey as NSString) {
+  func loadThumbnail(for url: URL) async -> NSImage? {
+    let cacheKey = url.absoluteString as NSString
+    if let cached = thumbnailCache.object(forKey: cacheKey) {
       return cached
     }
-    // 磁盘缓存
-    if let diskURL = await DiskCache.shared.retrieve(forKey: cacheKey),
-      let disk = NSImage(contentsOf: diskURL)
-    {
-      thumbnailCache.setObject(disk, forKey: cacheKey as NSString, cost: estimatedCost(of: disk))
-      return disk
+
+    // 尝试从元数据磁盘缓存中获取
+    if let metadata = await DiskCache.shared.retrieve(forKey: url.path) {
+      if let image = NSImage(data: metadata.thumbnailData) {
+        self.thumbnailCache.setObject(image, forKey: cacheKey, cost: self.estimatedCost(of: image))
+        return image
+      }
     }
 
-    return await withCheckedContinuation { continuation in
-      ioQueue.async { [weak self] in
-        guard let self else {
-          continuation.resume(returning: nil)
-          return
-        }
-        let image = self.decodeImage(url: url, maxPixel: maxPixel)
-        if let image {
+    // 如果磁盘缓存不存在，则在后台创建它。
+    await createAndCacheMetadata(for: url)
+
+    // 创建完成后，再次尝试从内存缓存中读取，这次应该会成功。
+    return thumbnailCache.object(forKey: cacheKey)
+  }
+
+  /// 加载高保真“原始样貌”的完整图片
+  @MainActor
+  func loadFullImage(for url: URL) async -> NSImage? {
+    let cacheKey = url as NSURL
+    if let cached = fullImageCache.object(forKey: cacheKey) {
+      return cached
+    }
+
+    // 首先获取元数据，它将告诉我们如何加载这张图片
+    let metadata = await DiskCache.shared.retrieve(forKey: url.path)
+
+    var image: NSImage?
+
+    // 根据元数据中的格式，执行差异化加载
+    if metadata?.originalFormat == .gif {
+      // 对于 GIF，直接从原始 URL 加载，以保留动画！
+      image = NSImage(contentsOf: url)
+    } else {
+      // 对于所有其他静态图片，我们先在后台安全地解码出 CGImage
+      if let cgImage = await decodeCGImage(from: url) {
+        // 然后在主线程 (@MainActor) 上安全地创建 NSImage
+        let size = NSSize(width: cgImage.width, height: cgImage.height)
+        image = NSImage(cgImage: cgImage, size: size)
+      }
+    }
+
+    if let finalImage = image {
+      self.fullImageCache.setObject(
+        finalImage, forKey: cacheKey, cost: self.estimatedCost(of: finalImage))
+    }
+
+    return image
+  }
+
+  // MARK: - 缓存创建和辅助方法
+
+  /// 在后台为一张图片创建并存储其元数据缓存。
+  private func createAndCacheMetadata(for url: URL) async {
+    // 在后台线程执行所有耗时操作
+    await Task.detached(priority: .userInitiated) {
+      // 1. 创建一个微缩略图 (例如 256x256)
+      guard let thumbnailData = self.createThumbnailData(from: url, maxPixelSize: 256) else {
+        return
+      }
+
+      // 2. 使用缩略图数据和原始URL创建 MetadataCache 对象
+      guard let metadata = MetadataCache(fromUrl: url, thumbnailData: thumbnailData) else {
+        return
+      }
+
+      // 3. 将新的元数据对象存入磁盘缓存
+      await DiskCache.shared.store(metadata: metadata, forKey: url.path)
+
+      // 4. 将线程安全的 thumbnailData 发送到主线程，并在主线程上创建 NSImage 并更新缓存
+      await MainActor.run {
+        if let image = NSImage(data: thumbnailData) {
           self.thumbnailCache.setObject(
-            image, forKey: cacheKey as NSString, cost: self.estimatedCost(of: image))
-          Task { await DiskCache.shared.store(image: image, forKey: cacheKey) }
+            image, forKey: url.absoluteString as NSString, cost: self.estimatedCost(of: image))
         }
-        continuation.resume(returning: image)
       }
-    }
+    }.value
   }
 
-  /// 异步加载原图（或限制最大像素避免超大图占用），返回已解码的 NSImage
-  @MainActor
-  func loadFullImage(for url: URL, maxPixel: Int? = nil) async -> NSImage? {
-    if maxPixel == nil, let cached = fullImageCache.object(forKey: url as NSURL) {
-      return cached
-    }
-    if let maxPixel,
-      let cachedDown = downsampleCache.object(
-        forKey: downsampleKey(url: url, maxPixel: maxPixel) as NSString)
-    {
-      return cachedDown
-    }
-    // 磁盘缓存
-    if let maxPixel,
-      let diskURL = await DiskCache.shared.retrieve(
-        forKey: downsampleKey(url: url, maxPixel: maxPixel)),
-      let disk = NSImage(contentsOf: diskURL)
-    {
-      downsampleCache.setObject(
-        disk, forKey: downsampleKey(url: url, maxPixel: maxPixel) as NSString,
-        cost: estimatedCost(of: disk))
-      return disk
-    } else if maxPixel == nil,
-      let diskURL = await DiskCache.shared.retrieve(forKey: url.absoluteString),
-      let disk = NSImage(contentsOf: diskURL)
-    {
-      fullImageCache.setObject(disk, forKey: url as NSURL, cost: estimatedCost(of: disk))
-      return disk
-    }
-
-    return await withCheckedContinuation { continuation in
-      ioQueue.async { [weak self] in
-        guard let self else {
-          continuation.resume(returning: nil)
-          return
-        }
-        let image = self.decodeImage(url: url, maxPixel: maxPixel)
-        if let image {
-          if let maxPixel {
-            self.downsampleCache.setObject(
-              image, forKey: self.downsampleKey(url: url, maxPixel: maxPixel) as NSString,
-              cost: self.estimatedCost(of: image))
-            Task {
-              await DiskCache.shared.store(
-                image: image, forKey: self.downsampleKey(url: url, maxPixel: maxPixel))
-            }
-          } else {
-            self.fullImageCache.setObject(
-              image, forKey: url as NSURL, cost: self.estimatedCost(of: image))
-            Task { await DiskCache.shared.store(image: image, forKey: url.absoluteString) }
-          }
-        }
-        continuation.resume(returning: image)
-      }
-    }
-  }
-
-  /// 预取一组图片，静默放入缓存
-  func prefetch(urls: [URL], maxPixel: Int? = nil) {
-    guard !urls.isEmpty else { return }
-    ioQueue.async { [weak self] in
-      guard let self else { return }
-      for url in urls {
-        // 已缓存直接跳过
-        if maxPixel == nil, self.fullImageCache.object(forKey: url as NSURL) != nil { continue }
-        _ = self.decodeImage(url: url, maxPixel: maxPixel)
-      }
-    }
-  }
-
-  /// 根据当前缓存压力做一次裁剪（可在切换后调用）
-  func trimMemoryAfterSelection() {
-    // NSCache 无显式 trim 接口，这里通过降低 limit 触发回收，再恢复
-    let oldFull = fullImageCache.totalCostLimit
-    let oldDown = downsampleCache.totalCostLimit
-    let oldThumb = thumbnailCache.totalCostLimit
-    fullImageCache.totalCostLimit = max(oldFull / 2, 64 * 1024 * 1024)
-    downsampleCache.totalCostLimit = max(oldDown / 2, 64 * 1024 * 1024)
-    thumbnailCache.totalCostLimit = max(oldThumb / 2, 32 * 1024 * 1024)
-    // 恢复到原值，保留系统已回收的部分
-    fullImageCache.totalCostLimit = oldFull
-    downsampleCache.totalCostLimit = oldDown
-    thumbnailCache.totalCostLimit = oldThumb
-  }
-
-  // MARK: - Private helpers
-
-  private func thumbnailKey(url: URL, maxPixel: Int) -> String {
-    return url.absoluteString + "|thumb|" + String(maxPixel)
-  }
-
-  private func downsampleKey(url: URL, maxPixel: Int) -> String {
-    return url.absoluteString + "|down|" + String(maxPixel)
-  }
-
-  /// 使用 ImageIO 解码（支持限制最大像素，避免超大图开销）
-  private func decodeImage(url: URL, maxPixel: Int?) -> NSImage? {
+  /// 从原始图片文件创建一个小尺寸、高压缩率的缩略图二进制数据 (Data)
+  private func createThumbnailData(from url: URL, maxPixelSize: Int) -> Data? {
     guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
 
-    // 如果指定 maxPixel，使用缩略图解码；否则解码完整图像
-    if let maxPixel {
-      let options: [CFString: Any] = [
-        kCGImageSourceCreateThumbnailFromImageAlways: true,
-        kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-        kCGImageSourceCreateThumbnailWithTransform: true,
-        kCGImageSourceShouldCache: true,
-      ]
-      if let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary) {
-        return nsImage(from: cgThumb)
-      }
-      return nil
-    } else {
-      let options: [CFString: Any] = [
-        kCGImageSourceShouldCache: true,
-        kCGImageSourceShouldCacheImmediately: true,
-      ]
-      if let cg = CGImageSourceCreateImageAtIndex(src, 0, options as CFDictionary) {
-        return nsImage(from: cg)
-      }
+    let options: [CFString: Any] = [
+      kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
+      kCGImageSourceCreateThumbnailWithTransform: true,
+      kCGImageSourceShouldCacheImmediately: true,
+      kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+    ]
+
+    guard let cgImage = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary) else {
       return nil
     }
+
+    // 将缩略图编码为 JPG 格式，因为它是用于快速预览，体积小是关键
+    let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+    return bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.7])  // 70% 压缩率
   }
 
-  private func nsImage(from cgImage: CGImage) -> NSImage {
-    // 直接使用 NSImage(cgImage:size:)，避免在后台线程使用图形上下文
-    let size = NSSize(width: cgImage.width, height: cgImage.height)
-    return NSImage(cgImage: cgImage, size: size)
+  /// 后台安全地将图片文件解码为 CGImage (CGImage 是线程安全的 Sendable 类型)
+  private func decodeCGImage(from url: URL) async -> CGImage? {
+    await Task.detached(priority: .userInitiated) {
+      guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+        return nil
+      }
+      // 只解码，不创建 NSImage
+      return CGImageSourceCreateImageAtIndex(src, 0, nil)
+    }.value
   }
 
+  // 估算 NSImage 的内存开销
   private func estimatedCost(of image: NSImage) -> Int {
-    // 估算像素数 * 4 字节，注意 NSImage.size 单位是 points；我们在构造时使用像素尺寸
-    let pixels = Int(max(image.size.width, 1) * max(image.size.height, 1))
-    return min(pixels * 4, Int(Int32.max))
+    let pixels = Int(image.size.width * image.size.height)
+    return pixels * 4  // 假设每个像素4字节 (RGBA)
+  }
+
+  /// 预取功能，现在是创建元数据缓存
+  func prefetch(urls: [URL]) {
+    Task.detached(priority: .background) {
+      for url in urls {
+        // 如果缓存已存在，则跳过
+        if await DiskCache.shared.retrieve(forKey: url.path) == nil {
+          // 这里我们忽略 createAndCacheMetadata 的返回值，因为它现在是 Void
+          await self.createAndCacheMetadata(for: url)
+        }
+      }
+    }
   }
 }

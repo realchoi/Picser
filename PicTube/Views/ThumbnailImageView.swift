@@ -46,7 +46,7 @@ struct ThumbnailImageView: View {
         self.image = img
       } else {
         // 回退到自有解码
-        self.image = await ImageLoader.shared.loadThumbnail(for: url, maxPixel: Int(height * scale))
+        self.image = await ImageLoader.shared.loadThumbnail(for: url)
       }
     }
     .onDisappear {
