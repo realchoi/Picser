@@ -20,6 +20,10 @@ class AppSettings: ObservableObject {
   /// 拖拽快捷键（UserDefaults 存储）
   @AppStorage("panModifierKey") private var panModifierKeyStorage: String = ModifierKey.none
     .rawValue
+  /// 图片切换按键（UserDefaults 存储）
+  @AppStorage("imageNavigationKey") private var imageNavigationKeyStorage: String =
+    ImageNavigationKey.leftRight
+    .rawValue
 
   /// 缩放快捷键（UI 显示）
   @Published var zoomModifierKey: ModifierKey = .none {
@@ -31,6 +35,12 @@ class AppSettings: ObservableObject {
   @Published var panModifierKey: ModifierKey = .none {
     didSet {
       panModifierKeyStorage = panModifierKey.rawValue
+    }
+  }
+  /// 图片切换按键（UI 显示）
+  @Published var imageNavigationKey: ImageNavigationKey = .leftRight {
+    didSet {
+      imageNavigationKeyStorage = imageNavigationKey.rawValue
     }
   }
 
@@ -66,6 +76,7 @@ class AppSettings: ObservableObject {
     // 从 UserDefaults 加载保存的修饰键值
     self.zoomModifierKey = ModifierKey(rawValue: zoomModifierKeyStorage) ?? .none
     self.panModifierKey = ModifierKey(rawValue: panModifierKeyStorage) ?? .none
+    self.imageNavigationKey = ImageNavigationKey(rawValue: imageNavigationKeyStorage) ?? .leftRight
   }
 
   // MARK: - 公共方法
@@ -108,6 +119,7 @@ class AppSettings: ObservableObject {
   func resetToDefaults() {
     zoomModifierKey = .none
     panModifierKey = .none
+    imageNavigationKey = .leftRight
     zoomSensitivity = 0.05
     minZoomScale = 0.1
     maxZoomScale = 10.0
@@ -159,5 +171,31 @@ enum ModifierKey: String, CaseIterable, Identifiable {
   /// 返回用户可选择的修饰键选项
   static func availableKeys() -> [ModifierKey] {
     return [.none, .control, .command, .option, .shift]
+  }
+}
+
+/// 定义图片切换按键枚举，用于图片导航设置
+enum ImageNavigationKey: String, CaseIterable, Identifiable {
+  case leftRight = "leftRight"  // 左右方向键（默认）
+  case upDown = "upDown"  // 上下方向键
+  case pageUpDown = "pageUpDown"  // PageUp/PageDown
+
+  var id: String { rawValue }
+
+  /// 图片切换按键显示名称
+  var displayName: String {
+    switch self {
+    case .leftRight:
+      return NSLocalizedString("navigation_left_right", comment: "左右方向键")
+    case .upDown:
+      return NSLocalizedString("navigation_up_down", comment: "上下方向键")
+    case .pageUpDown:
+      return NSLocalizedString("navigation_page_up_down", comment: "PageUp/PageDown")
+    }
+  }
+
+  /// 返回用户可选择的图片切换按键选项
+  static func availableKeys() -> [ImageNavigationKey] {
+    return [.leftRight, .upDown, .pageUpDown]
   }
 }

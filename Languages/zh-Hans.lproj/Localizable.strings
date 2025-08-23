@@ -43,6 +43,13 @@
 "modifier_control" = "⌃ Control";
 "modifier_shift" = "⇧ Shift";
 
+/* Image Navigation Keys */
+"navigation_left_right" = "左右方向键";
+"navigation_up_down" = "上下方向键";
+"navigation_page_up_down" = "PageUp/PageDown";
+"image_navigation_label" = "图片切换按键";
+"image_navigation_description" = "选择用于切换图片的按键";
+
 /* Cache Settings */
 "cache_settings_title" = "缓存管理";
 "cache_info_group" = "缓存信息";

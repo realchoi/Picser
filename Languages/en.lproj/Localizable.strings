@@ -43,6 +43,13 @@
 "modifier_control" = "⌃ Control";
 "modifier_shift" = "⇧ Shift";
 
+/* Image Navigation Keys */
+"navigation_left_right" = "Left/Right Arrow Keys";
+"navigation_up_down" = "Up/Down Arrow Keys";
+"navigation_page_up_down" = "Page Up/Page Down";
+"image_navigation_label" = "Image Navigation Keys";
+"image_navigation_description" = "Choose which keys to use for switching between images";
+
 /* Cache Settings */
 "cache_settings_title" = "Cache Management";
 "cache_info_group" = "Cache Information";

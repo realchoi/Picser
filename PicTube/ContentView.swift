@@ -14,6 +14,7 @@ struct ContentView: View {
   // 当这个变量改变时，SwiftUI 会自动刷新相关的视图
   @State private var imageURLs: [URL] = []  // 文件夹中所有图片的 URL 列表
   @State private var selectedImageURL: URL?  // 当前选中的图片 URL
+  @FocusState private var isFocused: Bool  // 焦点状态管理
 
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
@@ -31,6 +32,22 @@ struct ContentView: View {
     .onChange(of: selectedImageURL) { _, newURL in
       guard let newURL else { return }
       prefetchNeighbors(around: newURL)
+    }
+    .onKeyPress { press in
+      handleKeyPress(press)
+      return .handled
+    }
+    .focusable()  // 确保视图可以获得焦点
+    .focused($isFocused)  // 绑定焦点状态
+    .onAppear {
+      // 确保视图在出现时获得焦点
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        isFocused = true
+      }
+    }
+    .onTapGesture {
+      // 点击时重新获得焦点
+      isFocused = true
     }
     .toolbar {
       ToolbarItem {
@@ -105,6 +122,72 @@ extension ContentView {
     ThumbnailService.prefetch(urls: neighbors, size: CGSize(width: 120, height: 120), scale: scale)
     // 额外：预解码较低像素的下采样图，优先速度（约 2048px）
     ImageLoader.shared.prefetch(urls: neighbors)
+  }
+
+  /// 处理键盘按键事件，实现图片切换功能
+  private func handleKeyPress(_ press: KeyPress) {
+    guard !imageURLs.isEmpty, let currentURL = selectedImageURL else {
+      print("handleKeyPress: 图片列表为空或没有选中的图片")
+      return
+    }
+
+    let currentIndex = imageURLs.firstIndex(of: currentURL) ?? 0
+    let totalCount = imageURLs.count
+
+    print("handleKeyPress: 按键 \(press.key), 当前索引: \(currentIndex), 总数: \(totalCount)")
+
+    switch appSettings.imageNavigationKey {
+    case .leftRight:
+      // 左右方向键：左键上一张，右键下一张
+      if press.key == .leftArrow {
+        let newIndex = (currentIndex - 1 + totalCount) % totalCount
+        print("左箭头: 从 \(currentIndex) 切换到 \(newIndex)")
+        navigateToImage(at: newIndex)
+      } else if press.key == .rightArrow {
+        let newIndex = (currentIndex + 1) % totalCount
+        print("右箭头: 从 \(currentIndex) 切换到 \(newIndex)")
+        navigateToImage(at: newIndex)
+      }
+
+    case .upDown:
+      // 上下方向键：上键上一张，下键下一张
+      if press.key == .upArrow {
+        let newIndex = (currentIndex - 1 + totalCount) % totalCount
+        print("上箭头: 从 \(currentIndex) 切换到 \(newIndex)")
+        navigateToImage(at: newIndex)
+      } else if press.key == .downArrow {
+        let newIndex = (currentIndex + 1) % totalCount
+        print("下箭头: 从 \(currentIndex) 切换到 \(newIndex)")
+        navigateToImage(at: newIndex)
+      }
+
+    case .pageUpDown:
+      // PageUp/PageDown：PageUp上一张，PageDown下一张
+      if press.key == .pageUp {
+        let newIndex = (currentIndex - 1 + totalCount) % totalCount
+        print("PageUp: 从 \(currentIndex) 切换到 \(newIndex)")
+        navigateToImage(at: newIndex)
+      } else if press.key == .pageDown {
+        let newIndex = (currentIndex + 1) % totalCount
+        print("PageDown: 从 \(currentIndex) 切换到 \(newIndex)")
+        navigateToImage(at: newIndex)
+      }
+    }
+
+    // 确保按键后焦点保持
+    DispatchQueue.main.async {
+      isFocused = true
+    }
+  }
+
+  /// 导航到指定索引的图片
+  private func navigateToImage(at index: Int) {
+    guard index >= 0 && index < imageURLs.count else {
+      print("navigateToImage: 无效索引 \(index), 总数: \(imageURLs.count)")
+      return
+    }
+    print("navigateToImage: 切换到索引 \(index), URL: \(imageURLs[index].lastPathComponent)")
+    selectedImageURL = imageURLs[index]
   }
 }
 

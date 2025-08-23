@@ -44,6 +44,21 @@ struct KeyboardSettingsView: View {
         KeyRecorderView(selectedKey: $appSettings.panModifierKey)
       }
 
+      Divider()
+
+      // 图片切换按键设置
+      VStack(alignment: .leading, spacing: 8) {
+        Text(NSLocalizedString("image_navigation_label", comment: "Image navigation label"))
+          .fontWeight(.medium)
+        Text(
+          NSLocalizedString("image_navigation_description", comment: "Image navigation description")
+        )
+        .font(.caption)
+        .foregroundColor(.secondary)
+
+        ImageNavigationKeyPicker(selectedKey: $appSettings.imageNavigationKey)
+      }
+
       Spacer()
 
       // 重置按钮
@@ -56,6 +71,7 @@ struct KeyboardSettingsView: View {
         }
         .buttonStyle(.bordered)
       }
+      // 移除额外的底部间距，与显示页面保持一致
     }
     .padding()
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -71,6 +87,25 @@ struct KeyRecorderView: View {
       // 修饰键选择器
       Picker("", selection: $selectedKey) {
         ForEach(ModifierKey.availableKeys()) { key in
+          Text(key.displayName)
+            .tag(key)
+        }
+      }
+      .pickerStyle(.menu)
+      .frame(minWidth: 120)
+    }
+  }
+}
+
+// 图片切换按键选择器视图
+struct ImageNavigationKeyPicker: View {
+  @Binding var selectedKey: ImageNavigationKey
+
+  var body: some View {
+    HStack {
+      // 图片切换按键选择器
+      Picker("", selection: $selectedKey) {
+        ForEach(ImageNavigationKey.availableKeys()) { key in
           Text(key.displayName)
             .tag(key)
         }
