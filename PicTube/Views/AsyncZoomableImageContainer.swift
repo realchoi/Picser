@@ -21,14 +21,12 @@ struct AsyncZoomableImageContainer: View {
       ZStack {
         if let viewportImage {
           ZoomableImageView(image: viewportImage)
-            .transition(.opacity)
         } else if let previewImage {
           // 预览阶段使用轻量 Image，避免初始化缩放/手势等开销
           Image(nsImage: previewImage)
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .transition(.opacity)
             .allowsHitTesting(false)
         } else {
           Rectangle()
@@ -37,6 +35,9 @@ struct AsyncZoomableImageContainer: View {
         }
       }
       .id(url)
+      .transition(
+        .asymmetric(insertion: .opacity.animation(.easeInOut(duration: 0.1)), removal: .identity)
+      )
       .task(id: url) {
         // 1) 先用 QuickLook 生成较清晰的预览（极快、低内存）
         let scale = NSScreen.main?.backingScaleFactor ?? 2.0

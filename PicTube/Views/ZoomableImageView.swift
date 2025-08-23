@@ -127,12 +127,6 @@ struct ZoomableImageView: View {
       .onAppear {
         setupInitialState(geometry: geometry)
       }
-      .onChange(of: image) { _, _ in
-        // 图片变化时按设置决定是否重置缩放
-        DispatchQueue.main.async {
-          fitImageToView(geometry: geometry)
-        }
-      }
     }
     .onChange(of: appSettings.minZoomScale) { _, newValue in
       minScale = newValue
