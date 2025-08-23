@@ -49,9 +49,9 @@ struct ZoomableImageView: View {
     GeometryReader { geometry in
       ZStack {
         // 图片内容
-        Image(nsImage: image)
-          .resizable()
-          .aspectRatio(contentMode: .fit)
+        AnimatableImageView(image: image)
+          //.resizable()
+          //.aspectRatio(contentMode: .fit)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
           .scaleEffect(effectiveScale)
           .offset(effectiveOffset)
@@ -330,6 +330,26 @@ class ScrollWheelView: NSView {
 
   override func becomeFirstResponder() -> Bool {
     return true
+  }
+}
+
+/// 使用 NSViewRepresentable 封装 NSImageView，以支持 GIF 动画播放
+struct AnimatableImageView: NSViewRepresentable {
+  let image: NSImage
+
+  func makeNSView(context: Context) -> NSImageView {
+    let imageView = NSImageView()
+    imageView.image = image
+    imageView.imageScaling = .scaleProportionallyUpOrDown
+    imageView.animates = true  // 关键：允许播放动画
+    imageView.isEditable = false
+    imageView.setContentCompressionResistancePriority(.fittingSizeCompression, for: .horizontal)
+    imageView.setContentCompressionResistancePriority(.fittingSizeCompression, for: .vertical)
+    return imageView
+  }
+
+  func updateNSView(_ nsView: NSImageView, context: Context) {
+    nsView.image = image
   }
 }
 
