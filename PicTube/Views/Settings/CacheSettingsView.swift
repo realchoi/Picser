@@ -2,7 +2,7 @@
 //  CacheSettingsView.swift
 //  PicTube
 //
-//  Created by AI Assistant on 2025/1/27.
+//  Created by Eric Cai on 2025/8/22.
 //
 
 import AppKit
