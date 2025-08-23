@@ -27,11 +27,10 @@ struct AsyncZoomableImageContainer: View {
           .overlay(ProgressView())
       }
     }
-    .id(url)
     .transition(
       .asymmetric(insertion: .opacity.animation(.easeInOut(duration: 0.1)), removal: .identity)
     )
-    .task(id: url) {
+    .onChange(of: url) {
       // 【核心改造】
       // 重置状态，准备加载新图片
       self.displayImage = nil
@@ -39,7 +38,15 @@ struct AsyncZoomableImageContainer: View {
       // 直接调用我们强大的 ImageLoader 来加载最终的图片。
       // ImageLoader 内部已经处理了 GIF 和其他静态图片的差异化加载。
       // 这样就绕过了 ThumbnailService 只能生成静态图的问题。
-      self.displayImage = await ImageLoader.shared.loadFullImage(for: url)
+      Task {
+        self.displayImage = await ImageLoader.shared.loadFullImage(for: url)
+      }
+    }
+    .task {
+      // 确保首次加载时也能显示图片
+      if self.displayImage == nil {
+        self.displayImage = await ImageLoader.shared.loadFullImage(for: url)
+      }
     }
   }
 }
