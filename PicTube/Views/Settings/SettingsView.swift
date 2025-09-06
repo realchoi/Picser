@@ -9,16 +9,25 @@ import SwiftUI
 
 struct SettingsView: View {
   @ObservedObject var appSettings: AppSettings
+  @ObservedObject private var localizationManager = LocalizationManager.shared
   @State private var validationErrors: [String] = []
 
   var body: some View {
     VStack(spacing: 0) {
       TabView {
+        // 通用设置页面
+        GeneralSettingsView(appSettings: appSettings)
+          .tabItem {
+            Label(
+              "general_tab".localized,
+              systemImage: "gearshape")
+          }
+
         // 快捷键设置页面
         KeyboardSettingsView(appSettings: appSettings)
           .tabItem {
             Label(
-              NSLocalizedString("keyboard_tab", comment: "Keyboard tab title"),
+              "keyboard_tab".localized,
               systemImage: "keyboard")
           }
 
@@ -26,7 +35,7 @@ struct SettingsView: View {
         DisplaySettingsView(appSettings: appSettings)
           .tabItem {
             Label(
-              NSLocalizedString("display_tab", comment: "Display tab title"), systemImage: "display"
+              "display_tab".localized, systemImage: "display"
             )
           }
 
@@ -34,7 +43,7 @@ struct SettingsView: View {
         CacheSettingsView()
           .tabItem {
             Label(
-              NSLocalizedString("cache_tab", comment: "Cache tab title"),
+              "cache_tab".localized,
               systemImage: "externaldrive"
             )
           }
@@ -61,6 +70,7 @@ struct SettingsView: View {
     .onChange(of: appSettings.zoomSensitivity) { validateSettings() }
     .onChange(of: appSettings.minZoomScale) { validateSettings() }
     .onChange(of: appSettings.maxZoomScale) { validateSettings() }
+    .onChange(of: appSettings.appLanguage) { validateSettings() }
   }
 
   private func validateSettings() {

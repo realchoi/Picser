@@ -11,11 +11,12 @@ import SwiftUI
 // 显示设置页面
 struct DisplaySettingsView: View {
   @ObservedObject var appSettings: AppSettings
+  @ObservedObject private var localizationManager = LocalizationManager.shared
 
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        Text(NSLocalizedString("display_settings_title", comment: "Display settings title"))
+        Text("display_settings_title".localized)
           .font(.title2)
           .fontWeight(.semibold)
 
@@ -23,12 +24,12 @@ struct DisplaySettingsView: View {
 
         // 缩放设置组
         VStack(alignment: .leading, spacing: 16) {
-          Text(NSLocalizedString("zoom_settings_group", comment: "Zoom settings group"))
+          Text("zoom_settings_group".localized)
             .fontWeight(.medium)
 
           // 缩放灵敏度
           HStack {
-            Text(NSLocalizedString("zoom_sensitivity", comment: "Zoom sensitivity"))
+            Text("zoom_sensitivity".localized)
               .frame(width: 120, alignment: .leading)
             Slider(
               value: $appSettings.zoomSensitivity,
@@ -42,7 +43,7 @@ struct DisplaySettingsView: View {
 
           // 最小缩放比例
           HStack {
-            Text(NSLocalizedString("min_zoom_scale", comment: "Minimum zoom scale"))
+            Text("min_zoom_scale".localized)
               .frame(width: 120, alignment: .leading)
             Slider(
               value: $appSettings.minZoomScale,
@@ -56,7 +57,7 @@ struct DisplaySettingsView: View {
 
           // 最大缩放比例
           HStack {
-            Text(NSLocalizedString("max_zoom_scale", comment: "Maximum zoom scale"))
+            Text("max_zoom_scale".localized)
               .frame(width: 120, alignment: .leading)
             Slider(
               value: $appSettings.maxZoomScale,
@@ -74,7 +75,7 @@ struct DisplaySettingsView: View {
         // 重置按钮
         HStack {
           Spacer()
-          Button(NSLocalizedString("reset_defaults_button", comment: "Reset defaults button")) {
+          Button("reset_defaults_button".localized) {
             withAnimation {
               appSettings.resetToDefaults(settingsTab: .display)
             }

@@ -19,6 +19,7 @@ enum ExifExtractionError: Error {
 struct ContentView: View {
   // 使用 @State 属性包装器来声明一个状态变量
   // 当这个变量改变时，SwiftUI 会自动刷新相关的视图
+  @ObservedObject private var localizationManager = LocalizationManager.shared
   @State private var imageURLs: [URL] = []  // 文件夹中所有图片的 URL 列表
   @State private var selectedImageURL: URL?  // 当前选中的图片 URL
   @FocusState private var isFocused: Bool  // 焦点状态管理
@@ -78,11 +79,11 @@ struct ContentView: View {
           openFileOrFolder()
         } label: {
           Label(
-            NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"),
+            "open_file_or_folder_button".localized,
             systemImage: "folder")
         }
         // 给 toolbar 的打开文件夹按钮添加一个鼠标悬停的提示文本，且弹窗提示的速度尽量快
-        .help(NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"))
+        .help("open_file_or_folder_button".localized)
       }
       // 再添加一个工具栏按钮，用来查看图片的 exif 信息
       if selectedImageURL != nil {
@@ -100,7 +101,7 @@ struct ContentView: View {
               }
 
               if isLoadingExif {
-                Text(NSLocalizedString("loading_text", comment: "Loading..."))
+                Text("loading_text".localized)
                   .font(.caption)
               }
             }
@@ -108,8 +109,8 @@ struct ContentView: View {
           .disabled(isLoadingExif)
           .help(
             isLoadingExif
-              ? NSLocalizedString("exif_loading_hint", comment: "Loading EXIF information...")
-              : NSLocalizedString("exif_info_button", comment: "Show Exif Info"))
+              ? "exif_loading_hint".localized
+              : "exif_info_button".localized)
         }
       }
     }
@@ -121,10 +122,10 @@ struct ContentView: View {
       }
     }
     .alert(
-      NSLocalizedString("exif_loading_error_title", comment: "EXIF Loading Error"),
+      "exif_loading_error_title".localized,
       isPresented: $showingExifError
     ) {
-      Button(NSLocalizedString("ok_button", comment: "OK"), role: .cancel) {}
+      Button("ok_button".localized, role: .cancel) {}
     } message: {
       if let errorMessage = exifErrorMessage {
         Text(errorMessage)
@@ -156,7 +157,7 @@ struct ContentView: View {
   /// 显示图片的 exif 信息
   private func showExifInfo() {
     guard let currentURL = selectedImageURL else {
-      exifErrorMessage = NSLocalizedString("exif_no_image_selected", comment: "No image selected")
+      exifErrorMessage = "exif_no_image_selected".localized
       showingExifError = true
       return
     }
@@ -177,15 +178,13 @@ struct ContentView: View {
       } catch ExifExtractionError.failedToCreateImageSource {
         await MainActor.run {
           self.isLoadingExif = false
-          self.exifErrorMessage = NSLocalizedString(
-            "exif_file_read_error", comment: "File read error")
+          self.exifErrorMessage = "exif_file_read_error".localized
           self.showingExifError = true
         }
       } catch ExifExtractionError.failedToExtractProperties {
         await MainActor.run {
           self.isLoadingExif = false
-          self.exifErrorMessage = NSLocalizedString(
-            "exif_metadata_extract_error", comment: "Metadata extract error")
+          self.exifErrorMessage = "exif_metadata_extract_error".localized
           self.showingExifError = true
         }
       } catch {
@@ -439,7 +438,7 @@ private struct EmptyHint: View {
       onOpen()
     } label: {
       Label(
-        NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"),
+        "open_file_or_folder_button".localized,
         systemImage: "folder"
       )
       .padding(8)  // 添加按钮的内边距

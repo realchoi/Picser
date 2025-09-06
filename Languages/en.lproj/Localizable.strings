@@ -2,7 +2,7 @@
   Localizable.strings (English)
   PicTube
 
-  Created by Eric Cai on 2025/1/27.
+  Created by Eric Cai on 2025/08/19.
   
 */
 
@@ -10,6 +10,7 @@
 "settings_title" = "Settings";
 
 /* Tab Titles */
+"general_tab" = "General";
 "keyboard_tab" = "Keyboard";
 "display_tab" = "Display";
 "behavior_tab" = "Behavior";
@@ -129,3 +130,13 @@
 "clear_cache_alert_message" = "Deleting all caches may slow down opening images, sure you want to continue?";
 "cancel_button" = "Cancel";
 "clear_button" = "Clear";
+
+/* General Settings */
+"general_settings_title" = "General Settings";
+"interface_group" = "Interface Settings";
+"app_language_label" = "App Language:";
+"language_system" = "Follow System";
+"language_chinese" = "Simplified Chinese";
+"language_english" = "English";
+"language_restart_note" = "Language settings will take effect after restarting the app";
+"app_language_description" = "Choose the language for the app interface";

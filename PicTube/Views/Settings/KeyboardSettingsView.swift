@@ -11,11 +11,12 @@ import SwiftUI
 // 快捷键设置页面
 struct KeyboardSettingsView: View {
   @ObservedObject var appSettings: AppSettings
+  @ObservedObject private var localizationManager = LocalizationManager.shared
 
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        Text(NSLocalizedString("keyboard_settings_title", comment: "Keyboard settings title"))
+        Text("keyboard_settings_title".localized)
           .font(.title2)
           .fontWeight(.semibold)
 
@@ -23,9 +24,9 @@ struct KeyboardSettingsView: View {
 
         // 缩放快捷键设置
         VStack(alignment: .leading, spacing: 8) {
-          Text(NSLocalizedString("zoom_shortcut_label", comment: "Zoom shortcut label"))
+          Text("zoom_shortcut_label".localized)
             .fontWeight(.medium)
-          Text(NSLocalizedString("zoom_shortcut_description", comment: "Zoom shortcut description"))
+          Text("zoom_shortcut_description".localized)
             .font(.caption)
             .foregroundColor(.secondary)
 
@@ -36,9 +37,9 @@ struct KeyboardSettingsView: View {
 
         // 拖拽快捷键设置
         VStack(alignment: .leading, spacing: 8) {
-          Text(NSLocalizedString("pan_shortcut_label", comment: "Pan shortcut label"))
+          Text("pan_shortcut_label".localized)
             .fontWeight(.medium)
-          Text(NSLocalizedString("pan_shortcut_description", comment: "Pan shortcut description"))
+          Text("pan_shortcut_description".localized)
             .font(.caption)
             .foregroundColor(.secondary)
 
@@ -49,14 +50,11 @@ struct KeyboardSettingsView: View {
 
         // 图片切换按键设置
         VStack(alignment: .leading, spacing: 8) {
-          Text(NSLocalizedString("image_navigation_label", comment: "Image navigation label"))
+          Text("image_navigation_label".localized)
             .fontWeight(.medium)
-          Text(
-            NSLocalizedString(
-              "image_navigation_description", comment: "Image navigation description")
-          )
-          .font(.caption)
-          .foregroundColor(.secondary)
+          Text("image_navigation_description".localized)
+            .font(.caption)
+            .foregroundColor(.secondary)
 
           KeyPickerView(selectedKey: $appSettings.imageNavigationKey)
         }
@@ -66,7 +64,7 @@ struct KeyboardSettingsView: View {
         // 重置按钮
         HStack {
           Spacer()
-          Button(NSLocalizedString("reset_defaults_button", comment: "Reset defaults button")) {
+          Button("reset_defaults_button".localized) {
             withAnimation {
               appSettings.resetToDefaults(settingsTab: .keyboard)
             }

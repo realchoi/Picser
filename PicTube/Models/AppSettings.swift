@@ -31,6 +31,9 @@ class AppSettings: ObservableObject {
   @AppStorage("imageNavigationKey") private var imageNavigationKeyStorage: String =
     ImageNavigationKey.leftRight
     .rawValue
+  /// 应用语言（UserDefaults 存储）
+  @AppStorage("appLanguage") private var appLanguageStorage: String = AppLanguage.system
+    .rawValue
 
   /// 缩放快捷键（UI 显示）
   @Published var zoomModifierKey: ModifierKey = .none {
@@ -48,6 +51,14 @@ class AppSettings: ObservableObject {
   @Published var imageNavigationKey: ImageNavigationKey = .leftRight {
     didSet {
       imageNavigationKeyStorage = imageNavigationKey.rawValue
+    }
+  }
+  /// 应用语言（UI 显示）
+  @Published var appLanguage: AppLanguage = .system {
+    didSet {
+      appLanguageStorage = appLanguage.rawValue
+      // 更新本地化管理器的语言设置
+      LocalizationManager.shared.setLanguage(appLanguage.rawValue)
     }
   }
 
@@ -84,6 +95,10 @@ class AppSettings: ObservableObject {
     self.zoomModifierKey = ModifierKey(rawValue: zoomModifierKeyStorage) ?? .none
     self.panModifierKey = ModifierKey(rawValue: panModifierKeyStorage) ?? .none
     self.imageNavigationKey = ImageNavigationKey(rawValue: imageNavigationKeyStorage) ?? .leftRight
+    self.appLanguage = AppLanguage(rawValue: appLanguageStorage) ?? .system
+
+    // 初始化时同步语言设置到本地化管理器
+    LocalizationManager.shared.setLanguage(self.appLanguage.rawValue)
   }
 
   // MARK: - 公共方法
@@ -125,6 +140,8 @@ class AppSettings: ObservableObject {
   /// 重置所有设置为默认值
   func resetToDefaults(settingsTab: SettingsTab) {
     switch settingsTab {
+    case .general:
+      appLanguage = .system
     case .keyboard:
       zoomModifierKey = .none
       panModifierKey = .none
@@ -141,6 +158,7 @@ class AppSettings: ObservableObject {
 
 /// 设置标签枚举，用于设置页面标签
 enum SettingsTab: String, CaseIterable, Identifiable {
+  case general = "General"
   case keyboard = "Keyboard"
   case display = "Display"
   case cache = "Cache"
@@ -162,15 +180,15 @@ enum ModifierKey: String, CaseIterable, Identifiable, Hashable, KeySelectable {
   var displayName: String {
     switch self {
     case .none:
-      return NSLocalizedString("modifier_none", comment: "无修饰键")
+      return "modifier_none".localized
     case .command:
-      return NSLocalizedString("modifier_command", comment: "Command(⌘)")
+      return "modifier_command".localized
     case .option:
-      return NSLocalizedString("modifier_option", comment: "Option(⌥)")
+      return "modifier_option".localized
     case .control:
-      return NSLocalizedString("modifier_control", comment: "Control(⌃)")
+      return "modifier_control".localized
     case .shift:
-      return NSLocalizedString("modifier_shift", comment: "Shift(⇧)")
+      return "modifier_shift".localized
     }
   }
 
@@ -196,6 +214,44 @@ enum ModifierKey: String, CaseIterable, Identifiable, Hashable, KeySelectable {
   }
 }
 
+/// 定义应用语言枚举，用于语言选择设置
+enum AppLanguage: String, CaseIterable, Identifiable, Hashable, KeySelectable {
+  case system = "system"
+  case chinese = "chinese"
+  case english = "english"
+
+  var id: String { rawValue }
+
+  /// 语言显示名称
+  var displayName: String {
+    switch self {
+    case .system:
+      return "language_system".localized
+    case .chinese:
+      return "language_chinese".localized
+    case .english:
+      return "language_english".localized
+    }
+  }
+
+  /// 语言的 Locale 标识符
+  var localeIdentifier: String? {
+    switch self {
+    case .system:
+      return nil  // 跟随系统
+    case .chinese:
+      return "zh-Hans"
+    case .english:
+      return "en"
+    }
+  }
+
+  /// 返回用户可选择的语言选项
+  static func availableKeys() -> [AppLanguage] {
+    return [.system, .chinese, .english]
+  }
+}
+
 /// 定义图片切换按键枚举，用于图片导航设置
 enum ImageNavigationKey: String, CaseIterable, Identifiable, Hashable, KeySelectable {
   case leftRight = "leftRight"  // 左右方向键（默认）
@@ -208,11 +264,11 @@ enum ImageNavigationKey: String, CaseIterable, Identifiable, Hashable, KeySelect
   var displayName: String {
     switch self {
     case .leftRight:
-      return NSLocalizedString("navigation_left_right", comment: "左右方向键")
+      return "navigation_left_right".localized
     case .upDown:
-      return NSLocalizedString("navigation_up_down", comment: "上下方向键")
+      return "navigation_up_down".localized
     case .pageUpDown:
-      return NSLocalizedString("navigation_page_up_down", comment: "PageUp/PageDown")
+      return "navigation_page_up_down".localized
     }
   }
 

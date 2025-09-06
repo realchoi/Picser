@@ -9,6 +9,7 @@ import AppKit
 import SwiftUI
 
 struct CacheSettingsView: View {
+  @ObservedObject private var localizationManager = LocalizationManager.shared
   @State private var cacheSize: Int64 = 0
   @State private var isLoading = false
   @State private var showingClearConfirmation = false
@@ -16,7 +17,7 @@ struct CacheSettingsView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        Text(NSLocalizedString("cache_settings_title", comment: "Cache settings title"))
+        Text("cache_settings_title".localized)
           .font(.title2)
           .fontWeight(.semibold)
 
@@ -24,11 +25,11 @@ struct CacheSettingsView: View {
 
         // 缓存信息显示
         VStack(alignment: .leading, spacing: 16) {
-          Text(NSLocalizedString("cache_info_group", comment: "Cache info group"))
+          Text("cache_info_group".localized)
             .fontWeight(.medium)
 
           HStack {
-            Text(NSLocalizedString("cache_size_label", comment: "Cache size label"))
+            Text("cache_size_label".localized)
               .frame(width: 120, alignment: .leading)
 
             // 使用固定尺寸的容器来避免布局跳变
@@ -48,10 +49,10 @@ struct CacheSettingsView: View {
                 .font(.caption)
             }
             .buttonStyle(.borderless)
-            .help(NSLocalizedString("refresh_cache_size", comment: "Refresh cache size"))
+            .help("refresh_cache_size".localized)
           }
 
-          Text(NSLocalizedString("cache_size_description", comment: "Cache size description"))
+          Text("cache_size_description".localized)
             .font(.caption)
             .foregroundColor(.secondary)
         }
@@ -60,14 +61,14 @@ struct CacheSettingsView: View {
 
         // 缓存操作
         VStack(alignment: .leading, spacing: 16) {
-          Text(NSLocalizedString("cache_actions_group", comment: "Cache actions group"))
+          Text("cache_actions_group".localized)
             .fontWeight(.medium)
 
           HStack(spacing: 12) {
             Button(action: { showingClearConfirmation = true }) {
               HStack(spacing: 6) {
                 Image(systemName: "trash")
-                Text(NSLocalizedString("clear_cache_button", comment: "Clear cache button"))
+                Text("clear_cache_button".localized)
               }
             }
             .buttonStyle(.borderedProminent)
@@ -77,13 +78,13 @@ struct CacheSettingsView: View {
             Button(action: openCacheDirectory) {
               HStack(spacing: 6) {
                 Image(systemName: "folder")
-                Text(NSLocalizedString("open_cache_directory", comment: "Open cache directory"))
+                Text("open_cache_directory".localized)
               }
             }
             .buttonStyle(.bordered)
           }
 
-          Text(NSLocalizedString("cache_actions_description", comment: "Cache actions description"))
+          Text("cache_actions_description".localized)
             .font(.caption)
             .foregroundColor(.secondary)
         }
@@ -98,17 +99,17 @@ struct CacheSettingsView: View {
       refreshCacheSize()
     }
     .alert(
-      NSLocalizedString("clear_cache_alert_title", comment: "Clear cache alert title"),
+      "clear_cache_alert_title".localized,
       isPresented: $showingClearConfirmation
     ) {
-      Button(NSLocalizedString("cancel_button", comment: "Cancel button"), role: .cancel) {}
-      Button(NSLocalizedString("clear_button", comment: "Clear button"), role: .destructive) {
+      Button("cancel_button".localized, role: .cancel) {}
+      Button("clear_button".localized, role: .destructive) {
         Task {
           await clearCache()
         }
       }
     } message: {
-      Text(NSLocalizedString("clear_cache_alert_message", comment: "Clear cache alert message"))
+      Text("clear_cache_alert_message".localized)
     }
   }
 
