@@ -58,6 +58,8 @@ struct ContentView: View {
             NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"),
             systemImage: "folder")
         }
+        // 给 toolbar 的打开文件夹按钮添加一个鼠标悬停的提示文本，且弹窗提示的速度尽量快
+        .help(NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"))
       }
     }
     // 当窗口大小变化时，你可能希望重置缩放和偏移
@@ -257,10 +259,12 @@ private struct EmptyHint: View {
     } label: {
       Label(
         NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"),
-        systemImage: "folder")
+        systemImage: "folder"
+      )
+      .padding(8)  // 添加按钮的内边距
     }
     .buttonStyle(.borderedProminent)
-    .controlSize(.large)
+    .controlSize(.extraLarge)
     .font(.title2)
     .labelStyle(.titleAndIcon)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -268,5 +272,5 @@ private struct EmptyHint: View {
 }
 
 #Preview {
-  ContentView()
+  ContentView().environmentObject(AppSettings())
 }
