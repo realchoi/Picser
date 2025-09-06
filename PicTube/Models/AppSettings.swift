@@ -9,6 +9,13 @@ import AppKit
 import Foundation
 import SwiftUI
 
+/// 键选择器协议，用于统一不同类型的键选择组件
+protocol KeySelectable: RawRepresentable, CaseIterable, Identifiable, Hashable
+where RawValue == String {
+  var displayName: String { get }
+  static func availableKeys() -> [Self]
+}
+
 /// 应用设置管理器
 class AppSettings: ObservableObject {
 
@@ -127,7 +134,7 @@ class AppSettings: ObservableObject {
 }
 
 /// 定义修饰键枚举，用于快捷键设置
-enum ModifierKey: String, CaseIterable, Identifiable {
+enum ModifierKey: String, CaseIterable, Identifiable, Hashable, KeySelectable {
   case none = "none"
   case command = "command"
   case option = "option"
@@ -175,7 +182,7 @@ enum ModifierKey: String, CaseIterable, Identifiable {
 }
 
 /// 定义图片切换按键枚举，用于图片导航设置
-enum ImageNavigationKey: String, CaseIterable, Identifiable {
+enum ImageNavigationKey: String, CaseIterable, Identifiable, Hashable, KeySelectable {
   case leftRight = "leftRight"  // 左右方向键（默认）
   case upDown = "upDown"  // 上下方向键
   case pageUpDown = "pageUpDown"  // PageUp/PageDown

@@ -85,3 +85,9 @@ struct DisplaySettingsView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
   }
 }
+
+
+// 预览
+#Preview {
+    DisplaySettingsView(appSettings: AppSettings())
+}

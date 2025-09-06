@@ -28,7 +28,7 @@ struct KeyboardSettingsView: View {
           .font(.caption)
           .foregroundColor(.secondary)
 
-        KeyRecorderView(selectedKey: $appSettings.zoomModifierKey)
+        KeyPickerView(selectedKey: $appSettings.zoomModifierKey)
       }
 
       Divider()
@@ -41,7 +41,7 @@ struct KeyboardSettingsView: View {
           .font(.caption)
           .foregroundColor(.secondary)
 
-        KeyRecorderView(selectedKey: $appSettings.panModifierKey)
+        KeyPickerView(selectedKey: $appSettings.panModifierKey)
       }
 
       Divider()
@@ -56,7 +56,7 @@ struct KeyboardSettingsView: View {
         .font(.caption)
         .foregroundColor(.secondary)
 
-        ImageNavigationKeyPicker(selectedKey: $appSettings.imageNavigationKey)
+        KeyPickerView(selectedKey: $appSettings.imageNavigationKey)
       }
 
       Spacer()
@@ -78,15 +78,15 @@ struct KeyboardSettingsView: View {
   }
 }
 
-// 修饰键选择器视图
-struct KeyRecorderView: View {
-  @Binding var selectedKey: ModifierKey
+// 通用键选择器视图
+struct KeyPickerView<T: KeySelectable & Hashable>: View {
+  @Binding var selectedKey: T
 
   var body: some View {
     HStack {
-      // 修饰键选择器
+      // 键选择器
       Picker("", selection: $selectedKey) {
-        ForEach(ModifierKey.availableKeys()) { key in
+        ForEach(T.availableKeys()) { key in
           Text(key.displayName)
             .tag(key)
         }
@@ -97,21 +97,7 @@ struct KeyRecorderView: View {
   }
 }
 
-// 图片切换按键选择器视图
-struct ImageNavigationKeyPicker: View {
-  @Binding var selectedKey: ImageNavigationKey
-
-  var body: some View {
-    HStack {
-      // 图片切换按键选择器
-      Picker("", selection: $selectedKey) {
-        ForEach(ImageNavigationKey.availableKeys()) { key in
-          Text(key.displayName)
-            .tag(key)
-        }
-      }
-      .pickerStyle(.menu)
-      .frame(minWidth: 120)
-    }
-  }
+// 预览
+#Preview {
+  KeyboardSettingsView(appSettings: AppSettings())
 }

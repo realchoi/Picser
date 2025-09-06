@@ -127,25 +127,25 @@ extension ContentView {
   /// 处理键盘按键事件，实现图片切换功能
   private func handleKeyPress(_ press: KeyPress) {
     guard !imageURLs.isEmpty, let currentURL = selectedImageURL else {
-      print("handleKeyPress: 图片列表为空或没有选中的图片")
+      // print("handleKeyPress: 图片列表为空或没有选中的图片")
       return
     }
 
     let currentIndex = imageURLs.firstIndex(of: currentURL) ?? 0
     let totalCount = imageURLs.count
 
-    print("handleKeyPress: 按键 \(press.key), 当前索引: \(currentIndex), 总数: \(totalCount)")
+    // print("handleKeyPress: 按键 \(press.key), 当前索引: \(currentIndex), 总数: \(totalCount)")
 
     switch appSettings.imageNavigationKey {
     case .leftRight:
       // 左右方向键：左键上一张，右键下一张
       if press.key == .leftArrow {
         let newIndex = (currentIndex - 1 + totalCount) % totalCount
-        print("左箭头: 从 \(currentIndex) 切换到 \(newIndex)")
+        // print("左箭头: 从 \(currentIndex) 切换到 \(newIndex)")
         navigateToImage(at: newIndex)
       } else if press.key == .rightArrow {
         let newIndex = (currentIndex + 1) % totalCount
-        print("右箭头: 从 \(currentIndex) 切换到 \(newIndex)")
+        // print("右箭头: 从 \(currentIndex) 切换到 \(newIndex)")
         navigateToImage(at: newIndex)
       }
 
@@ -153,11 +153,11 @@ extension ContentView {
       // 上下方向键：上键上一张，下键下一张
       if press.key == .upArrow {
         let newIndex = (currentIndex - 1 + totalCount) % totalCount
-        print("上箭头: 从 \(currentIndex) 切换到 \(newIndex)")
+        // print("上箭头: 从 \(currentIndex) 切换到 \(newIndex)")
         navigateToImage(at: newIndex)
       } else if press.key == .downArrow {
         let newIndex = (currentIndex + 1) % totalCount
-        print("下箭头: 从 \(currentIndex) 切换到 \(newIndex)")
+        // print("下箭头: 从 \(currentIndex) 切换到 \(newIndex)")
         navigateToImage(at: newIndex)
       }
 
@@ -165,11 +165,11 @@ extension ContentView {
       // PageUp/PageDown：PageUp上一张，PageDown下一张
       if press.key == .pageUp {
         let newIndex = (currentIndex - 1 + totalCount) % totalCount
-        print("PageUp: 从 \(currentIndex) 切换到 \(newIndex)")
+        // print("PageUp: 从 \(currentIndex) 切换到 \(newIndex)")
         navigateToImage(at: newIndex)
       } else if press.key == .pageDown {
         let newIndex = (currentIndex + 1) % totalCount
-        print("PageDown: 从 \(currentIndex) 切换到 \(newIndex)")
+        // print("PageDown: 从 \(currentIndex) 切换到 \(newIndex)")
         navigateToImage(at: newIndex)
       }
     }
@@ -186,7 +186,7 @@ extension ContentView {
       print("navigateToImage: 无效索引 \(index), 总数: \(imageURLs.count)")
       return
     }
-    print("navigateToImage: 切换到索引 \(index), URL: \(imageURLs[index].lastPathComponent)")
+    // print("navigateToImage: 切换到索引 \(index), URL: \(imageURLs[index].lastPathComponent)")
     selectedImageURL = imageURLs[index]
   }
 }
