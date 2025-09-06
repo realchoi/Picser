@@ -6,8 +6,15 @@
 //
 
 import Foundation
+import ImageIO
 import SwiftUI
 import UniformTypeIdentifiers
+
+/// EXIF 信息提取错误类型
+enum ExifExtractionError: Error {
+  case failedToCreateImageSource
+  case failedToExtractProperties
+}
 
 struct ContentView: View {
   // 使用 @State 属性包装器来声明一个状态变量
@@ -16,6 +23,13 @@ struct ContentView: View {
   @State private var selectedImageURL: URL?  // 当前选中的图片 URL
   @FocusState private var isFocused: Bool  // 焦点状态管理
   @State private var sidebarVisibility: NavigationSplitViewVisibility = .detailOnly  // 侧边栏可见性控制
+
+  // EXIF 信息相关状态
+  @State private var showingExifInfo = false  // 是否显示 EXIF 信息弹窗
+  @State private var currentExifInfo: ExifInfo?  // 当前图片的 EXIF 信息
+  @State private var isLoadingExif = false  // 是否正在加载 EXIF 信息
+  @State private var exifErrorMessage: String?  // EXIF 错误消息
+  @State private var showingExifError = false  // 是否显示 EXIF 错误弹窗
 
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
@@ -76,16 +90,46 @@ struct ContentView: View {
           Button {
             showExifInfo()
           } label: {
-            Label(
-              NSLocalizedString("exif_info_button", comment: "Show Exif Info"),
-              systemImage: "info.circle")
+            HStack(spacing: 4) {
+              if isLoadingExif {
+                ProgressView()
+                  .scaleEffect(0.8)
+                  .frame(width: 16, height: 16)
+              } else {
+                Image(systemName: "info.circle")
+              }
+
+              if isLoadingExif {
+                Text(NSLocalizedString("loading_text", comment: "Loading..."))
+                  .font(.caption)
+              }
+            }
           }
-          .help(NSLocalizedString("exif_info_button", comment: "Show Exif Info"))
+          .disabled(isLoadingExif)
+          .help(
+            isLoadingExif
+              ? NSLocalizedString("exif_loading_hint", comment: "Loading EXIF information...")
+              : NSLocalizedString("exif_info_button", comment: "Show Exif Info"))
         }
       }
     }
     // 当窗口大小变化时，你可能希望重置缩放和偏移
     // .onChange(of: geometry.size) { ... } (需要 GeometryReader)
+    .sheet(isPresented: $showingExifInfo) {
+      if let exifInfo = currentExifInfo {
+        ExifInfoView(exifInfo: exifInfo)
+      }
+    }
+    .alert(
+      NSLocalizedString("exif_loading_error_title", comment: "EXIF Loading Error"),
+      isPresented: $showingExifError
+    ) {
+      Button(NSLocalizedString("ok_button", comment: "OK"), role: .cancel) {}
+    } message: {
+      if let errorMessage = exifErrorMessage {
+        Text(errorMessage)
+      }
+    }
   }
 
   private func openFileOrFolder() {
@@ -111,7 +155,117 @@ struct ContentView: View {
 
   /// 显示图片的 exif 信息
   private func showExifInfo() {
-    print("showExifInfo")
+    guard let currentURL = selectedImageURL else {
+      exifErrorMessage = NSLocalizedString("exif_no_image_selected", comment: "No image selected")
+      showingExifError = true
+      return
+    }
+
+    // 防止重复点击
+    guard !isLoadingExif else { return }
+
+    isLoadingExif = true
+
+    Task {
+      do {
+        let exifInfo = try await loadExifInfo(for: currentURL)
+        await MainActor.run {
+          self.isLoadingExif = false
+          self.currentExifInfo = exifInfo
+          self.showingExifInfo = true
+        }
+      } catch ExifExtractionError.failedToCreateImageSource {
+        await MainActor.run {
+          self.isLoadingExif = false
+          self.exifErrorMessage = NSLocalizedString(
+            "exif_file_read_error", comment: "File read error")
+          self.showingExifError = true
+        }
+      } catch ExifExtractionError.failedToExtractProperties {
+        await MainActor.run {
+          self.isLoadingExif = false
+          self.exifErrorMessage = NSLocalizedString(
+            "exif_metadata_extract_error", comment: "Metadata extract error")
+          self.showingExifError = true
+        }
+      } catch {
+        await MainActor.run {
+          self.isLoadingExif = false
+          self.exifErrorMessage = "获取 EXIF 信息时发生错误：\(error.localizedDescription)"
+          self.showingExifError = true
+        }
+      }
+    }
+  }
+
+  /// 加载图片的 EXIF 信息
+  private func loadExifInfo(for url: URL) async throws -> ExifInfo {
+    // 首先尝试从缓存获取 EXIF 数据
+    if let metadata = await DiskCache.shared.retrieve(forKey: url.path) {
+      let exifDict = metadata.getExifDictionary()
+      if !exifDict.isEmpty {
+        return ExifInfo.from(exifDictionary: exifDict, fileName: url.lastPathComponent)
+      }
+    }
+
+    // 如果缓存中没有，直接从文件提取 EXIF 数据
+    return try await extractExifInfoFromFile(url: url)
+  }
+
+  /// 直接从文件提取 EXIF 信息
+  private func extractExifInfoFromFile(url: URL) async throws -> ExifInfo {
+    return try await Task.detached(priority: .userInitiated) {
+      guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+        throw ExifExtractionError.failedToCreateImageSource
+      }
+
+      guard
+        let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any]
+      else {
+        throw ExifExtractionError.failedToExtractProperties
+      }
+
+      // 获取文件属性
+      let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+
+      // 构建 EXIF 数据字典
+      var exifDict: [String: Any] = [:]
+
+      // 添加基础属性
+      if let width = properties[kCGImagePropertyPixelWidth] as? Int {
+        exifDict["ImageWidth"] = width
+      }
+      if let height = properties[kCGImagePropertyPixelHeight] as? Int {
+        exifDict["ImageHeight"] = height
+      }
+
+      exifDict["FileSize"] = attributes[.size] as? Int64 ?? 0
+
+      if let modificationDate = attributes[.modificationDate] as? Date {
+        exifDict["FileModificationDate"] = modificationDate.timeIntervalSince1970
+      }
+
+      // 提取各种 EXIF 数据
+      if let exifProperties = properties[kCGImagePropertyExifDictionary] as? [CFString: Any] {
+        for (key, value) in exifProperties {
+          exifDict["Exif_\(key)"] = value
+        }
+      }
+
+      if let tiffProperties = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any] {
+        for (key, value) in tiffProperties {
+          exifDict["TIFF_\(key)"] = value
+        }
+      }
+
+      if let gpsProperties = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any] {
+        for (key, value) in gpsProperties {
+          exifDict["GPS_\(key)"] = value
+        }
+      }
+
+      return ExifInfo.from(exifDictionary: exifDict, fileName: url.lastPathComponent)
+    }.value
   }
 
   // 在后台线程枚举与筛选图片，避免阻塞主线程

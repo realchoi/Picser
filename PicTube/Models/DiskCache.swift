@@ -42,55 +42,68 @@ actor DiskCache {
   /// - Parameters:
   ///   - metadata: 要存储的元数据缓存对象。
   ///   - key: 用于生成文件名的唯一键（通常是原始图片文件的路径）。
-  func store(metadata: MetadataCache, forKey key: String) {
+  func store(metadata: MetadataCache, forKey key: String) async {
     let fileURL = self.fileURL(forKey: key)
-    do {
-      // 1. 使用 Codable 将结构体编码成 Data (二进制数据)
-      let data = try encoder.encode(metadata)
-      // 2. 将数据写入文件
-      try data.write(to: fileURL, options: .atomic)
-      trimIfNeeded()  // 检查是否需要清理旧缓存
-    } catch {
-      print("Failed to store metadata cache for key \(key): \(error)")
-    }
+    let encoderRef = encoder
+
+    // 将同步 I/O 操作移到后台线程
+    await Task.detached(priority: .utility) {
+      do {
+        // 1. 使用 Codable 将结构体编码成 Data (二进制数据)
+        let data = try encoderRef.encode(metadata)
+        // 2. 将数据写入文件
+        try data.write(to: fileURL, options: .atomic)
+      } catch {
+        print("Failed to store metadata cache for key \(key): \(error)")
+      }
+    }.value
+
+    // 在主 actor 上执行清理
+    await trimIfNeeded()  // 检查是否需要清理旧缓存
   }
 
   /// 从磁盘读取二进制文件，并将其反序列化回 MetadataCache 对象
   /// - Parameter key: 用于查找缓存文件的唯一键。
   /// - Returns: 如果缓存存在且有效，则返回 MetadataCache 对象，否则返回 nil。
-  func retrieve(forKey key: String) -> MetadataCache? {
+  func retrieve(forKey key: String) async -> MetadataCache? {
     let fileURL = self.fileURL(forKey: key)
-    guard fileManager.fileExists(atPath: fileURL.path) else {
-      return nil
-    }
+    let decoderRef = decoder
 
-    do {
-      // 1. 从文件读取二进制数据
-      let data = try Data(contentsOf: fileURL)
-      // 2. 使用 Codable 将数据解码回我们的结构体
-      let metadata = try decoder.decode(MetadataCache.self, from: data)
-
-      // 3. 验证缓存的有效性
-      guard metadata.magicNumber == 0x5049_4354,  // 检查魔数
-        let attributes = try? fileManager.attributesOfItem(atPath: key),  // 注意：这里的 key 是原始文件路径
-        let modificationDate = attributes[.modificationDate] as? Date,
-        // 检查时间戳是否匹配，确保原始文件未被修改
-        abs(modificationDate.timeIntervalSince1970 - metadata.originalFileTimestamp) < 1
-      else {
-        // 缓存无效（文件被修改或格式错误），删除它
-        try? fileManager.removeItem(at: fileURL)
+    // 将所有同步 I/O 操作移到后台线程
+    return await Task.detached(priority: .userInitiated) {
+      let fm = FileManager.default
+      guard fm.fileExists(atPath: fileURL.path) else {
         return nil
       }
 
-      // 更新文件的访问日期，用于 LRU (最近最少使用) 清理策略
-      try? fileManager.setAttributes([.modificationDate: Date()], ofItemAtPath: fileURL.path)
+      do {
+        // 1. 从文件读取二进制数据
+        let data = try Data(contentsOf: fileURL)
+        // 2. 使用 Codable 将数据解码回我们的结构体
+        let metadata = try decoderRef.decode(MetadataCache.self, from: data)
 
-      return metadata
-    } catch {
-      // 解码失败或文件读取失败，删除损坏的缓存文件
-      try? fileManager.removeItem(at: fileURL)
-      return nil
-    }
+        // 3. 验证缓存的有效性
+        guard metadata.magicNumber == 0x5049_4354,  // 检查魔数
+          let attributes = try? fm.attributesOfItem(atPath: key),  // 注意：这里的 key 是原始文件路径
+          let modificationDate = attributes[.modificationDate] as? Date,
+          // 检查时间戳是否匹配，确保原始文件未被修改
+          abs(modificationDate.timeIntervalSince1970 - metadata.originalFileTimestamp) < 1
+        else {
+          // 缓存无效（文件被修改或格式错误），删除它
+          try? fm.removeItem(at: fileURL)
+          return nil
+        }
+
+        // 更新文件的访问日期，用于 LRU (最近最少使用) 清理策略
+        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: fileURL.path)
+
+        return metadata
+      } catch {
+        // 解码失败或文件读取失败，删除损坏的缓存文件
+        try? fm.removeItem(at: fileURL)
+        return nil
+      }
+    }.value
   }
 
   // MARK: - 缓存管理 (基本保持不变)
@@ -140,46 +153,63 @@ actor DiskCache {
     return digest.compactMap { String(format: "%02x", $0) }.joined()
   }
 
-  private func currentDiskUsage() -> Int {
-    guard
-      let files = try? fileManager.contentsOfDirectory(
-        at: baseURL, includingPropertiesForKeys: [.fileSizeKey], options: .skipsHiddenFiles)
-    else { return 0 }
-    return files.reduce(0) { total, url in
-      total + ((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
-    }
+  /// LRU 缓存清理逻辑
+  private func trimIfNeeded() async {
+    let currentUsage = await getCurrentDiskUsage()
+    let limit = byteLimit
+    let baseDir = baseURL
+
+    // 将同步 I/O 操作移到后台线程
+    await Task.detached(priority: .utility) {
+      var usage = currentUsage
+      guard usage > limit else { return }
+
+      let fm = FileManager.default
+
+      guard
+        var files = try? fm.contentsOfDirectory(
+          at: baseDir,
+          includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
+          options: .skipsHiddenFiles
+        )
+      else { return }
+
+      // 按修改日期排序，最早的排在前面
+      files.sort {
+        let dateA =
+          (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+          ?? .distantPast
+        let dateB =
+          (try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+          ?? .distantPast
+        return dateA < dateB
+      }
+
+      for file in files {
+        if let size = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize {
+          try? fm.removeItem(at: file)
+          usage -= size
+          if usage <= limit { break }
+        }
+      }
+    }.value
   }
 
-  /// LRU 缓存清理逻辑
-  private func trimIfNeeded() {
-    var usage = currentDiskUsage()
-    guard usage > byteLimit else { return }
+  /// 异步获取当前磁盘使用量
+  private func getCurrentDiskUsage() async -> Int {
+    return await Task.detached {
+      let fm = FileManager.default
+      guard
+        let files = try? fm.contentsOfDirectory(
+          at: self.baseURL,
+          includingPropertiesForKeys: [.fileSizeKey],
+          options: .skipsHiddenFiles
+        )
+      else { return 0 }
 
-    guard
-      var files = try? fileManager.contentsOfDirectory(
-        at: baseURL,
-        includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
-        options: .skipsHiddenFiles
-      )
-    else { return }
-
-    // 按修改日期排序，最早的排在前面
-    files.sort {
-      let dateA =
-        (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-        ?? .distantPast
-      let dateB =
-        (try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-        ?? .distantPast
-      return dateA < dateB
-    }
-
-    for file in files {
-      if let size = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize {
-        try? fileManager.removeItem(at: file)
-        usage -= size
-        if usage <= byteLimit { break }
+      return files.reduce(0) { total, url in
+        total + ((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
       }
-    }
+    }.value
   }
 }

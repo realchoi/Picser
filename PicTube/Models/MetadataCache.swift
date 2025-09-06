@@ -33,6 +33,8 @@ struct MetadataCache: Codable {
   // --- 负载数据 (Payload) ---
   /// 用于快速预览的微缩略图的二进制数据 (例如，压缩后的 WebP 或 JPG 数据)
   let thumbnailData: Data
+  /// EXIF 信息数据，序列化为二进制格式
+  let exifData: Data
 
   // 通过定义 CodingKeys，我们明确告诉 Codable 只对列出的 key 进行编解码。
   // magicNumber 和 version 因为没有被包含在内，所以会被自动忽略，警告也就消除了。
@@ -43,6 +45,7 @@ struct MetadataCache: Codable {
     case originalWidth
     case originalHeight
     case thumbnailData
+    case exifData
   }
 
   /// 便利的构造器，用于创建一个新的缓存对象
@@ -75,5 +78,61 @@ struct MetadataCache: Codable {
     default:
       self.originalFormat = .other
     }
+
+    // 提取 EXIF 数据并序列化
+    var exifDict: [String: Any] = [:]
+
+    // 从 properties 中提取各种元数据
+    if let exifProperties = properties[kCGImagePropertyExifDictionary] as? [CFString: Any] {
+      for (key, value) in exifProperties {
+        exifDict["Exif_\(key)"] = value
+      }
+    }
+
+    if let tiffProperties = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any] {
+      for (key, value) in tiffProperties {
+        exifDict["TIFF_\(key)"] = value
+      }
+    }
+
+    if let gpsProperties = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any] {
+      for (key, value) in gpsProperties {
+        exifDict["GPS_\(key)"] = value
+      }
+    }
+
+    // 添加基础属性
+    exifDict["ImageWidth"] = width
+    exifDict["ImageHeight"] = height
+    exifDict["FileSize"] = attributes[.size] as? Int64 ?? 0
+    exifDict["FileModificationDate"] = modificationDate.timeIntervalSince1970
+
+    // 序列化 EXIF 数据
+    do {
+      self.exifData = try PropertyListSerialization.data(
+        fromPropertyList: exifDict,
+        format: .binary,
+        options: 0
+      )
+    } catch {
+      // 如果序列化失败，使用空数据
+      self.exifData = Data()
+    }
+  }
+
+  /// 获取反序列化的 EXIF 数据字典
+  func getExifDictionary() -> [String: Any] {
+    do {
+      if let dict = try PropertyListSerialization.propertyList(
+        from: exifData,
+        options: [],
+        format: nil
+      ) as? [String: Any] {
+        return dict
+      }
+    } catch {
+      // 反序列化失败，返回空字典
+    }
+    return [:]
   }
 }

@@ -39,6 +39,68 @@
 /* EXIF info */
 "exif_info_button" = "查看 EXIF 信息";
 
+/* EXIF Window */
+"exif_window_title" = "图片信息";
+"close_button" = "关闭";
+
+/* EXIF Sections */
+"basic_info_section" = "基本信息";
+"camera_info_section" = "相机信息";
+"shooting_params_section" = "拍摄参数";
+"location_info_section" = "位置信息";
+"technical_info_section" = "技术信息";
+
+/* Basic Information Fields */
+"file_name_label" = "文件名";
+"file_size_label" = "文件大小";
+"file_format_label" = "文件格式";
+"image_dimensions_label" = "图片尺寸";
+"modification_date_label" = "修改时间";
+
+/* Camera Information Fields */
+"camera_make_label" = "相机厂商";
+"camera_model_label" = "相机型号";
+"lens_make_label" = "镜头厂商";
+"lens_model_label" = "镜头型号";
+"software_label" = "软件";
+
+/* Shooting Parameters Fields */
+"aperture_label" = "光圈";
+"shutter_speed_label" = "快门速度";
+"iso_label" = "ISO 感光度";
+"focal_length_label" = "焦距";
+"focal_length_35mm_label" = "35mm 等效焦距";
+"exposure_program_label" = "曝光程序";
+"metering_mode_label" = "测光模式";
+"flash_label" = "闪光灯";
+"white_balance_label" = "白平衡";
+
+/* Location Information Fields */
+"latitude_label" = "纬度";
+"longitude_label" = "经度";
+"altitude_label" = "海拔";
+"gps_time_label" = "GPS 时间";
+
+/* Technical Information Fields */
+"color_space_label" = "色彩空间";
+"orientation_label" = "方向";
+"x_resolution_label" = "水平分辨率";
+"y_resolution_label" = "垂直分辨率";
+"resolution_unit_label" = "分辨率单位";
+
+/* Default Values */
+"unknown_value" = "未知";
+"not_available" = "不可用";
+
+/* Error Messages */
+"exif_loading_error_title" = "EXIF 信息加载错误";
+"exif_no_image_selected" = "没有选中的图片";
+"exif_file_read_error" = "无法读取图片文件，请确保文件格式正确且未损坏。";
+"exif_metadata_extract_error" = "无法从图片中提取元数据信息。";
+"exif_loading_hint" = "正在加载 EXIF 信息...";
+"loading_text" = "加载中...";
+"ok_button" = "确定";
+
 /* Modifier Keys */
 "modifier_none" = "无";
 "modifier_command" = "⌘ Command";

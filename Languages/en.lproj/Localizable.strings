@@ -39,6 +39,68 @@
 /* EXIF info */
 "exif_info_button" = "View EXIF ​​information";
 
+/* EXIF Window */
+"exif_window_title" = "Image Information";
+"close_button" = "Close";
+
+/* EXIF Sections */
+"basic_info_section" = "Basic Information";
+"camera_info_section" = "Camera Information";
+"shooting_params_section" = "Shooting Parameters";
+"location_info_section" = "Location Information";
+"technical_info_section" = "Technical Information";
+
+/* Basic Information Fields */
+"file_name_label" = "File Name";
+"file_size_label" = "File Size";
+"file_format_label" = "File Format";
+"image_dimensions_label" = "Image Dimensions";
+"modification_date_label" = "Modification Date";
+
+/* Camera Information Fields */
+"camera_make_label" = "Camera Make";
+"camera_model_label" = "Camera Model";
+"lens_make_label" = "Lens Make";
+"lens_model_label" = "Lens Model";
+"software_label" = "Software";
+
+/* Shooting Parameters Fields */
+"aperture_label" = "Aperture";
+"shutter_speed_label" = "Shutter Speed";
+"iso_label" = "ISO Speed";
+"focal_length_label" = "Focal Length";
+"focal_length_35mm_label" = "35mm Equivalent";
+"exposure_program_label" = "Exposure Program";
+"metering_mode_label" = "Metering Mode";
+"flash_label" = "Flash";
+"white_balance_label" = "White Balance";
+
+/* Location Information Fields */
+"latitude_label" = "Latitude";
+"longitude_label" = "Longitude";
+"altitude_label" = "Altitude";
+"gps_time_label" = "GPS Time";
+
+/* Technical Information Fields */
+"color_space_label" = "Color Space";
+"orientation_label" = "Orientation";
+"x_resolution_label" = "Horizontal Resolution";
+"y_resolution_label" = "Vertical Resolution";
+"resolution_unit_label" = "Resolution Unit";
+
+/* Default Values */
+"unknown_value" = "Unknown";
+"not_available" = "Not Available";
+
+/* Error Messages */
+"exif_loading_error_title" = "EXIF Loading Error";
+"exif_no_image_selected" = "No image selected";
+"exif_file_read_error" = "Unable to read image file. Please ensure the file format is correct and not corrupted.";
+"exif_metadata_extract_error" = "Unable to extract metadata from the image.";
+"exif_loading_hint" = "Loading EXIF information...";
+"loading_text" = "Loading...";
+"ok_button" = "OK";
+
 /* Modifier Keys */
 "modifier_none" = "None";
 "modifier_command" = "⌘ Command";
