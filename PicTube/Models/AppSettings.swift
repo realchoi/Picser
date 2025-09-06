@@ -123,14 +123,29 @@ class AppSettings: ObservableObject {
   }
 
   /// 重置所有设置为默认值
-  func resetToDefaults() {
-    zoomModifierKey = .none
-    panModifierKey = .none
-    imageNavigationKey = .leftRight
-    zoomSensitivity = 0.05
-    minZoomScale = 0.1
-    maxZoomScale = 10.0
+  func resetToDefaults(settingsTab: SettingsTab) {
+    switch settingsTab {
+    case .keyboard:
+      zoomModifierKey = .none
+      panModifierKey = .none
+      imageNavigationKey = .leftRight
+    case .display:
+      zoomSensitivity = 0.05
+      minZoomScale = 0.1
+      maxZoomScale = 10.0
+    case .cache:
+      break
+    }
   }
+}
+
+/// 设置标签枚举，用于设置页面标签
+enum SettingsTab: String, CaseIterable, Identifiable {
+  case keyboard = "Keyboard"
+  case display = "Display"
+  case cache = "Cache"
+
+  var id: String { rawValue }
 }
 
 /// 定义修饰键枚举，用于快捷键设置

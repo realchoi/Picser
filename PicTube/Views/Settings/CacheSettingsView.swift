@@ -14,83 +14,86 @@ struct CacheSettingsView: View {
   @State private var showingClearConfirmation = false
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 20) {
-      Text(NSLocalizedString("cache_settings_title", comment: "Cache settings title"))
-        .font(.title2)
-        .fontWeight(.semibold)
+    ScrollView {
+      VStack(alignment: .leading, spacing: 20) {
+        Text(NSLocalizedString("cache_settings_title", comment: "Cache settings title"))
+          .font(.title2)
+          .fontWeight(.semibold)
 
-      Divider()
+        Divider()
 
-      // 缓存信息显示
-      VStack(alignment: .leading, spacing: 16) {
-        Text(NSLocalizedString("cache_info_group", comment: "Cache info group"))
-          .fontWeight(.medium)
+        // 缓存信息显示
+        VStack(alignment: .leading, spacing: 16) {
+          Text(NSLocalizedString("cache_info_group", comment: "Cache info group"))
+            .fontWeight(.medium)
 
-        HStack {
-          Text(NSLocalizedString("cache_size_label", comment: "Cache size label"))
-            .frame(width: 120, alignment: .leading)
+          HStack {
+            Text(NSLocalizedString("cache_size_label", comment: "Cache size label"))
+              .frame(width: 120, alignment: .leading)
 
-          // 使用固定尺寸的容器来避免布局跳变
-          ZStack {
-            if isLoading {
-              ProgressView()
-                .scaleEffect(0.8)
-            } else {
-              Text(formatFileSize(cacheSize))
-                .font(.system(.body, design: .monospaced))
+            // 使用固定尺寸的容器来避免布局跳变
+            ZStack {
+              if isLoading {
+                ProgressView()
+                  .scaleEffect(0.8)
+              } else {
+                Text(formatFileSize(cacheSize))
+                  .font(.system(.body, design: .monospaced))
+              }
             }
-          }
-          .frame(width: 80, height: 20, alignment: .leading)
+            .frame(width: 80, height: 20, alignment: .leading)
 
-          Button(action: refreshCacheSize) {
-            Image(systemName: "arrow.clockwise")
-              .font(.caption)
+            Button(action: refreshCacheSize) {
+              Image(systemName: "arrow.clockwise")
+                .font(.caption)
+            }
+            .buttonStyle(.borderless)
+            .help(NSLocalizedString("refresh_cache_size", comment: "Refresh cache size"))
           }
-          .buttonStyle(.borderless)
-          .help(NSLocalizedString("refresh_cache_size", comment: "Refresh cache size"))
+
+          Text(NSLocalizedString("cache_size_description", comment: "Cache size description"))
+            .font(.caption)
+            .foregroundColor(.secondary)
         }
 
-        Text(NSLocalizedString("cache_size_description", comment: "Cache size description"))
-          .font(.caption)
-          .foregroundColor(.secondary)
-      }
+        Divider()
 
-      Divider()
+        // 缓存操作
+        VStack(alignment: .leading, spacing: 16) {
+          Text(NSLocalizedString("cache_actions_group", comment: "Cache actions group"))
+            .fontWeight(.medium)
 
-      // 缓存操作
-      VStack(alignment: .leading, spacing: 16) {
-        Text(NSLocalizedString("cache_actions_group", comment: "Cache actions group"))
-          .fontWeight(.medium)
-
-        HStack(spacing: 12) {
-          Button(action: { showingClearConfirmation = true }) {
-            HStack(spacing: 6) {
-              Image(systemName: "trash")
-              Text(NSLocalizedString("clear_cache_button", comment: "Clear cache button"))
+          HStack(spacing: 12) {
+            Button(action: { showingClearConfirmation = true }) {
+              HStack(spacing: 6) {
+                Image(systemName: "trash")
+                Text(NSLocalizedString("clear_cache_button", comment: "Clear cache button"))
+              }
             }
-          }
-          .buttonStyle(.borderedProminent)
-          .tint(.red)
-          .disabled(cacheSize == 0)
+            .buttonStyle(.borderedProminent)
+            .tint(.red)
+            .disabled(cacheSize == 0)
 
-          Button(action: openCacheDirectory) {
-            HStack(spacing: 6) {
-              Image(systemName: "folder")
-              Text(NSLocalizedString("open_cache_directory", comment: "Open cache directory"))
+            Button(action: openCacheDirectory) {
+              HStack(spacing: 6) {
+                Image(systemName: "folder")
+                Text(NSLocalizedString("open_cache_directory", comment: "Open cache directory"))
+              }
             }
+            .buttonStyle(.bordered)
           }
-          .buttonStyle(.bordered)
+
+          Text(NSLocalizedString("cache_actions_description", comment: "Cache actions description"))
+            .font(.caption)
+            .foregroundColor(.secondary)
         }
 
-        Text(NSLocalizedString("cache_actions_description", comment: "Cache actions description"))
-          .font(.caption)
-          .foregroundColor(.secondary)
+        Spacer(minLength: 20)
       }
-
-      Spacer()
+      .padding()
+      .frame(maxWidth: .infinity, minHeight: 350, alignment: .topLeading)
     }
-    .padding()
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .scrollIndicators(.visible)
     .onAppear {
       refreshCacheSize()
     }
