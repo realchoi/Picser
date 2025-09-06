@@ -70,6 +70,19 @@ struct ContentView: View {
         // 给 toolbar 的打开文件夹按钮添加一个鼠标悬停的提示文本，且弹窗提示的速度尽量快
         .help(NSLocalizedString("open_file_or_folder_button", comment: "Open Image/Folder"))
       }
+      // 再添加一个工具栏按钮，用来查看图片的 exif 信息
+      if selectedImageURL != nil {
+        ToolbarItem {
+          Button {
+            showExifInfo()
+          } label: {
+            Label(
+              NSLocalizedString("exif_info_button", comment: "Show Exif Info"),
+              systemImage: "info.circle")
+          }
+          .help(NSLocalizedString("exif_info_button", comment: "Show Exif Info"))
+        }
+      }
     }
     // 当窗口大小变化时，你可能希望重置缩放和偏移
     // .onChange(of: geometry.size) { ... } (需要 GeometryReader)
@@ -94,6 +107,11 @@ struct ContentView: View {
         self.selectedImageURL = uniqueSorted.first
       }
     }
+  }
+
+  /// 显示图片的 exif 信息
+  private func showExifInfo() {
+    print("showExifInfo")
   }
 
   // 在后台线程枚举与筛选图片，避免阻塞主线程

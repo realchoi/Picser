@@ -36,6 +36,9 @@
 /* File/Folder Open */
 "open_file_or_folder_button" = "打开图片/文件夹";
 
+/* EXIF info */
+"exif_info_button" = "查看 EXIF 信息";
+
 /* Modifier Keys */
 "modifier_none" = "无";
 "modifier_command" = "⌘ Command";
