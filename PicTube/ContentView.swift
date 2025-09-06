@@ -15,12 +15,13 @@ struct ContentView: View {
   @State private var imageURLs: [URL] = []  // 文件夹中所有图片的 URL 列表
   @State private var selectedImageURL: URL?  // 当前选中的图片 URL
   @FocusState private var isFocused: Bool  // 焦点状态管理
+  @State private var sidebarVisibility: NavigationSplitViewVisibility = .detailOnly  // 侧边栏可见性控制
 
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
 
   var body: some View {
-    NavigationSplitView {
+    NavigationSplitView(columnVisibility: $sidebarVisibility) {
       SidebarView(imageURLs: imageURLs, selectedImageURL: selectedImageURL) { url in
         selectedImageURL = url
       }
@@ -28,6 +29,14 @@ struct ContentView: View {
     } detail: {
       DetailView(imageURLs: imageURLs, selectedImageURL: selectedImageURL, onOpen: openFileOrFolder)
         .environmentObject(appSettings)
+    }
+    .onChange(of: imageURLs) { _, newURLs in
+      // 当图片列表变化时，更新侧边栏可见性
+      if newURLs.isEmpty {
+        sidebarVisibility = .detailOnly
+      } else {
+        sidebarVisibility = .all
+      }
     }
     .onChange(of: selectedImageURL) { _, newURL in
       guard let newURL else { return }
