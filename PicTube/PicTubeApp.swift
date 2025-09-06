@@ -16,7 +16,12 @@ struct PicTubeApp: App {
     WindowGroup {
       ContentView()
         .environmentObject(appSettings)
+        // 让试图内容延伸至标题栏区域，实现完全无边框效果
+        .ignoresSafeArea(.all, edges: .top)
     }
+    // 实现沉浸式看图：隐藏系统默认的标题栏
+    .windowStyle(.hiddenTitleBar)
+    .windowResizability(.contentSize)
 
     // 设置窗口 - SwiftUI 会自动创建菜单项
     Settings {
