@@ -10,6 +10,8 @@ import SwiftUI
 /// EXIF 信息展示视图
 struct ExifInfoView: View {
   let exifInfo: ExifInfo
+  // 当作为 overlay 浮动面板展示时由外部关闭；作为 sheet 展示时使用环境 dismiss
+  var onClose: (() -> Void)? = nil
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
@@ -23,7 +25,7 @@ struct ExifInfoView: View {
         Spacer()
 
         Button(NSLocalizedString("close_button", comment: "Close")) {
-          dismiss()
+          if let onClose { onClose() } else { dismiss() }
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.small)
