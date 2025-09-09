@@ -102,6 +102,85 @@
 "loading_text" = "加载中...";
 "ok_button" = "确定";
 
+/* Generic EXIF Error */
+"exif_unexpected_error" = "获取 EXIF 信息时发生意外错误";
+
+/* Generic UI Hints */
+"select_image_hint" = "请在左侧选择一张图片";
+"preview_image_load_failed" = "无法加载测试图片";
+
+/* Settings Validation Errors */
+"zoom_sensitivity_range_error" = "缩放灵敏度必须在 0.01 到 0.1 之间";
+"min_zoom_scale_invalid_error" = "最小缩放比例必须大于 0 且小于最大缩放比例";
+"max_zoom_scale_invalid_error" = "最大缩放比例必须大于最小缩放比例";
+
+/* EXIF Value Formats */
+"unknown_format" = "未知格式";
+"exif_other_format" = "其他(%d)";
+"iso_value_format" = "ISO %d";
+"focal_length_35mm_format" = "%dmm (35mm等效)";
+
+/* Exposure Program */
+"exposure_program_0" = "未定义";
+"exposure_program_1" = "手动";
+"exposure_program_2" = "程序自动";
+"exposure_program_3" = "光圈优先";
+"exposure_program_4" = "快门优先";
+"exposure_program_5" = "创意程序";
+"exposure_program_6" = "动作程序";
+"exposure_program_7" = "人像模式";
+"exposure_program_8" = "风景模式";
+
+/* Metering Mode */
+"metering_mode_0" = "未知";
+"metering_mode_1" = "平均测光";
+"metering_mode_2" = "中央重点测光";
+"metering_mode_3" = "点测光";
+"metering_mode_4" = "多点测光";
+"metering_mode_5" = "评估测光";
+"metering_mode_6" = "局部测光";
+
+/* Flash Status */
+"flash_0" = "未闪光";
+"flash_1" = "闪光";
+"flash_5" = "频闪，未检测到反射光";
+"flash_7" = "频闪，检测到反射光";
+"flash_9" = "强制闪光";
+"flash_13" = "强制闪光，未检测到反射光";
+"flash_15" = "强制闪光，检测到反射光";
+"flash_16" = "未闪光，强制关闭";
+"flash_24" = "未闪光，自动模式";
+"flash_25" = "闪光，自动模式";
+"flash_29" = "闪光，自动模式，未检测到反射光";
+"flash_31" = "闪光，自动模式，检测到反射光";
+"flash_32" = "未闪光，无闪光功能";
+
+/* White Balance */
+"white_balance_auto" = "自动";
+"white_balance_manual" = "手动";
+
+/* GPS Altitude */
+"gps_altitude_above_sea_level" = "海平面以上";
+"gps_altitude_below_sea_level" = "海平面以下";
+
+/* Color Space */
+"color_space_uncalibrated" = "未校准";
+
+/* Orientation */
+"orientation_1" = "正常";
+"orientation_2" = "水平翻转";
+"orientation_3" = "旋转180°";
+"orientation_4" = "垂直翻转";
+"orientation_5" = "顺时针旋转90°+水平翻转";
+"orientation_6" = "顺时针旋转90°";
+"orientation_7" = "逆时针旋转90°+水平翻转";
+"orientation_8" = "逆时针旋转90°";
+
+/* Resolution Unit */
+"resolution_unit_none" = "无单位";
+"resolution_unit_inch" = "英寸";
+"resolution_unit_centimeter" = "厘米";
+
 /* Modifier Keys */
 "modifier_none" = "无";
 "modifier_command" = "⌘ Command";

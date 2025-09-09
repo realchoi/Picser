@@ -9,7 +9,6 @@ import AppKit
 import SwiftUI
 
 struct CacheSettingsView: View {
-  @ObservedObject private var localizationManager = LocalizationManager.shared
   @State private var cacheSize: Int64 = 0
   @State private var isLoading = false
   @State private var showingClearConfirmation = false

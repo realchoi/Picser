@@ -9,7 +9,6 @@ import SwiftUI
 
 struct SettingsView: View {
   @ObservedObject var appSettings: AppSettings
-  @ObservedObject private var localizationManager = LocalizationManager.shared
   @State private var validationErrors: [String] = []
 
   var body: some View {

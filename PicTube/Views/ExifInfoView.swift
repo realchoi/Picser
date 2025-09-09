@@ -18,13 +18,13 @@ struct ExifInfoView: View {
     VStack(spacing: 0) {
       // 标题栏
       HStack {
-        Text(NSLocalizedString("exif_window_title", comment: "Image Information"))
+        Text("exif_window_title".localized)
           .font(.headline)
           .foregroundColor(.primary)
 
         Spacer()
 
-        Button(NSLocalizedString("close_button", comment: "Close")) {
+        Button("close_button".localized) {
           if let onClose { onClose() } else { dismiss() }
         }
         .buttonStyle(.borderedProminent)
@@ -40,14 +40,14 @@ struct ExifInfoView: View {
         LazyVStack(alignment: .leading, spacing: 20, pinnedViews: []) {
           // 基本信息部分
           InfoSection(
-            title: NSLocalizedString("basic_info_section", comment: "Basic Information"),
+            title: "basic_info_section".localized,
             items: basicInfoItems
           )
 
           // 相机信息部分（只在有相机数据时显示）
           if hasCameraInfo {
             InfoSection(
-              title: NSLocalizedString("camera_info_section", comment: "Camera Information"),
+              title: "camera_info_section".localized,
               items: cameraInfoItems
             )
           }
@@ -55,7 +55,7 @@ struct ExifInfoView: View {
           // 拍摄参数部分（只在有拍摄数据时显示）
           if hasShootingParams {
             InfoSection(
-              title: NSLocalizedString("shooting_params_section", comment: "Shooting Parameters"),
+              title: "shooting_params_section".localized,
               items: shootingParamItems
             )
           }
@@ -63,7 +63,7 @@ struct ExifInfoView: View {
           // 位置信息部分（只在有GPS数据时显示）
           if hasLocationInfo {
             InfoSection(
-              title: NSLocalizedString("location_info_section", comment: "Location Information"),
+              title: "location_info_section".localized,
               items: locationInfoItems
             )
           }
@@ -71,7 +71,7 @@ struct ExifInfoView: View {
           // 技术信息部分（只在有技术数据时显示）
           if hasTechnicalInfo {
             InfoSection(
-              title: NSLocalizedString("technical_info_section", comment: "Technical Information"),
+              title: "technical_info_section".localized,
               items: technicalInfoItems
             )
           }
@@ -91,23 +91,23 @@ struct ExifInfoView: View {
   private var basicInfoItems: [InfoItem] {
     [
       InfoItem(
-        label: NSLocalizedString("file_name_label", comment: "File Name"),
+        label: "file_name_label".localized,
         value: exifInfo.fileName
       ),
       InfoItem(
-        label: NSLocalizedString("file_size_label", comment: "File Size"),
+        label: "file_size_label".localized,
         value: exifInfo.fileSize
       ),
       InfoItem(
-        label: NSLocalizedString("file_format_label", comment: "File Format"),
+        label: "file_format_label".localized,
         value: exifInfo.fileFormat
       ),
       InfoItem(
-        label: NSLocalizedString("image_dimensions_label", comment: "Image Dimensions"),
+        label: "image_dimensions_label".localized,
         value: "\(exifInfo.imageWidth) × \(exifInfo.imageHeight)"
       ),
       InfoItem(
-        label: NSLocalizedString("modification_date_label", comment: "Modification Date"),
+        label: "modification_date_label".localized,
         value: exifInfo.fileModificationDate
       ),
     ]
@@ -119,7 +119,7 @@ struct ExifInfoView: View {
     if let cameraMake = exifInfo.cameraMake {
       items.append(
         InfoItem(
-          label: NSLocalizedString("camera_make_label", comment: "Camera Make"),
+          label: "camera_make_label".localized,
           value: cameraMake
         ))
     }
@@ -127,7 +127,7 @@ struct ExifInfoView: View {
     if let cameraModel = exifInfo.cameraModel {
       items.append(
         InfoItem(
-          label: NSLocalizedString("camera_model_label", comment: "Camera Model"),
+          label: "camera_model_label".localized,
           value: cameraModel
         ))
     }
@@ -135,7 +135,7 @@ struct ExifInfoView: View {
     if let lensMake = exifInfo.lensMake {
       items.append(
         InfoItem(
-          label: NSLocalizedString("lens_make_label", comment: "Lens Make"),
+          label: "lens_make_label".localized,
           value: lensMake
         ))
     }
@@ -143,7 +143,7 @@ struct ExifInfoView: View {
     if let lensModel = exifInfo.lensModel {
       items.append(
         InfoItem(
-          label: NSLocalizedString("lens_model_label", comment: "Lens Model"),
+          label: "lens_model_label".localized,
           value: lensModel
         ))
     }
@@ -151,7 +151,7 @@ struct ExifInfoView: View {
     if let software = exifInfo.software {
       items.append(
         InfoItem(
-          label: NSLocalizedString("software_label", comment: "Software"),
+          label: "software_label".localized,
           value: software
         ))
     }
@@ -165,7 +165,7 @@ struct ExifInfoView: View {
     if let fNumber = exifInfo.fNumber {
       items.append(
         InfoItem(
-          label: NSLocalizedString("aperture_label", comment: "Aperture"),
+          label: "aperture_label".localized,
           value: fNumber
         ))
     }
@@ -173,7 +173,7 @@ struct ExifInfoView: View {
     if let exposureTime = exifInfo.exposureTime {
       items.append(
         InfoItem(
-          label: NSLocalizedString("shutter_speed_label", comment: "Shutter Speed"),
+          label: "shutter_speed_label".localized,
           value: exposureTime
         ))
     }
@@ -181,7 +181,7 @@ struct ExifInfoView: View {
     if let isoSpeed = exifInfo.isoSpeed {
       items.append(
         InfoItem(
-          label: NSLocalizedString("iso_label", comment: "ISO Speed"),
+          label: "iso_label".localized,
           value: isoSpeed
         ))
     }
@@ -189,7 +189,7 @@ struct ExifInfoView: View {
     if let focalLength = exifInfo.focalLength {
       items.append(
         InfoItem(
-          label: NSLocalizedString("focal_length_label", comment: "Focal Length"),
+          label: "focal_length_label".localized,
           value: focalLength
         ))
     }
@@ -197,7 +197,7 @@ struct ExifInfoView: View {
     if let focalLength35mm = exifInfo.focalLength35mm {
       items.append(
         InfoItem(
-          label: NSLocalizedString("focal_length_35mm_label", comment: "35mm Equivalent"),
+          label: "focal_length_35mm_label".localized,
           value: focalLength35mm
         ))
     }
@@ -205,7 +205,7 @@ struct ExifInfoView: View {
     if let exposureProgram = exifInfo.exposureProgram {
       items.append(
         InfoItem(
-          label: NSLocalizedString("exposure_program_label", comment: "Exposure Program"),
+          label: "exposure_program_label".localized,
           value: exposureProgram
         ))
     }
@@ -213,7 +213,7 @@ struct ExifInfoView: View {
     if let meteringMode = exifInfo.meteringMode {
       items.append(
         InfoItem(
-          label: NSLocalizedString("metering_mode_label", comment: "Metering Mode"),
+          label: "metering_mode_label".localized,
           value: meteringMode
         ))
     }
@@ -221,7 +221,7 @@ struct ExifInfoView: View {
     if let flash = exifInfo.flash {
       items.append(
         InfoItem(
-          label: NSLocalizedString("flash_label", comment: "Flash"),
+          label: "flash_label".localized,
           value: flash
         ))
     }
@@ -229,7 +229,7 @@ struct ExifInfoView: View {
     if let whiteBalance = exifInfo.whiteBalance {
       items.append(
         InfoItem(
-          label: NSLocalizedString("white_balance_label", comment: "White Balance"),
+          label: "white_balance_label".localized,
           value: whiteBalance
         ))
     }
@@ -243,7 +243,7 @@ struct ExifInfoView: View {
     if let gpsLatitude = exifInfo.gpsLatitude {
       items.append(
         InfoItem(
-          label: NSLocalizedString("latitude_label", comment: "Latitude"),
+          label: "latitude_label".localized,
           value: gpsLatitude
         ))
     }
@@ -251,7 +251,7 @@ struct ExifInfoView: View {
     if let gpsLongitude = exifInfo.gpsLongitude {
       items.append(
         InfoItem(
-          label: NSLocalizedString("longitude_label", comment: "Longitude"),
+          label: "longitude_label".localized,
           value: gpsLongitude
         ))
     }
@@ -259,7 +259,7 @@ struct ExifInfoView: View {
     if let gpsAltitude = exifInfo.gpsAltitude {
       items.append(
         InfoItem(
-          label: NSLocalizedString("altitude_label", comment: "Altitude"),
+          label: "altitude_label".localized,
           value: gpsAltitude
         ))
     }
@@ -267,7 +267,7 @@ struct ExifInfoView: View {
     if let gpsDateTime = exifInfo.gpsDateTime {
       items.append(
         InfoItem(
-          label: NSLocalizedString("gps_time_label", comment: "GPS Time"),
+          label: "gps_time_label".localized,
           value: gpsDateTime
         ))
     }
@@ -281,7 +281,7 @@ struct ExifInfoView: View {
     if let colorSpace = exifInfo.colorSpace {
       items.append(
         InfoItem(
-          label: NSLocalizedString("color_space_label", comment: "Color Space"),
+          label: "color_space_label".localized,
           value: colorSpace
         ))
     }
@@ -289,7 +289,7 @@ struct ExifInfoView: View {
     if let orientation = exifInfo.orientation {
       items.append(
         InfoItem(
-          label: NSLocalizedString("orientation_label", comment: "Orientation"),
+          label: "orientation_label".localized,
           value: orientation
         ))
     }
@@ -297,7 +297,7 @@ struct ExifInfoView: View {
     if let xResolution = exifInfo.xResolution {
       items.append(
         InfoItem(
-          label: NSLocalizedString("x_resolution_label", comment: "Horizontal Resolution"),
+          label: "x_resolution_label".localized,
           value: "\(xResolution) \(exifInfo.resolutionUnit ?? "")"
         ))
     }
@@ -305,7 +305,7 @@ struct ExifInfoView: View {
     if let yResolution = exifInfo.yResolution {
       items.append(
         InfoItem(
-          label: NSLocalizedString("y_resolution_label", comment: "Vertical Resolution"),
+          label: "y_resolution_label".localized,
           value: "\(yResolution) \(exifInfo.resolutionUnit ?? "")"
         ))
     }

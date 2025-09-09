@@ -108,15 +108,15 @@ class AppSettings: ObservableObject {
     var errors: [String] = []
 
     if zoomSensitivity <= 0 || zoomSensitivity > 0.1 {
-      errors.append("缩放灵敏度必须在 0.01 到 0.1 之间")
+      errors.append("zoom_sensitivity_range_error".localized)
     }
 
     if minZoomScale <= 0 || minZoomScale >= maxZoomScale {
-      errors.append("最小缩放比例必须大于 0 且小于最大缩放比例")
+      errors.append("min_zoom_scale_invalid_error".localized)
     }
 
     if maxZoomScale <= minZoomScale {
-      errors.append("最大缩放比例必须大于最小缩放比例")
+      errors.append("max_zoom_scale_invalid_error".localized)
     }
 
     return errors

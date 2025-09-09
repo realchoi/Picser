@@ -359,6 +359,6 @@ struct AnimatableImageView: NSViewRepresentable {
       .environmentObject(AppSettings())
       .frame(width: 400, height: 300)
   } else {
-    Text("无法加载测试图片")
+    Text("preview_image_load_failed".localized)
   }
 }

@@ -11,7 +11,6 @@ import SwiftUI
 // 快捷键设置页面
 struct KeyboardSettingsView: View {
   @ObservedObject var appSettings: AppSettings
-  @ObservedObject private var localizationManager = LocalizationManager.shared
 
   var body: some View {
     ScrollView {

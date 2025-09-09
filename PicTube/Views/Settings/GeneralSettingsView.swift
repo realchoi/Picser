@@ -9,7 +9,6 @@ import SwiftUI
 
 struct GeneralSettingsView: View {
   @ObservedObject var appSettings: AppSettings
-  @ObservedObject private var localizationManager = LocalizationManager.shared
   @State private var showLanguageChangeNote = false
 
   var body: some View {

@@ -11,7 +11,6 @@ import SwiftUI
 // 显示设置页面
 struct DisplaySettingsView: View {
   @ObservedObject var appSettings: AppSettings
-  @ObservedObject private var localizationManager = LocalizationManager.shared
 
   var body: some View {
     ScrollView {

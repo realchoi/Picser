@@ -102,6 +102,85 @@
 "loading_text" = "Loading...";
 "ok_button" = "OK";
 
+/* Generic EXIF Error */
+"exif_unexpected_error" = "An unexpected error occurred while fetching EXIF info.";
+
+/* Generic UI Hints */
+"select_image_hint" = "Select an image on the left";
+"preview_image_load_failed" = "Failed to load preview image";
+
+/* Settings Validation Errors */
+"zoom_sensitivity_range_error" = "Zoom sensitivity must be between 0.01 and 0.1";
+"min_zoom_scale_invalid_error" = "Minimum zoom must be > 0 and less than maximum";
+"max_zoom_scale_invalid_error" = "Maximum zoom must be greater than minimum";
+
+/* EXIF Value Formats */
+"unknown_format" = "Unknown format";
+"exif_other_format" = "Other(%d)";
+"iso_value_format" = "ISO %d";
+"focal_length_35mm_format" = "%dmm (35mm equivalent)";
+
+/* Exposure Program */
+"exposure_program_0" = "Not defined";
+"exposure_program_1" = "Manual";
+"exposure_program_2" = "Normal program";
+"exposure_program_3" = "Aperture priority";
+"exposure_program_4" = "Shutter priority";
+"exposure_program_5" = "Creative program";
+"exposure_program_6" = "Action program";
+"exposure_program_7" = "Portrait mode";
+"exposure_program_8" = "Landscape mode";
+
+/* Metering Mode */
+"metering_mode_0" = "Unknown";
+"metering_mode_1" = "Average";
+"metering_mode_2" = "Center-weighted average";
+"metering_mode_3" = "Spot";
+"metering_mode_4" = "Multi-spot";
+"metering_mode_5" = "Pattern";
+"metering_mode_6" = "Partial";
+
+/* Flash Status */
+"flash_0" = "Flash did not fire";
+"flash_1" = "Flash fired";
+"flash_5" = "Strobe return light not detected";
+"flash_7" = "Strobe return light detected";
+"flash_9" = "Flash fired, compulsory";
+"flash_13" = "Flash fired, compulsory, return light not detected";
+"flash_15" = "Flash fired, compulsory, return light detected";
+"flash_16" = "Flash did not fire, compulsory suppression";
+"flash_24" = "Flash did not fire, auto mode";
+"flash_25" = "Flash fired, auto mode";
+"flash_29" = "Flash fired, auto mode, return light not detected";
+"flash_31" = "Flash fired, auto mode, return light detected";
+"flash_32" = "Flash did not fire, no flash function";
+
+/* White Balance */
+"white_balance_auto" = "Auto";
+"white_balance_manual" = "Manual";
+
+/* GPS Altitude */
+"gps_altitude_above_sea_level" = "Above sea level";
+"gps_altitude_below_sea_level" = "Below sea level";
+
+/* Color Space */
+"color_space_uncalibrated" = "Uncalibrated";
+
+/* Orientation */
+"orientation_1" = "Normal";
+"orientation_2" = "Mirror horizontal";
+"orientation_3" = "Rotate 180°";
+"orientation_4" = "Mirror vertical";
+"orientation_5" = "Rotate 90° CW + mirror horizontal";
+"orientation_6" = "Rotate 90° CW";
+"orientation_7" = "Rotate 90° CCW + mirror horizontal";
+"orientation_8" = "Rotate 90° CCW";
+
+/* Resolution Unit */
+"resolution_unit_none" = "Unitless";
+"resolution_unit_inch" = "Inch";
+"resolution_unit_centimeter" = "Centimeter";
+
 /* Modifier Keys */
 "modifier_none" = "None";
 "modifier_command" = "⌘ Command";

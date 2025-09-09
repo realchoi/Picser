@@ -19,7 +19,6 @@ enum ExifExtractionError: Error {
 struct ContentView: View {
   // 使用 @State 属性包装器来声明一个状态变量
   // 当这个变量改变时，SwiftUI 会自动刷新相关的视图
-  @ObservedObject private var localizationManager = LocalizationManager.shared
   @State private var imageURLs: [URL] = []  // 文件夹中所有图片的 URL 列表
   @State private var selectedImageURL: URL?  // 当前选中的图片 URL
   @FocusState private var isFocused: Bool  // 焦点状态管理
@@ -194,7 +193,8 @@ struct ContentView: View {
       } catch {
         await MainActor.run {
           self.isLoadingExif = false
-          self.exifErrorMessage = "获取 EXIF 信息时发生错误：\(error.localizedDescription)"
+          // 使用本地化的通用错误提示
+          self.exifErrorMessage = "exif_unexpected_error".localized
           self.showingExifError = true
         }
       }
@@ -574,7 +574,7 @@ private struct DetailView: View {
             }
           }
         } else {
-          Text("请在左侧选择一张图片")
+          Text("select_image_hint".localized)
             .font(.title)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

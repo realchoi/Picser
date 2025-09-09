@@ -127,12 +127,12 @@ extension ExifInfo {
     case "HEIC": return "HEIC"
     case "TIFF": return "TIFF"
     case "WEBP": return "WebP"
-    default: return ext.isEmpty ? "未知格式" : ext
+    default: return ext.isEmpty ? "unknown_format".localized : ext
     }
   }
 
   fileprivate static func formatDate(_ timestamp: TimeInterval?) -> String {
-    guard let timestamp = timestamp else { return "未知" }
+    guard let timestamp = timestamp else { return "unknown_value".localized }
     let date = Date(timeIntervalSince1970: timestamp)
     let formatter = DateFormatter()
     formatter.dateStyle = .medium
@@ -157,7 +157,7 @@ extension ExifInfo {
 
   fileprivate static func formatISO(_ isoArray: [Int]?) -> String? {
     guard let isoArray = isoArray, let iso = isoArray.first else { return nil }
-    return "ISO \(iso)"
+    return String(format: "iso_value_format".localized, iso)
   }
 
   fileprivate static func formatFocalLength(_ length: Double?) -> String? {
@@ -167,65 +167,65 @@ extension ExifInfo {
 
   fileprivate static func formatFocalLength35mm(_ length: Int?) -> String? {
     guard let length = length else { return nil }
-    return String(format: "%dmm (35mm等效)", length)
+    return String(format: "focal_length_35mm_format".localized, length)
   }
 
   fileprivate static func formatExposureProgram(_ program: Int?) -> String? {
     guard let program = program else { return nil }
     switch program {
-    case 0: return "未定义"
-    case 1: return "手动"
-    case 2: return "程序自动"
-    case 3: return "光圈优先"
-    case 4: return "快门优先"
-    case 5: return "创意程序"
-    case 6: return "动作程序"
-    case 7: return "人像模式"
-    case 8: return "风景模式"
-    default: return "其他(\(program))"
+    case 0: return "exposure_program_0".localized
+    case 1: return "exposure_program_1".localized
+    case 2: return "exposure_program_2".localized
+    case 3: return "exposure_program_3".localized
+    case 4: return "exposure_program_4".localized
+    case 5: return "exposure_program_5".localized
+    case 6: return "exposure_program_6".localized
+    case 7: return "exposure_program_7".localized
+    case 8: return "exposure_program_8".localized
+    default: return String(format: "exif_other_format".localized, program)
     }
   }
 
   fileprivate static func formatMeteringMode(_ mode: Int?) -> String? {
     guard let mode = mode else { return nil }
     switch mode {
-    case 0: return "未知"
-    case 1: return "平均测光"
-    case 2: return "中央重点测光"
-    case 3: return "点测光"
-    case 4: return "多点测光"
-    case 5: return "评估测光"
-    case 6: return "局部测光"
-    default: return "其他(\(mode))"
+    case 0: return "metering_mode_0".localized
+    case 1: return "metering_mode_1".localized
+    case 2: return "metering_mode_2".localized
+    case 3: return "metering_mode_3".localized
+    case 4: return "metering_mode_4".localized
+    case 5: return "metering_mode_5".localized
+    case 6: return "metering_mode_6".localized
+    default: return String(format: "exif_other_format".localized, mode)
     }
   }
 
   fileprivate static func formatFlash(_ flash: Int?) -> String? {
     guard let flash = flash else { return nil }
     switch flash {
-    case 0: return "未闪光"
-    case 1: return "闪光"
-    case 5: return "频闪，未检测到反射光"
-    case 7: return "频闪，检测到反射光"
-    case 9: return "强制闪光"
-    case 13: return "强制闪光，未检测到反射光"
-    case 15: return "强制闪光，检测到反射光"
-    case 16: return "未闪光，强制关闭"
-    case 24: return "未闪光，自动模式"
-    case 25: return "闪光，自动模式"
-    case 29: return "闪光，自动模式，未检测到反射光"
-    case 31: return "闪光，自动模式，检测到反射光"
-    case 32: return "未闪光，无闪光功能"
-    default: return "其他(\(flash))"
+    case 0: return "flash_0".localized
+    case 1: return "flash_1".localized
+    case 5: return "flash_5".localized
+    case 7: return "flash_7".localized
+    case 9: return "flash_9".localized
+    case 13: return "flash_13".localized
+    case 15: return "flash_15".localized
+    case 16: return "flash_16".localized
+    case 24: return "flash_24".localized
+    case 25: return "flash_25".localized
+    case 29: return "flash_29".localized
+    case 31: return "flash_31".localized
+    case 32: return "flash_32".localized
+    default: return String(format: "exif_other_format".localized, flash)
     }
   }
 
   fileprivate static func formatWhiteBalance(_ wb: Int?) -> String? {
     guard let wb = wb else { return nil }
     switch wb {
-    case 0: return "自动"
-    case 1: return "手动"
-    default: return "其他(\(wb))"
+    case 0: return "white_balance_auto".localized
+    case 1: return "white_balance_manual".localized
+    default: return String(format: "exif_other_format".localized, wb)
     }
   }
 
@@ -240,7 +240,9 @@ extension ExifInfo {
 
   fileprivate static func formatGPSAltitude(_ altitude: Double?, ref: Int?) -> String? {
     guard let altitude = altitude else { return nil }
-    let refString = (ref == 1) ? "海平面以下" : "海平面以上"
+    let refString = (ref == 1)
+      ? "gps_altitude_below_sea_level".localized
+      : "gps_altitude_above_sea_level".localized
     return String(format: "%.1fm %@", altitude, refString)
   }
 
@@ -254,23 +256,23 @@ extension ExifInfo {
     guard let space = space else { return nil }
     switch space {
     case 1: return "sRGB"
-    case 65535: return "未校准"
-    default: return "其他(\(space))"
+    case 65535: return "color_space_uncalibrated".localized
+    default: return String(format: "exif_other_format".localized, space)
     }
   }
 
   fileprivate static func formatOrientation(_ orientation: Int?) -> String? {
     guard let orientation = orientation else { return nil }
     switch orientation {
-    case 1: return "正常"
-    case 2: return "水平翻转"
-    case 3: return "旋转180°"
-    case 4: return "垂直翻转"
-    case 5: return "顺时针旋转90°+水平翻转"
-    case 6: return "顺时针旋转90°"
-    case 7: return "逆时针旋转90°+水平翻转"
-    case 8: return "逆时针旋转90°"
-    default: return "其他(\(orientation))"
+    case 1: return "orientation_1".localized
+    case 2: return "orientation_2".localized
+    case 3: return "orientation_3".localized
+    case 4: return "orientation_4".localized
+    case 5: return "orientation_5".localized
+    case 6: return "orientation_6".localized
+    case 7: return "orientation_7".localized
+    case 8: return "orientation_8".localized
+    default: return String(format: "exif_other_format".localized, orientation)
     }
   }
 
@@ -282,10 +284,10 @@ extension ExifInfo {
   fileprivate static func formatResolutionUnit(_ unit: Int?) -> String? {
     guard let unit = unit else { return nil }
     switch unit {
-    case 1: return "无单位"
-    case 2: return "英寸"
-    case 3: return "厘米"
-    default: return "其他(\(unit))"
+    case 1: return "resolution_unit_none".localized
+    case 2: return "resolution_unit_inch".localized
+    case 3: return "resolution_unit_centimeter".localized
+    default: return String(format: "exif_other_format".localized, unit)
     }
   }
 }
