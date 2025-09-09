@@ -24,6 +24,19 @@ final class ImageLoader: @unchecked Sendable {
 
   // MARK: - 核心加载方法
 
+  // MARK: - 缓存直读（避免闪烁用）
+  /// 同步返回内存中已缓存的完整图（若存在）
+  @MainActor
+  func cachedFullImage(for url: URL) -> NSImage? {
+    fullImageCache.object(forKey: url as NSURL)
+  }
+
+  /// 同步返回内存中已缓存的缩略图（若存在）
+  @MainActor
+  func cachedThumbnail(for url: URL) -> NSImage? {
+    thumbnailCache.object(forKey: url.absoluteString as NSString)
+  }
+
   /// 加载用于UI显示的缩略图 (Thumbnail)
   /// 这是UI列表的“生命线”，必须极速响应。
   @MainActor

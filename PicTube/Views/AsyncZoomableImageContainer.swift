@@ -15,6 +15,9 @@ struct AsyncZoomableImageContainer: View {
 
   // 我们现在只需要一个 State 来存储最终显示的图片
   @State private var displayImage: NSImage?
+  @State private var isShowingFull: Bool = false
+  @State private var loadTask: Task<Void, Never>?
+  @State private var fullLoadTask: Task<Void, Never>?
 
   var body: some View {
     ZStack {
@@ -30,23 +33,64 @@ struct AsyncZoomableImageContainer: View {
     .transition(
       .asymmetric(insertion: .opacity.animation(.easeInOut(duration: 0.1)), removal: .identity)
     )
-    .onChange(of: url) {
-      // 【核心改造】
-      // 重置状态，准备加载新图片
-      self.displayImage = nil
+    .task(id: url) {
+      // 取消上一轮加载
+      loadTask?.cancel()
 
-      // 直接调用我们强大的 ImageLoader 来加载最终的图片。
-      // ImageLoader 内部已经处理了 GIF 和其他静态图片的差异化加载。
-      // 这样就绕过了 ThumbnailService 只能生成静态图的问题。
-      Task {
-        self.displayImage = await ImageLoader.shared.loadFullImage(for: url)
+      // 重置状态，但先尝试使用缓存避免闪烁
+      self.isShowingFull = false
+
+      let currentURL = url
+      // 在主线程上组织渐进加载，避免跨 actor 传递 NSImage 带来的 Swift 6 Sendable 警告
+      let task = Task { @MainActor in
+        // 缓存直读：若命中完整图或缩略图，立即显示
+        if let cachedFull = ImageLoader.shared.cachedFullImage(for: currentURL) {
+          self.displayImage = cachedFull
+          self.isShowingFull = true
+        } else if let cachedThumb = ImageLoader.shared.cachedThumbnail(for: currentURL) {
+          self.displayImage = cachedThumb
+        } else {
+          self.displayImage = nil
+        }
+
+        // 取消并替换上一轮完整图加载任务
+        fullLoadTask?.cancel()
+        fullLoadTask = Task { @MainActor in
+          if let full = await ImageLoader.shared.loadFullImage(for: currentURL), !Task.isCancelled {
+            withAnimation(.easeInOut(duration: 0.15)) {
+              self.displayImage = full
+              self.isShowingFull = true
+            }
+          }
+        }
+
+        // 若未命中任何缓存，再获取一个快速缩略图占位（QuickLook 优先，失败回退自有缩略图）
+        if self.displayImage == nil {
+          let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+          if let cg = await ThumbnailService.generate(
+            url: currentURL,
+            size: CGSize(width: 256, height: 256),
+            scale: scale
+          ) {
+            if !isShowingFull {
+              self.displayImage = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+            }
+          } else if let thumb = await ImageLoader.shared.loadThumbnail(for: currentURL) {
+            if !isShowingFull {
+              self.displayImage = thumb
+            }
+          }
+        }
+        // 等待完整图加载任务结束（被取消或成功覆盖）以便结构化生命周期
+        _ = await fullLoadTask?.value
       }
+
+      self.loadTask = task
+      await task.value
     }
-    .task {
-      // 确保首次加载时也能显示图片
-      if self.displayImage == nil {
-        self.displayImage = await ImageLoader.shared.loadFullImage(for: url)
-      }
+    .onDisappear {
+      loadTask?.cancel()
+      fullLoadTask?.cancel()
     }
   }
 }
