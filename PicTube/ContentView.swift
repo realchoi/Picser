@@ -150,8 +150,10 @@ struct ContentView: View {
       Task {
         let uniqueSorted = await computeImageURLs(from: urls)
         if uniqueSorted.isEmpty { return }
-        self.imageURLs = uniqueSorted
-        self.selectedImageURL = uniqueSorted.first
+        await MainActor.run {
+          self.imageURLs = uniqueSorted
+          self.selectedImageURL = uniqueSorted.first
+        }
       }
     }
   }
@@ -271,24 +273,62 @@ struct ContentView: View {
 
   // 在后台线程枚举与筛选图片，避免阻塞主线程
   private func computeImageURLs(from inputs: [URL]) async -> [URL] {
+    // 允许的图片扩展名（小写）
     let imageExtensions = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
+
     return await withCheckedContinuation { continuation in
       DispatchQueue.global(qos: .userInitiated).async {
         var collected: [URL] = []
         let fm = FileManager.default
+
+        // 1) 枚举输入源（文件/目录），收集图片 URL
         for url in inputs {
           if url.hasDirectoryPath {
             if let files = try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil) {
-              collected.append(
-                contentsOf: files.filter { imageExtensions.contains($0.pathExtension.lowercased()) }
-              )
+              collected.append(contentsOf: files.filter { imageExtensions.contains($0.pathExtension.lowercased()) })
             }
           } else if imageExtensions.contains(url.pathExtension.lowercased()) {
             collected.append(url)
           }
         }
-        let result = Array(Set(collected)).sorted { $0.lastPathComponent < $1.lastPathComponent }
-        continuation.resume(returning: result)
+
+        // 2) 使用字典进行去重，保持首次出现顺序（避免 Set 破坏顺序）
+        var seen: [String: Bool] = [:]  // key: standardized path
+        var unique: [URL] = []
+        unique.reserveCapacity(collected.count)
+        for url in collected {
+          let key = url.standardizedFileURL.path
+          if seen[key] == nil {
+            seen[key] = true
+            unique.append(url)
+          }
+        }
+
+        // 3) 稳定排序：优先目录路径，其次文件名的自然数值排序
+        // 使用 localizedStandardCompare 提供 Finder 风格的“自然排序”
+        let enumerated = unique.enumerated().map { ($0.offset, $0.element) }
+        let sortedStable = enumerated.sorted { lhs, rhs in
+          let (li, l) = lhs
+          let (ri, r) = rhs
+          let lDir = l.deletingLastPathComponent().path
+          let rDir = r.deletingLastPathComponent().path
+
+          if lDir != rDir {
+            return lDir.localizedStandardCompare(rDir) == .orderedAscending
+          }
+
+          let lName = l.lastPathComponent
+          let rName = r.lastPathComponent
+          let nameOrder = lName.localizedStandardCompare(rName)
+          if nameOrder != .orderedSame {
+            return nameOrder == .orderedAscending
+          }
+
+          // 兜底：在完全相同的比较键时，按原始索引（稳定）
+          return li < ri
+        }.map { $0.1 }
+
+        continuation.resume(returning: sortedStable)
       }
     }
   }
