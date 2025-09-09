@@ -18,7 +18,7 @@ struct MetadataCache: Codable {
   /// 魔数，用于快速识别文件类型。固定值 0x50494354 代表 "PICT"
   let magicNumber: UInt32 = 0x5049_4354
   /// 缓存结构的版本号，便于未来升级
-  let version: UInt8 = 1
+  let version: UInt8 = 2
 
   // --- 元数据 (Metadata) ---
   /// 原始文件最后修改时间的 Unix 时间戳
@@ -37,9 +37,11 @@ struct MetadataCache: Codable {
   let exifData: Data
 
   // 通过定义 CodingKeys，我们明确告诉 Codable 只对列出的 key 进行编解码。
-  // magicNumber 和 version 因为没有被包含在内，所以会被自动忽略，警告也就消除了。
+  // 现在将 magicNumber 和 version 一并持久化，以便在读取时进行有效性校验。
   // 这里我们使用 private 修饰，因为这些 key 只用于编解码，不应该暴露给外部。
   private enum CodingKeys: String, CodingKey {
+    case magicNumber
+    case version
     case originalFileTimestamp
     case originalFormat
     case originalWidth

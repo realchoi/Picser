@@ -12,9 +12,9 @@ actor DiskCache {
   private let fileManager = FileManager.default
   private var byteLimit: Int = 500 * 1024 * 1024  // 默认 500MB，因为元数据缓存通常更小
 
-  // 使用 Codable 来序列化和反序列化我们的缓存结构体
-  private let encoder = JSONEncoder()
-  private let decoder = JSONDecoder()
+  // 使用 Codable + PropertyList 序列化/反序列化缓存结构体（binary 格式以减小体积）
+  private let encoder = PropertyListEncoder()
+  private let decoder = PropertyListDecoder()
 
   private init() {
     // 将缓存目录更改为 "MetadataCache" 以避免与旧缓存冲突
@@ -25,8 +25,8 @@ actor DiskCache {
     }
     baseURL = dir
 
-    // 虽然我们不直接用它来编码，但预热一下总是好的
-    encoder.outputFormatting = .prettyPrinted
+    // 使用二进制 PropertyList，减少缓存文件体积并避免 Base64 开销
+    encoder.outputFormat = .binary
   }
 
   /// 返回磁盘缓存目录
@@ -82,8 +82,9 @@ actor DiskCache {
         // 2. 使用 Codable 将数据解码回我们的结构体
         let metadata = try decoderRef.decode(MetadataCache.self, from: data)
 
-        // 3. 验证缓存的有效性
+        // 3. 验证缓存的有效性（值来自文件解码结果）
         guard metadata.magicNumber == 0x5049_4354,  // 检查魔数
+          metadata.version == 2,                    // 检查版本
           let attributes = try? fm.attributesOfItem(atPath: key),  // 注意：这里的 key 是原始文件路径
           let modificationDate = attributes[.modificationDate] as? Date,
           // 检查时间戳是否匹配，确保原始文件未被修改
