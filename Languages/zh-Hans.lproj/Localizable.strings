@@ -36,6 +36,9 @@
 
 /* File/Folder Open */
 "open_file_or_folder_button" = "打开图片/文件夹";
+"empty_drag_hint" = "或者将图片或文件夹拖拽到窗口打开";
+"drop_overlay_title" = "松开以打开";
+"drop_overlay_subtitle" = "支持图片文件或包含图片的文件夹";
 
 /* EXIF info */
 "exif_info_button" = "查看 EXIF 信息";

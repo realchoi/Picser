@@ -36,6 +36,9 @@
 
 /* File/Folder Open */
 "open_file_or_folder_button" = "Open Image/Folder";
+"empty_drag_hint" = "Or drag an image or folder into the window to open";
+"drop_overlay_title" = "Release to Open";
+"drop_overlay_subtitle" = "Supports image files or folders containing images";
 
 /* EXIF info */
 "exif_info_button" = "View EXIF ​​information";

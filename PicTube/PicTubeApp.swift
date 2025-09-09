@@ -24,6 +24,9 @@ struct PicTubeApp: App {
     // 实现沉浸式看图：隐藏系统默认的标题栏
     .windowStyle(.hiddenTitleBar)
     .windowResizability(.contentSize)
+    .commands {
+      AppCommands()
+    }
 
     // 设置窗口 - SwiftUI 会自动创建菜单项
     Settings {

@@ -118,6 +118,33 @@ struct ZoomableImageView: View {
                 NSCursor.arrow.set()
               }
           )
+          // 触控板捏合缩放手势（与滚轮缩放共存）
+          .simultaneousGesture(
+            MagnificationGesture()
+              .onChanged { value in
+                // 与滚轮缩放一样，遵从修饰键设置
+                guard shouldRespondToZoomGesture() else { return }
+                // value 是相对比例（1.0 为不变）
+                let proposed = lastScale * value
+                let clamped = max(minScale, min(maxScale, proposed))
+                withAnimation(.easeInOut(duration: 0.08)) {
+                  scale = clamped
+                  // 缩放后更新并夹取偏移，避免越界
+                  let maxOffset = calculateMaxOffset(geometry: geometry)
+                  offset = clamp(offset, to: maxOffset)
+                }
+              }
+              .onEnded { value in
+                // 结束时固化缩放比例，并同步偏移缓存
+                let proposed = lastScale * value
+                let clamped = max(minScale, min(maxScale, proposed))
+                lastScale = clamped
+                let maxOffset = calculateMaxOffset(geometry: geometry)
+                lastOffset = clamp(offset, to: maxOffset)
+                // 清理滚轮缓存，使后续滚轮缩放重新计算边界
+                invalidateCache()
+              }
+          )
           .onTapGesture(count: 2) {
             // 双击重置缩放
             resetZoom()

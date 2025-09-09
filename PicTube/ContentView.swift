@@ -30,25 +30,39 @@ struct ContentView: View {
   @State private var isLoadingExif = false  // 是否正在加载 EXIF 信息
   @State private var exifErrorMessage: String?  // EXIF 错误消息
   @State private var showingExifError = false  // 是否显示 EXIF 错误弹窗
+  // 拖放高亮
+  @State private var isDropTargeted = false
 
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
 
   var body: some View {
-    NavigationSplitView(columnVisibility: $sidebarVisibility) {
-      SidebarView(imageURLs: imageURLs, selectedImageURL: selectedImageURL) { url in
-        selectedImageURL = url
+    ZStack {
+      NavigationSplitView(columnVisibility: $sidebarVisibility) {
+        SidebarView(imageURLs: imageURLs, selectedImageURL: selectedImageURL) { url in
+          selectedImageURL = url
+        }
+        .frame(minWidth: 150)
+      } detail: {
+        DetailView(
+          imageURLs: imageURLs,
+          selectedImageURL: selectedImageURL,
+          onOpen: openFileOrFolder,
+          showingExifInfo: $showingExifInfo,
+          exifInfo: currentExifInfo
+        )
+        .environmentObject(appSettings)
       }
-      .frame(minWidth: 150)
-    } detail: {
-      DetailView(
-        imageURLs: imageURLs,
-        selectedImageURL: selectedImageURL,
-        onOpen: openFileOrFolder,
-        showingExifInfo: $showingExifInfo,
-        exifInfo: currentExifInfo
-      )
-      .environmentObject(appSettings)
+      // 拖放高亮层
+      if isDropTargeted {
+        DropOverlay()
+          .transition(.opacity.animation(.easeInOut(duration: 0.12)))
+          .allowsHitTesting(false)
+      }
+    }
+    // 支持将文件/文件夹拖放到窗口打开
+    .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in
+      handleDropProviders(providers)
     }
     .onChange(of: imageURLs) { _, newURLs in
       // 当图片列表变化时，更新侧边栏可见性
@@ -77,6 +91,10 @@ struct ContentView: View {
     .onTapGesture {
       // 点击时重新获得焦点
       isFocused = true
+    }
+    // 菜单命令触发：打开文件/文件夹（⌘O）
+    .onReceive(NotificationCenter.default.publisher(for: .openFileOrFolderRequested)) { _ in
+      openFileOrFolder()
     }
     .toolbar {
       ToolbarItem {
@@ -155,6 +173,43 @@ struct ContentView: View {
         }
       }
     }
+  }
+
+  /// 处理拖放进窗口的文件/文件夹 URL 提供者
+  private func handleDropProviders(_ providers: [NSItemProvider]) -> Bool {
+    guard !providers.isEmpty else { return false }
+
+    let group = DispatchGroup()
+    var droppedURLs: [URL] = []
+
+    for provider in providers {
+      if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+        group.enter()
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+          defer { group.leave() }
+          if let url = item as? URL {
+            droppedURLs.append(url)
+          } else if let data = item as? Data,
+                    let str = String(data: data, encoding: .utf8),
+                    let url = URL(string: str) {
+            droppedURLs.append(url)
+          }
+        }
+      }
+    }
+
+    group.notify(queue: .main) {
+      guard !droppedURLs.isEmpty else { return }
+      Task {
+        let uniqueSorted = await computeImageURLs(from: droppedURLs)
+        if uniqueSorted.isEmpty { return }
+        await MainActor.run {
+          self.imageURLs = uniqueSorted
+          self.selectedImageURL = uniqueSorted.first
+        }
+      }
+    }
+    return true
   }
 
   /// 显示图片的 exif 信息
@@ -587,20 +642,62 @@ private struct EmptyHint: View {
   let onOpen: () -> Void
 
   var body: some View {
-    Button {
-      onOpen()
-    } label: {
-      Label(
-        "open_file_or_folder_button".localized,
-        systemImage: "folder"
-      )
-      .padding(8)  // 添加按钮的内边距
+    VStack(spacing: 16) {
+      Button {
+        onOpen()
+      } label: {
+        Label(
+          "open_file_or_folder_button".localized,
+          systemImage: "folder"
+        )
+        .padding(8)
+      }
+      .buttonStyle(.borderedProminent)
+      .controlSize(.extraLarge)
+      .font(.title2)
+      .labelStyle(.titleAndIcon)
+
+      // 额外提示：支持拖拽文件/文件夹打开
+      HStack(spacing: 8) {
+        Image(systemName: "tray.and.arrow.down")
+          .foregroundStyle(.secondary)
+        Text("empty_drag_hint".localized)
+          .foregroundStyle(.secondary)
+      }
+      .font(.body)
     }
-    .buttonStyle(.borderedProminent)
-    .controlSize(.extraLarge)
-    .font(.title2)
-    .labelStyle(.titleAndIcon)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+}
+
+// 拖放高亮层
+private struct DropOverlay: View {
+  var body: some View {
+    ZStack {
+      // 半透明蒙层
+      Color.black.opacity(0.12)
+        .ignoresSafeArea()
+
+      // 中心提示卡片
+      VStack(spacing: 8) {
+        Image(systemName: "square.and.arrow.down.on.square")
+          .font(.system(size: 36, weight: .medium))
+          .foregroundStyle(Color.accentColor)
+        Text("drop_overlay_title".localized)
+          .font(.title3)
+          .bold()
+        Text("drop_overlay_subtitle".localized)
+          .font(.callout)
+          .foregroundStyle(.secondary)
+      }
+      .padding(20)
+      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+      .overlay(
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+          .stroke(Color.accentColor.opacity(0.8), style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+      )
+      .shadow(radius: 12)
+    }
   }
 }
 
