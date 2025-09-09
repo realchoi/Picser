@@ -9,6 +9,14 @@ import AppKit
 import QuickLookThumbnailing
 import SwiftUI
 
+// MARK: - Constants
+private enum QLRequestConstants {
+  // 上限以像素为单位；用于根据屏幕 scale 换算为点
+  static let maxLongSidePixels: CGFloat = 3200.0
+  // 短边像素下限，避免模糊
+  static let minShortSidePixels: CGFloat = 256.0
+}
+
 /// 渐进式加载主图：先显示快速缩略图，再无缝切换到全尺寸已解码图像
 struct AsyncZoomableImageContainer: View {
   let url: URL
@@ -95,10 +103,34 @@ struct AsyncZoomableImageContainer: View {
         // 若未命中任何缓存，再获取一个快速缩略图占位（QuickLook 优先，失败回退自有缩略图）
         if self.displayImage == nil {
           let scale = NSScreen.main?.backingScaleFactor ?? 2.0
-          // 根据视口尺寸自适应请求大小，并加上上/下界避免过大/过小
-          let vw = max(256, min(viewportSize.width, 1600))
-          let vh = max(256, min(viewportSize.height, 1600))
-          let requestedSize = CGSize(width: vw, height: vh)
+          // 基于实际像素密度自适应上界：在像素维度设定上限，再换算为点
+          let maxLongPoints = QLRequestConstants.maxLongSidePixels / scale
+          let minShortPoints = QLRequestConstants.minShortSidePixels / scale
+
+          // 使用“短边优先”的请求尺寸，尽量贴近原图横竖比，减少无效像素
+          let shortSide = max(minShortPoints, min(min(viewportSize.width, viewportSize.height), maxLongPoints))
+          let longSideLimit = max(minShortPoints, min(max(viewportSize.width, viewportSize.height), maxLongPoints))
+
+          // 尝试读取原图尺寸计算宽高比（后台读取元数据，无需完整解码）
+          let aspect = await Self.readImageAspect(from: currentURL)
+          let requestedSize: CGSize
+          if let aspect, aspect > 0 { // aspect = width/height
+            // 以短边为基准，还原另一边，且不超过长边上限
+            var w: CGFloat
+            var h: CGFloat
+            if aspect >= 1 { // 横图：高为短边
+              h = shortSide
+              w = h * aspect
+            } else { // 竖图：宽为短边
+              w = shortSide
+              h = w / aspect
+            }
+            let scaleDown = min(1.0, longSideLimit / max(w, h))
+            requestedSize = CGSize(width: w * scaleDown, height: h * scaleDown)
+          } else {
+            // 无法获取宽高比时，采用方形短边请求
+            requestedSize = CGSize(width: shortSide, height: shortSide)
+          }
 
           if let cg = await ThumbnailService.generate(
             url: currentURL,
@@ -125,5 +157,21 @@ struct AsyncZoomableImageContainer: View {
       loadTask?.cancel()
       fullLoadTask?.cancel()
     }
+  }
+}
+
+// MARK: - Helpers
+extension AsyncZoomableImageContainer {
+  /// 仅解析元数据以获取宽高比（width/height）。失败返回 nil。
+  static func readImageAspect(from url: URL) async -> CGFloat? {
+    await Task.detached(priority: .utility) {
+      guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+        let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+        let w = props[kCGImagePropertyPixelWidth] as? CGFloat,
+        let h = props[kCGImagePropertyPixelHeight] as? CGFloat,
+        w > 0, h > 0
+      else { return nil }
+      return w / h
+    }.value
   }
 }
