@@ -12,8 +12,6 @@ final class ImageLoader: @unchecked Sendable {
   // 内存缓存：仍然用于存储已解码的 NSImage 对象，避免重复创建，速度最快。
   private let thumbnailCache = NSCache<NSString, NSImage>()
   private let fullImageCache = NSCache<NSURL, NSImage>()
-
-  private let ioQueue = DispatchQueue(label: "image.loader.queue", qos: .userInitiated)
   private var memoryPressureSource: DispatchSourceMemoryPressure?
 
   private init() {
