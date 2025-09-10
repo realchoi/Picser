@@ -88,6 +88,20 @@ class AppSettings: ObservableObject {
     }
   }
 
+  // MARK: - 小地图设置
+
+  /// 是否显示右下角小地图（UserDefaults 存储）
+  @AppStorage("showMinimap") var showMinimap: Bool = true
+
+  /// 小地图自动隐藏时间（秒，0 表示不自动隐藏）（UserDefaults 存储）
+  @AppStorage("minimapAutoHideSeconds") var minimapAutoHideSeconds: Double = 0.0 {
+    didSet {
+      // 约束范围 0...10 秒
+      if minimapAutoHideSeconds < 0 { minimapAutoHideSeconds = 0 }
+      if minimapAutoHideSeconds > 10 { minimapAutoHideSeconds = 10 }
+    }
+  }
+
   // MARK: - 初始化
 
   init() {
@@ -150,6 +164,8 @@ class AppSettings: ObservableObject {
       zoomSensitivity = 0.05
       minZoomScale = 0.1
       maxZoomScale = 10.0
+      showMinimap = true
+      minimapAutoHideSeconds = 0.0
     case .cache:
       break
     }

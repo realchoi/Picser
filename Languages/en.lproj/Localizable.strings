@@ -30,6 +30,13 @@
 "min_zoom_scale" = "Minimum Zoom Scale:";
 "max_zoom_scale" = "Maximum Zoom Scale:";
 
+/* Minimap */
+"minimap_group" = "Minimap";
+"show_minimap" = "Show Minimap";
+"minimap_auto_hide" = "Auto Hide Minimap:";
+"minimap_auto_hide_off" = "Off";
+"minimap_auto_hide_seconds_format" = "%.0f s";
+
 /* Buttons */
 "clear_button" = "Clear";
 "reset_defaults_button" = "Reset to Defaults";

@@ -37,6 +37,10 @@ struct ZoomableImageView: View {
   @State private var cachedMaxOffset: CGSize?
   @State private var cachedScale: CGFloat = 1.0
 
+  // MARK: - 小地图显示控制（自动隐藏）
+  @State private var minimapUserVisible: Bool = true
+  @State private var minimapHideTask: Task<Void, Never>?
+
   private var effectiveScale: CGFloat {
     scale
   }
@@ -77,6 +81,8 @@ struct ZoomableImageView: View {
                 // 缓存计算结果，避免下次滚轮缩放时重复计算
                 cacheMaxOffset(maxOffset, for: clampedScale)
               }
+              // 交互后触发小地图显示并启动自动隐藏计时
+              triggerMinimapAutoHide()
             }
           )
           .gesture(
@@ -100,6 +106,8 @@ struct ZoomableImageView: View {
                   height: lastOffset.height + value.translation.height
                 )
                 offset = clamp(proposed, to: maxOffset)
+                // 拖拽过程中刷新小地图可见性
+                triggerMinimapAutoHide()
               }
               .onEnded { value in
                 // 检查是否应该响应拖拽（修饰键检测）
@@ -116,6 +124,8 @@ struct ZoomableImageView: View {
                 lastOffset = clamped
                 isDragging = false
                 NSCursor.arrow.set()
+                // 拖拽结束后继续计时隐藏
+                triggerMinimapAutoHide()
               }
           )
           // 触控板捏合缩放手势（与滚轮缩放共存）
@@ -133,6 +143,8 @@ struct ZoomableImageView: View {
                   let maxOffset = calculateMaxOffset(geometry: geometry)
                   offset = clamp(offset, to: maxOffset)
                 }
+                // 捏合过程中刷新小地图可见性
+                triggerMinimapAutoHide()
               }
               .onEnded { value in
                 // 结束时固化缩放比例，并同步偏移缓存
@@ -143,6 +155,8 @@ struct ZoomableImageView: View {
                 lastOffset = clamp(offset, to: maxOffset)
                 // 清理滚轮缓存，使后续滚轮缩放重新计算边界
                 invalidateCache()
+                // 捏合结束后继续计时隐藏
+                triggerMinimapAutoHide()
               }
           )
           .onTapGesture(count: 2) {
@@ -150,9 +164,34 @@ struct ZoomableImageView: View {
             resetZoom()
           }
       }
+      // 小地图（缩略图）覆盖层：当图片放大超过预览区域且设置允许时显示
+      .overlay(alignment: .bottomTrailing) {
+        if shouldShowMinimap(geometry: geometry)
+          && appSettings.showMinimap
+          && (appSettings.minimapAutoHideSeconds <= 0 || minimapUserVisible)
+        {
+          let visRect = currentVisibleRectInImage(geometry: geometry)
+          MinimapOverlay(
+            image: image,
+            containerSize: CGSize(width: 180, height: 140),
+            visibleRectInImage: visRect
+          )
+          .padding(10)
+          .transition(.opacity.combined(with: .move(edge: .bottom)))
+          .animation(.easeInOut(duration: 0.15), value: visRect)
+          .allowsHitTesting(false)
+        }
+      }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .onAppear {
         setupInitialState(geometry: geometry)
+        // 初始可见性：若开启自动隐藏，则等待用户交互再显示
+        minimapUserVisible = appSettings.minimapAutoHideSeconds <= 0
+      }
+      .onChange(of: image) { _, _ in
+        // 图片切换时，重新按视口适配并重置缩放/偏移，避免使用上一张图的 baseFitScale
+        fitImageToView(geometry: geometry)
+        minimapUserVisible = appSettings.minimapAutoHideSeconds <= 0
       }
     }
     .onChange(of: appSettings.minZoomScale) { _, newValue in
@@ -165,14 +204,14 @@ struct ZoomableImageView: View {
       ensureValidScale()
       invalidateCache()  // 缩放限制变化时清除缓存
     }
-    .onChange(of: image) { _, _ in
-      // 图片变化时重置拖拽状态（缩放重置在GeometryReader内部处理）
-      resetPan()
-      invalidateCache()  // 图片变化时清除缓存
-    }
+    // 图片变化时的重置逻辑已在 GeometryReader 内部的 onChange 处理
     .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResizeNotification)) { _ in
       // 窗口大小变化时重新适应 - 需要在GeometryReader内部处理
       invalidateCache()  // 窗口大小变化时清除缓存
+    }
+    .onDisappear {
+      minimapHideTask?.cancel()
+      minimapHideTask = nil
     }
   }
 
@@ -320,6 +359,60 @@ struct ZoomableImageView: View {
   private func invalidateCache() {
     cachedMaxOffset = nil
   }
+
+  /// 是否应显示小地图（当显示尺寸超过视口尺寸时）
+  private func shouldShowMinimap(geometry: GeometryProxy) -> Bool {
+    let viewSize = geometry.size
+    let displayedWidth = image.size.width * baseFitScale * scale
+    let displayedHeight = image.size.height * baseFitScale * scale
+    return displayedWidth > viewSize.width + 0.5 || displayedHeight > viewSize.height + 0.5
+  }
+
+  /// 计算当前视口在原始图像坐标系（以像素为单位）中的可见矩形
+  private func currentVisibleRectInImage(geometry: GeometryProxy) -> CGRect {
+    let vw = geometry.size.width
+    let vh = geometry.size.height
+    let iw = image.size.width
+    let ih = image.size.height
+
+    guard iw > 0, ih > 0, vw > 0, vh > 0 else { return .zero }
+
+    let sDisp = baseFitScale * scale
+
+    // 将视图矩形 [0,vw]x[0,vh] 映射回图像坐标
+    // 推导：imageX = (viewX - vw/2 - offsetX)/sDisp + iw/2
+    //       imageY = (viewY - vh/2 - offsetY)/sDisp + ih/2
+    let imgLeft = (-vw / 2.0 - offset.width) / sDisp + iw / 2.0
+    let imgRight = (vw / 2.0 - offset.width) / sDisp + iw / 2.0
+    let imgTop = (-vh / 2.0 - offset.height) / sDisp + ih / 2.0
+    let imgBottom = (vh / 2.0 - offset.height) / sDisp + ih / 2.0
+
+    // 与原图边界相交
+    let x0 = max(0.0, min(iw, imgLeft))
+    let x1 = max(0.0, min(iw, imgRight))
+    let y0 = max(0.0, min(ih, imgTop))
+    let y1 = max(0.0, min(ih, imgBottom))
+
+    let width = max(0.0, x1 - x0)
+    let height = max(0.0, y1 - y0)
+    return CGRect(x: x0, y: y0, width: width, height: height)
+  }
+
+  /// 触发小地图显示并按设置自动隐藏
+  private func triggerMinimapAutoHide() {
+    guard appSettings.showMinimap else { return }
+    minimapUserVisible = true
+    minimapHideTask?.cancel()
+    let delay = appSettings.minimapAutoHideSeconds
+    guard delay > 0 else { return }
+    let task = Task { @MainActor in
+      try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+      if !Task.isCancelled {
+        minimapUserVisible = false
+      }
+    }
+    minimapHideTask = task
+  }
 }
 
 /// 滚轮事件处理器
@@ -377,6 +470,101 @@ struct AnimatableImageView: NSViewRepresentable {
 
   func updateNSView(_ nsView: NSImageView, context: Context) {
     nsView.image = image
+  }
+}
+
+// MARK: - Minimap Overlay
+/// 右下角的小地图缩略视图，展示原图及当前视口位置
+private struct MinimapOverlay: View {
+  let image: NSImage
+  let containerSize: CGSize
+  let visibleRectInImage: CGRect // 在原图坐标中的可见区域
+
+  // 外观参数
+  private let cornerRadius: CGFloat = 8
+  private let borderColor: Color = Color.white.opacity(0.9)
+  private let borderWidth: CGFloat = 1
+  private let backdropColor: Color = Color.black.opacity(0.25)
+  private let contentPadding: CGFloat = 6
+  private let viewportStrokeColor: Color = .accentColor
+  private let viewportFillColor: Color = Color.accentColor.opacity(0.12)
+
+  var body: some View {
+    ZStack(alignment: .topLeading) {
+      // 背景（半透明毛玻璃风格）
+      RoundedRectangle(cornerRadius: cornerRadius)
+        .fill(backdropColor)
+        .overlay(
+          RoundedRectangle(cornerRadius: cornerRadius)
+            .stroke(borderColor, lineWidth: 0.5)
+        )
+
+      // 内容层：原图缩略 + 视口框
+      MinimapContent(
+        image: image,
+        containerSize: containerSize,
+        contentPadding: contentPadding,
+        visibleRectInImage: visibleRectInImage,
+        viewportStrokeColor: viewportStrokeColor,
+        viewportFillColor: viewportFillColor,
+        borderWidth: borderWidth
+      )
+      .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+    }
+    .frame(width: containerSize.width, height: containerSize.height)
+    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 2)
+  }
+}
+
+/// 小地图主体内容：计算缩略图适配尺寸并绘制视口矩形
+private struct MinimapContent: View {
+  let image: NSImage
+  let containerSize: CGSize
+  let contentPadding: CGFloat
+  let visibleRectInImage: CGRect
+  let viewportStrokeColor: Color
+  let viewportFillColor: Color
+  let borderWidth: CGFloat
+
+  var body: some View {
+    // 计算缩略图适配结果
+    let iw = max(1.0, image.size.width)
+    let ih = max(1.0, image.size.height)
+    let cw = max(1.0, containerSize.width - contentPadding * 2)
+    let ch = max(1.0, containerSize.height - contentPadding * 2)
+    let fitScale = min(cw / iw, ch / ih)
+    let miniW = iw * fitScale
+    let miniH = ih * fitScale
+    let ox = (containerSize.width - miniW) / 2.0
+    let oy = (containerSize.height - miniH) / 2.0
+
+    // 将可见区域从原图坐标转换到小地图坐标
+    let vx = ox + (visibleRectInImage.origin.x / iw) * miniW
+    let vy = oy + (visibleRectInImage.origin.y / ih) * miniH
+    let vw = (visibleRectInImage.size.width / iw) * miniW
+    let vh = (visibleRectInImage.size.height / ih) * miniH
+
+    return ZStack(alignment: .topLeading) {
+      // 原图缩略
+      Image(nsImage: image)
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+        .frame(width: miniW, height: miniH)
+        .position(x: containerSize.width / 2.0, y: containerSize.height / 2.0)
+
+      // 视口矩形
+      Rectangle()
+        .fill(viewportFillColor)
+        .frame(width: max(1, vw), height: max(1, vh))
+        .offset(x: vx, y: vy)
+        .overlay(
+          Rectangle()
+            .stroke(viewportStrokeColor, lineWidth: max(1, borderWidth))
+            .frame(width: max(1, vw), height: max(1, vh))
+            .offset(x: vx, y: vy)
+        )
+    }
+    .padding(contentPadding)
   }
 }
 

@@ -30,6 +30,13 @@
 "min_zoom_scale" = "最小缩放比例:";
 "max_zoom_scale" = "最大缩放比例:";
 
+/* Minimap */
+"minimap_group" = "小地图";
+"show_minimap" = "显示小地图";
+"minimap_auto_hide" = "自动隐藏小地图:";
+"minimap_auto_hide_off" = "关闭";
+"minimap_auto_hide_seconds_format" = "%.0f 秒";
+
 /* Buttons */
 "clear_button" = "清除";
 "reset_defaults_button" = "重置为默认值";
