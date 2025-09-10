@@ -39,24 +39,31 @@ class LocalizationManager: ObservableObject {
 
   /// 根据当前语言设置更新Bundle
   private func updateBundle() {
-    let localeIdentifier: String
+    // 应用内可用的本地化（排除 Base）
+    let available = Bundle.main.localizations.filter { $0 != "Base" }
 
-    switch currentLanguage {
-    case "chinese":
-      localeIdentifier = "zh-Hans"
-    case "english":
-      localeIdentifier = "en"
-    case "system":
-      // 跟随系统语言
-      localeIdentifier = Locale.current.language.languageCode?.identifier ?? "en"
-    default:
-      localeIdentifier = "en"
-    }
+    // 解析目标语言标识
+    let localeIdentifier: String = {
+      switch currentLanguage {
+      case "chinese": return "zh-Hans"
+      case "english": return "en"
+      case "system":
+        // 跟随系统，但只在应用内已支持的语言中选择
+        let prefs = Locale.preferredLanguages
+        if let match = Bundle.preferredLocalizations(from: available, forPreferences: prefs).first {
+          return match
+        }
+        // 回退优先 en，其次任一可用语言
+        if available.contains("en") { return "en" }
+        return available.first ?? "en"
+      default:
+        return "en"
+      }
+    }()
 
     // 尝试加载指定语言的Bundle
     if let path = Bundle.main.path(forResource: localeIdentifier, ofType: "lproj"),
-      let bundle = Bundle(path: path)
-    {
+       let bundle = Bundle(path: path) {
       currentBundle = bundle
     } else {
       // 如果找不到指定语言包，使用默认Bundle
