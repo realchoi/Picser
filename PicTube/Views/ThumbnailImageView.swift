@@ -42,11 +42,16 @@ struct ThumbnailImageView: View {
       if let cg = await ThumbnailService.generate(
         url: url, size: CGSize(width: height, height: height), scale: scale)
       {
-        let img = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
-        self.image = img
+        await MainActor.run {
+          let img = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+          self.image = img
+        }
       } else {
         // 回退到自有解码
-        self.image = await ImageLoader.shared.loadThumbnail(for: url)
+        let thumb = await ImageLoader.shared.loadThumbnail(for: url)
+        await MainActor.run {
+          self.image = thumb
+        }
       }
     }
     .onDisappear {

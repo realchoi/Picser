@@ -37,7 +37,7 @@ struct CacheSettingsView: View {
                 ProgressView()
                   .scaleEffect(0.8)
               } else {
-                Text(formatFileSize(cacheSize))
+                Text(FormatUtils.fileSizeString(cacheSize))
                   .font(.system(.body, design: .monospaced))
               }
             }
@@ -150,12 +150,6 @@ struct CacheSettingsView: View {
     }
   }
 
-  private func formatFileSize(_ bytes: Int64) -> String {
-    let formatter = ByteCountFormatter()
-    formatter.allowedUnits = [.useKB, .useMB, .useGB]
-    formatter.countStyle = .file
-    return formatter.string(fromByteCount: bytes)
-  }
 }
 
 // 预览

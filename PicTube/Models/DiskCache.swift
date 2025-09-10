@@ -12,10 +12,6 @@ actor DiskCache {
   private let fileManager = FileManager.default
   private var byteLimit: Int = 500 * 1024 * 1024  // 默认 500MB，因为元数据缓存通常更小
 
-  // 使用 Codable + PropertyList 序列化/反序列化缓存结构体（binary 格式以减小体积）
-  private let encoder = PropertyListEncoder()
-  private let decoder = PropertyListDecoder()
-
   private init() {
     // 将缓存目录更改为 "MetadataCache" 以避免与旧缓存冲突
     let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -25,8 +21,6 @@ actor DiskCache {
     }
     baseURL = dir
 
-    // 使用二进制 PropertyList，减少缓存文件体积并避免 Base64 开销
-    encoder.outputFormat = .binary
   }
 
   /// 返回磁盘缓存目录
@@ -44,13 +38,14 @@ actor DiskCache {
   ///   - key: 用于生成文件名的唯一键（通常是原始图片文件的路径）。
   func store(metadata: MetadataCache, forKey key: String) async {
     let fileURL = self.fileURL(forKey: key)
-    let encoderRef = encoder
 
     // 将同步 I/O 操作移到后台线程
     await Task.detached(priority: .utility) {
       do {
         // 1. 使用 Codable 将结构体编码成 Data (二进制数据)
-        let data = try encoderRef.encode(metadata)
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .binary
+        let data = try encoder.encode(metadata)
         // 2. 将数据写入文件
         try data.write(to: fileURL, options: .atomic)
       } catch {
@@ -67,7 +62,6 @@ actor DiskCache {
   /// - Returns: 如果缓存存在且有效，则返回 MetadataCache 对象，否则返回 nil。
   func retrieve(forKey key: String) async -> MetadataCache? {
     let fileURL = self.fileURL(forKey: key)
-    let decoderRef = decoder
 
     // 将所有同步 I/O 操作移到后台线程
     return await Task.detached(priority: .userInitiated) {
@@ -80,7 +74,8 @@ actor DiskCache {
         // 1. 从文件读取二进制数据
         let data = try Data(contentsOf: fileURL)
         // 2. 使用 Codable 将数据解码回我们的结构体
-        let metadata = try decoderRef.decode(MetadataCache.self, from: data)
+        let decoder = PropertyListDecoder()
+        let metadata = try decoder.decode(MetadataCache.self, from: data)
 
         // 3. 验证缓存的有效性（值来自文件解码结果）
         guard metadata.magicNumber == 0x5049_4354,  // 检查魔数
@@ -133,10 +128,7 @@ actor DiskCache {
 
   /// 格式化文件大小显示
   func formatFileSize(_ bytes: Int64) -> String {
-    let formatter = ByteCountFormatter()
-    formatter.allowedUnits = [.useKB, .useMB, .useGB]
-    formatter.countStyle = .file
-    return formatter.string(fromByteCount: bytes)
+    return FormatUtils.fileSizeString(bytes)
   }
 
   // MARK: - 私有辅助方法 (有修改)

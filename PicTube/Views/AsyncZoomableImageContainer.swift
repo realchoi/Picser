@@ -100,7 +100,26 @@ struct AsyncZoomableImageContainer: View {
           }
         }
 
-        // 若未命中任何缓存，再获取一个快速缩略图占位（QuickLook 优先，失败回退自有缩略图）
+        // 若尚未显示完整图，尝试基于视口像素的下采样图，作为更清晰的过渡
+        if !self.isShowingFull {
+          let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+          // 目标：视口长边 * scale * 2.5，并给出上限
+          let longSidePixels = Int(min(
+            QLRequestConstants.maxLongSidePixels,
+            max(viewportSize.width, viewportSize.height) * scale * 2.5
+          ))
+
+          if let ds = await ImageLoader.shared.loadDownsampledImage(
+            for: currentURL,
+            targetLongSidePixels: longSidePixels
+          ), !Task.isCancelled, !self.isShowingFull {
+            withAnimation(.easeInOut(duration: 0.12)) {
+              self.displayImage = ds
+            }
+          }
+        }
+
+        // 如果仍然没有任何图像，再获取一个快速缩略图占位（QuickLook 优先，失败回退自有缩略图）
         if self.displayImage == nil {
           let scale = NSScreen.main?.backingScaleFactor ?? 2.0
           // 基于实际像素密度自适应上界：在像素维度设定上限，再换算为点
