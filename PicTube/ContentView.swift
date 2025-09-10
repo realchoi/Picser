@@ -96,6 +96,18 @@ struct ContentView: View {
     .onReceive(NotificationCenter.default.publisher(for: .openFileOrFolderRequested)) { _ in
       openFileOrFolder()
     }
+    // 处理从“最近打开”菜单发来的打开指定文件夹请求
+    .onReceive(NotificationCenter.default.publisher(for: .openFolderURLRequested)) { notif in
+      guard let url = notif.object as? URL else { return }
+      Task {
+        let uniqueSorted = await computeImageURLs(from: [url])
+        if uniqueSorted.isEmpty { return }
+        await MainActor.run {
+          self.imageURLs = uniqueSorted
+          self.selectedImageURL = uniqueSorted.first
+        }
+      }
+    }
     .toolbar {
       ToolbarItem {
         Button {
@@ -163,6 +175,9 @@ struct ContentView: View {
       let urls = openPanel.urls
       if urls.isEmpty { return }
 
+      // 记录最近打开（按图开图：文件归属其父目录）
+      RecentOpensManager.shared.add(urls: urls)
+
       // 后台线程枚举与排序，主线程仅更新状态
       Task {
         let uniqueSorted = await computeImageURLs(from: urls)
@@ -200,6 +215,8 @@ struct ContentView: View {
 
     group.notify(queue: .main) {
       guard !droppedURLs.isEmpty else { return }
+      // 记录最近打开
+      RecentOpensManager.shared.add(urls: droppedURLs)
       Task {
         let uniqueSorted = await computeImageURLs(from: droppedURLs)
         if uniqueSorted.isEmpty { return }

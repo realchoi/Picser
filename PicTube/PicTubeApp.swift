@@ -25,7 +25,7 @@ struct PicTubeApp: App {
     .windowStyle(.hiddenTitleBar)
     .windowResizability(.contentSize)
     .commands {
-      AppCommands()
+      AppCommands(recent: RecentOpensManager.shared)
     }
 
     // 设置窗口 - SwiftUI 会自动创建菜单项

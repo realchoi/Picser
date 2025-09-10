@@ -39,6 +39,9 @@
 "empty_drag_hint" = "或者将图片或文件夹拖拽到窗口打开";
 "drop_overlay_title" = "松开以打开";
 "drop_overlay_subtitle" = "支持图片文件或包含图片的文件夹";
+"open_recent_menu" = "最近打开";
+"clear_recent_menu" = "清除记录";
+"no_recent_items" = "暂无最近记录";
 
 /* EXIF info */
 "exif_info_button" = "查看 EXIF 信息";

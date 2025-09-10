@@ -39,6 +39,9 @@
 "empty_drag_hint" = "Or drag an image or folder into the window to open";
 "drop_overlay_title" = "Release to Open";
 "drop_overlay_subtitle" = "Supports image files or folders containing images";
+"open_recent_menu" = "Open Recent";
+"clear_recent_menu" = "Clear Record(s)";
+"no_recent_items" = "No Recent Items";
 
 /* EXIF info */
 "exif_info_button" = "View EXIF ​​information";
