@@ -19,6 +19,8 @@ extension Notification.Name {
 // MARK: - App Commands
 struct AppCommands: Commands {
   @ObservedObject var recent: RecentOpensManager
+  // Observe language changes to update menu titles without rebuilding the app view tree
+  @ObservedObject private var localization = LocalizationManager.shared
   var body: some Commands {
     // Add "Open…" under File with ⌘O
     CommandGroup(after: .newItem) {

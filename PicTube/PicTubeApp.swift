@@ -16,8 +16,6 @@ struct PicTubeApp: App {
     WindowGroup {
       ContentView()
         .environmentObject(appSettings)
-        // 绑定语言刷新触发器，切换语言时刷新整个视图树
-        .id(LocalizationManager.shared.refreshTrigger)
         // 让试图内容延伸至标题栏区域，实现完全无边框效果
         .ignoresSafeArea(.all, edges: .top)
     }
@@ -31,8 +29,6 @@ struct PicTubeApp: App {
     // 设置窗口 - SwiftUI 会自动创建菜单项
     Settings {
       SettingsView(appSettings: appSettings)
-        // 绑定语言刷新触发器，切换语言时刷新设置窗口
-        .id(LocalizationManager.shared.refreshTrigger)
     }
   }
 
