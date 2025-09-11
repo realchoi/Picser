@@ -564,7 +564,6 @@ private struct MinimapContent: View {
             .offset(x: vx, y: vy)
         )
     }
-    .padding(contentPadding)
   }
 }
 
