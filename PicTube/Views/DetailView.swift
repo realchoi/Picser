@@ -14,6 +14,7 @@ struct DetailView: View {
   let onOpen: () -> Void
   @Binding var showingExifInfo: Bool
   let exifInfo: ExifInfo?
+  let transform: ImageTransform
   @EnvironmentObject var appSettings: AppSettings
 
   // EXIF 浮动面板拖拽状态
@@ -36,7 +37,7 @@ struct DetailView: View {
           EmptyHint(onOpen: onOpen)
         } else if let url = selectedImageURL {
           ZStack(alignment: .topLeading) {
-            AsyncZoomableImageContainer(url: url)
+            AsyncZoomableImageContainer(url: url, transform: transform)
               .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if showingExifInfo, let info = exifInfo {
@@ -132,4 +133,3 @@ struct DetailView: View {
     }
   }
 }
-

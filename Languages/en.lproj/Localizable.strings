@@ -47,8 +47,15 @@
 "drop_overlay_title" = "Release to Open";
 "drop_overlay_subtitle" = "Supports image files or folders containing images";
 "open_recent_menu" = "Open Recent";
+"image_menu" = "Image";
 "clear_recent_menu" = "Clear Record(s)";
 "no_recent_items" = "No Recent Items";
+
+/* Toolbar: Rotate & Mirror */
+"rotate_ccw_button" = "Rotate 90° CCW";
+"rotate_cw_button" = "Rotate 90° CW";
+"mirror_horizontal_button" = "Flip Horizontal";
+"mirror_vertical_button" = "Flip Vertical";
 
 /* EXIF info */
 "exif_info_button" = "View EXIF information";
@@ -207,6 +214,21 @@
 "navigation_page_up_down" = "Page Up/Page Down";
 "image_navigation_label" = "Image Navigation Keys";
 "image_navigation_description" = "Choose which keys to use for switching between images";
+
+/* Transform Shortcuts */
+"transform_shortcuts_title" = "Transform Shortcuts";
+"rotate_ccw_shortcut_label" = "Rotate 90° CCW";
+"rotate_cw_shortcut_label" = "Rotate 90° CW";
+"mirror_horizontal_shortcut_label" = "Flip Horizontal";
+"mirror_vertical_shortcut_label" = "Flip Vertical";
+"transform_shortcut_conflict" = "Some transform shortcuts conflict. Please adjust.";
+"transform_shortcut_reserved" = "One or more shortcuts may conflict with macOS standard shortcuts.";
+"transform_conflict_duplicate_item" = "%@ and %@ both set to %@";
+"transform_conflict_reserved_item" = "%@ uses macOS-reserved shortcut %@";
+
+/* Reset Transform */
+"reset_transform_button" = "Reset Image Transform";
+"reset_transform_shortcut_label" = "Reset Image Transform";
 
 /* Cache Settings */
 "cache_settings_title" = "Cache Management";

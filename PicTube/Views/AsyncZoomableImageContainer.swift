@@ -20,6 +20,7 @@ private enum QLRequestConstants {
 /// 渐进式加载主图：先显示快速缩略图，再无缝切换到全尺寸已解码图像
 struct AsyncZoomableImageContainer: View {
   let url: URL
+  let transform: ImageTransform
 
   // 我们现在只需要一个 State 来存储最终显示的图片
   @State private var displayImage: NSImage?
@@ -39,7 +40,7 @@ struct AsyncZoomableImageContainer: View {
     GeometryReader { geometry in
       ZStack {
         if let image = displayImage {
-          ZoomableImageView(image: image)
+          ZoomableImageView(image: image, transform: transform)
         } else {
           // 保持加载中的占位符
           Rectangle()
@@ -66,7 +67,7 @@ struct AsyncZoomableImageContainer: View {
       }
       .transition(
         .asymmetric(
-          insertion: .opacity.animation(.easeInOut(duration: 0.1)),
+          insertion: .opacity.animation(Motion.Anim.fast),
           removal: .identity
         )
       )
@@ -93,7 +94,7 @@ struct AsyncZoomableImageContainer: View {
         fullLoadTask?.cancel()
         fullLoadTask = Task { @MainActor in
           if let full = await ImageLoader.shared.loadFullImage(for: currentURL), !Task.isCancelled {
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(Motion.Anim.standard) {
               self.displayImage = full
               self.isShowingFull = true
             }
@@ -113,7 +114,7 @@ struct AsyncZoomableImageContainer: View {
             for: currentURL,
             targetLongSidePixels: longSidePixels
           ), !Task.isCancelled, !self.isShowingFull {
-            withAnimation(.easeInOut(duration: 0.12)) {
+            withAnimation(Motion.Anim.medium) {
               self.displayImage = ds
             }
           }

@@ -27,6 +27,9 @@ struct ContentView: View {
   // 拖放高亮
   @State private var isDropTargeted = false
 
+  // 图像变换（旋转/镜像）状态（按当前选中图片临时生效）
+  @State private var imageTransform: ImageTransform = .identity
+
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
 
@@ -45,14 +48,15 @@ struct ContentView: View {
           selectedImageURL: selectedImageURL,
           onOpen: openFileOrFolder,
           showingExifInfo: $showingExifInfo,
-          exifInfo: currentExifInfo
+          exifInfo: currentExifInfo,
+          transform: imageTransform
         )
         .environmentObject(appSettings)
       }
       // 拖放高亮层
       if isDropTargeted {
         DropOverlay()
-          .transition(.opacity.animation(.easeInOut(duration: 0.12)))
+          .transition(.opacity.animation(Motion.Anim.medium))
           .allowsHitTesting(false)
       }
     }
@@ -73,10 +77,12 @@ struct ContentView: View {
       prefetchNeighbors(around: newURL)
       // 保持主视图焦点，避免 List 抢占导致按键无效
       isFocused = true
+      // 切换图片时重置旋转/镜像状态
+      imageTransform = .identity
     }
     .onKeyPress { press in
-      handleKeyPress(press)
-      return .handled
+      let handled = handleKeyPress(press)
+      return handled ? .handled : .ignored
     }
     .focusable()  // 确保视图可以获得焦点
     .focused($isFocused)  // 绑定焦点状态
@@ -101,6 +107,22 @@ struct ContentView: View {
         let uniqueSorted = await FileOpenService.discover(from: [url], recordRecents: false)
         await MainActor.run { applyImages(uniqueSorted) }
       }
+    }
+    // 键盘快捷：旋转/镜像
+    .onReceive(NotificationCenter.default.publisher(for: .rotateCCWRequested)) { _ in
+      imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
+    }
+    .onReceive(NotificationCenter.default.publisher(for: .rotateCWRequested)) { _ in
+      imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
+    }
+    .onReceive(NotificationCenter.default.publisher(for: .mirrorHRequested)) { _ in
+      imageTransform.mirrorH.toggle()
+    }
+    .onReceive(NotificationCenter.default.publisher(for: .mirrorVRequested)) { _ in
+      imageTransform.mirrorV.toggle()
+    }
+    .onReceive(NotificationCenter.default.publisher(for: .resetTransformRequested)) { _ in
+      imageTransform = .identity
     }
     .toolbar {
       ToolbarItem {
@@ -140,6 +162,48 @@ struct ContentView: View {
             isLoadingExif
               ? "exif_loading_hint".localized
               : "exif_info_button".localized)
+        }
+
+        // 旋转（逆时针 90°）
+        ToolbarItem {
+          Button {
+            imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
+          } label: {
+            Label("rotate_ccw_button".localized, systemImage: "rotate.left")
+          }
+          .help("rotate_ccw_button".localized)
+        }
+
+        // 旋转（顺时针 90°）
+        ToolbarItem {
+          Button {
+            imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
+          } label: {
+            Label("rotate_cw_button".localized, systemImage: "rotate.right")
+          }
+          .help("rotate_cw_button".localized)
+        }
+
+        // 镜像（水平方向）
+        ToolbarItem {
+          Button {
+            imageTransform.mirrorH.toggle()
+          } label: {
+            // 使用左右箭头表示水平翻转
+            Label("mirror_horizontal_button".localized, systemImage: "arrow.left.and.right")
+          }
+          .help("mirror_horizontal_button".localized)
+        }
+
+        // 镜像（垂直方向）
+        ToolbarItem {
+          Button {
+            imageTransform.mirrorV.toggle()
+          } label: {
+            // 使用上下箭头表示垂直翻转
+            Label("mirror_vertical_button".localized, systemImage: "arrow.up.and.down")
+          }
+          .help("mirror_vertical_button".localized)
         }
       }
     }
@@ -242,10 +306,11 @@ extension ContentView {
   }
 
   /// 处理键盘按键事件，实现图片切换功能
-  private func handleKeyPress(_ press: KeyPress) {
+  /// 返回是否已处理，未处理则让系统/菜单接管（避免拦截快捷键）。
+  private func handleKeyPress(_ press: KeyPress) -> Bool {
     guard !imageURLs.isEmpty, let currentURL = selectedImageURL else {
       // print("handleKeyPress: 图片列表为空或没有选中的图片")
-      return
+      return false
     }
 
     let currentIndex = imageURLs.firstIndex(of: currentURL) ?? 0
@@ -258,7 +323,7 @@ extension ContentView {
       if showingExifInfo { showingExifInfo = false }
       // 保持焦点
       DispatchQueue.main.async { isFocused = true }
-      return
+      return true
     }
 
     if let newIndex = ImageNavigation.nextIndex(
@@ -268,12 +333,13 @@ extension ContentView {
       totalCount: totalCount
     ) {
       navigateToImage(at: newIndex)
+      // 确保按键后焦点保持
+      DispatchQueue.main.async { isFocused = true }
+      return true
     }
 
-    // 确保按键后焦点保持
-    DispatchQueue.main.async {
-      isFocused = true
-    }
+    // 未处理的按键不拦截，让菜单快捷键（如 ⌥+数字）正常生效
+    return false
   }
 
   /// 导航到指定索引的图片

@@ -25,6 +25,7 @@ struct ThumbnailImageView: View {
           .frame(height: height)
           .clipped()
           .transition(.opacity.combined(with: .scale))
+          .animation(Motion.Anim.standard, value: image)
       } else {
         // 占位符，保证列表滚动流畅
         Rectangle()

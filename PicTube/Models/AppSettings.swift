@@ -31,6 +31,19 @@ class AppSettings: ObservableObject {
   @AppStorage("imageNavigationKey") private var imageNavigationKeyStorage: String =
     ImageNavigationKey.leftRight
     .rawValue
+  /// 旋转/镜像 快捷键修饰键（UserDefaults 存储）
+  @AppStorage("rotateCCWModifierKey") private var rotateCCWModifierKeyStorage: String = ModifierKey.command.rawValue
+  @AppStorage("rotateCWModifierKey") private var rotateCWModifierKeyStorage: String = ModifierKey.command.rawValue
+  @AppStorage("mirrorHModifierKey") private var mirrorHModifierKeyStorage: String = ModifierKey.control.rawValue
+  @AppStorage("mirrorVModifierKey") private var mirrorVModifierKeyStorage: String = ModifierKey.control.rawValue
+  /// 旋转/镜像 快捷键基础键（UserDefaults 存储）
+  @AppStorage("rotateCCWBaseKey") private var rotateCCWBaseKeyStorage: String = ShortcutBaseKey.leftBracket.rawValue
+  @AppStorage("rotateCWBaseKey") private var rotateCWBaseKeyStorage: String = ShortcutBaseKey.rightBracket.rawValue
+  @AppStorage("mirrorHBaseKey") private var mirrorHBaseKeyStorage: String = ShortcutBaseKey.h.rawValue
+  @AppStorage("mirrorVBaseKey") private var mirrorVBaseKeyStorage: String = ShortcutBaseKey.v.rawValue
+  /// 重置图像变换 快捷键（修饰键 + 基础键）
+  @AppStorage("resetTransformModifierKey") private var resetTransformModifierKeyStorage: String = ModifierKey.option.rawValue
+  @AppStorage("resetTransformBaseKey") private var resetTransformBaseKeyStorage: String = ShortcutBaseKey.d0.rawValue
   /// 应用语言（UserDefaults 存储）
   @AppStorage("appLanguage") private var appLanguageStorage: String = AppLanguage.system
     .rawValue
@@ -52,6 +65,38 @@ class AppSettings: ObservableObject {
     didSet {
       imageNavigationKeyStorage = imageNavigationKey.rawValue
     }
+  }
+  /// 旋转/镜像 快捷键修饰键（UI 显示）
+  @Published var rotateCCWModifierKey: ModifierKey = .command {
+    didSet { rotateCCWModifierKeyStorage = rotateCCWModifierKey.rawValue }
+  }
+  @Published var rotateCWModifierKey: ModifierKey = .command {
+    didSet { rotateCWModifierKeyStorage = rotateCWModifierKey.rawValue }
+  }
+  @Published var mirrorHModifierKey: ModifierKey = .control {
+    didSet { mirrorHModifierKeyStorage = mirrorHModifierKey.rawValue }
+  }
+  @Published var mirrorVModifierKey: ModifierKey = .control {
+    didSet { mirrorVModifierKeyStorage = mirrorVModifierKey.rawValue }
+  }
+  @Published var resetTransformModifierKey: ModifierKey = .option {
+    didSet { resetTransformModifierKeyStorage = resetTransformModifierKey.rawValue }
+  }
+  /// 旋转/镜像 快捷键基础键（UI 显示）
+  @Published var rotateCCWBaseKey: ShortcutBaseKey = .leftBracket {
+    didSet { rotateCCWBaseKeyStorage = rotateCCWBaseKey.rawValue }
+  }
+  @Published var rotateCWBaseKey: ShortcutBaseKey = .rightBracket {
+    didSet { rotateCWBaseKeyStorage = rotateCWBaseKey.rawValue }
+  }
+  @Published var mirrorHBaseKey: ShortcutBaseKey = .h {
+    didSet { mirrorHBaseKeyStorage = mirrorHBaseKey.rawValue }
+  }
+  @Published var mirrorVBaseKey: ShortcutBaseKey = .v {
+    didSet { mirrorVBaseKeyStorage = mirrorVBaseKey.rawValue }
+  }
+  @Published var resetTransformBaseKey: ShortcutBaseKey = .d0 {
+    didSet { resetTransformBaseKeyStorage = resetTransformBaseKey.rawValue }
   }
   /// 应用语言（UI 显示）
   @Published var appLanguage: AppLanguage = .system {
@@ -110,6 +155,16 @@ class AppSettings: ObservableObject {
     self.panModifierKey = ModifierKey(rawValue: panModifierKeyStorage) ?? .none
     self.imageNavigationKey = ImageNavigationKey(rawValue: imageNavigationKeyStorage) ?? .leftRight
     self.appLanguage = AppLanguage(rawValue: appLanguageStorage) ?? .system
+    self.rotateCCWModifierKey = ModifierKey(rawValue: rotateCCWModifierKeyStorage) ?? .command
+    self.rotateCWModifierKey = ModifierKey(rawValue: rotateCWModifierKeyStorage) ?? .command
+    self.mirrorHModifierKey = ModifierKey(rawValue: mirrorHModifierKeyStorage) ?? .control
+    self.mirrorVModifierKey = ModifierKey(rawValue: mirrorVModifierKeyStorage) ?? .control
+    self.resetTransformModifierKey = ModifierKey(rawValue: resetTransformModifierKeyStorage) ?? .option
+    self.rotateCCWBaseKey = ShortcutBaseKey(rawValue: rotateCCWBaseKeyStorage) ?? .leftBracket
+    self.rotateCWBaseKey = ShortcutBaseKey(rawValue: rotateCWBaseKeyStorage) ?? .rightBracket
+    self.mirrorHBaseKey = ShortcutBaseKey(rawValue: mirrorHBaseKeyStorage) ?? .h
+    self.mirrorVBaseKey = ShortcutBaseKey(rawValue: mirrorVBaseKeyStorage) ?? .v
+    self.resetTransformBaseKey = ShortcutBaseKey(rawValue: resetTransformBaseKeyStorage) ?? .d0
 
     // 初始化时同步语言设置到本地化管理器
     LocalizationManager.shared.setLanguage(self.appLanguage.rawValue)
@@ -160,6 +215,16 @@ class AppSettings: ObservableObject {
       zoomModifierKey = .none
       panModifierKey = .none
       imageNavigationKey = .leftRight
+      rotateCCWModifierKey = .command
+      rotateCWModifierKey = .command
+      mirrorHModifierKey = .control
+      mirrorVModifierKey = .control
+      rotateCCWBaseKey = .leftBracket
+      rotateCWBaseKey = .rightBracket
+      mirrorHBaseKey = .h
+      mirrorVBaseKey = .v
+      resetTransformModifierKey = .option
+      resetTransformBaseKey = .d0
     case .display:
       zoomSensitivity = 0.05
       minZoomScale = 0.1
@@ -291,5 +356,84 @@ enum ImageNavigationKey: String, CaseIterable, Identifiable, Hashable, KeySelect
   /// 返回用户可选择的图片切换按键选项
   static func availableKeys() -> [ImageNavigationKey] {
     return [.leftRight, .upDown, .pageUpDown]
+  }
+}
+
+/// 变换动作的基础键选择（字母/数字/常用符号）
+enum ShortcutBaseKey: String, CaseIterable, Identifiable, Hashable, KeySelectable {
+  // 常用符号
+  case leftBracket = "["
+  case rightBracket = "]"
+  case minus = "-"
+  case equal = "="
+  case semicolon = ";"
+  case quote = "'"
+  case comma = ","
+  case period = "."
+  case slash = "/"
+
+  // 字母（仅列出常用 + 备选）
+  case h = "h"
+  case v = "v"
+  case r = "r"
+  case l = "l"
+  case f = "f"
+  case m = "m"
+  case a = "a"
+  case b = "b"
+  case c = "c"
+  case d = "d"
+  case e = "e"
+  case g = "g"
+  case i = "i"
+  case j = "j"
+  case k = "k"
+  case n = "n"
+  case o = "o"
+  case p = "p"
+  case q = "q"
+  case s = "s"
+  case t = "t"
+  case u = "u"
+  case w = "w"
+  case x = "x"
+  case y = "y"
+  case z = "z"
+
+  // 数字
+  case d0 = "0"
+  case d1 = "1"
+  case d2 = "2"
+  case d3 = "3"
+  case d4 = "4"
+  case d5 = "5"
+  case d6 = "6"
+  case d7 = "7"
+  case d8 = "8"
+  case d9 = "9"
+
+  var id: String { rawValue }
+
+  var displayName: String {
+    // 直接显示字符；字母转大写增强辨识度
+    if let ch = rawValue.first, ch.isLetter {
+      return String(ch).uppercased()
+    }
+    return rawValue
+  }
+
+  static func availableKeys() -> [ShortcutBaseKey] {
+    // 合理排序：符号 -> 字母 -> 数字
+    return [
+      .leftBracket, .rightBracket, .minus, .equal, .semicolon, .quote, .comma, .period, .slash,
+      .h, .v, .r, .l, .f, .m, .a, .b, .c, .d, .e, .g, .i, .j, .k, .n, .o, .p, .q, .s, .t, .u, .w, .x, .y, .z,
+      .d0, .d1, .d2, .d3, .d4, .d5, .d6, .d7, .d8, .d9,
+    ]
+  }
+
+  /// 对应 SwiftUI 的 KeyEquivalent
+  var keyEquivalent: KeyEquivalent {
+    let ch = Character(rawValue)
+    return KeyEquivalent(ch)
   }
 }

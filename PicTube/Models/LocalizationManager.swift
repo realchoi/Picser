@@ -39,8 +39,8 @@ class LocalizationManager: ObservableObject {
 
   /// 根据当前语言设置更新Bundle
   private func updateBundle() {
-    // 应用内可用的本地化（排除 Base）
-    let available = Bundle.main.localizations.filter { $0 != "Base" }
+    // 应用内可用的本地化（排除 Base），兼容 Languages/ 目录下的 .lproj
+    let available = availableLocalizations()
 
     // 解析目标语言标识
     let localeIdentifier: String = {
@@ -61,14 +61,33 @@ class LocalizationManager: ObservableObject {
       }
     }()
 
-    // 尝试加载指定语言的Bundle
+    // 尝试加载指定语言的Bundle：先在根目录查找，其次查找 Languages/ 子目录
     if let path = Bundle.main.path(forResource: localeIdentifier, ofType: "lproj"),
        let bundle = Bundle(path: path) {
       currentBundle = bundle
-    } else {
-      // 如果找不到指定语言包，使用默认Bundle
-      currentBundle = Bundle.main
+      return
     }
+    if let path = Bundle.main.path(forResource: localeIdentifier, ofType: "lproj", inDirectory: "Languages"),
+       let bundle = Bundle(path: path) {
+      currentBundle = bundle
+      return
+    }
+    // 如果找不到指定语言包，使用默认Bundle
+    currentBundle = Bundle.main
+  }
+
+  /// 列出可用本地化（合并主 Bundle 与 Languages/ 目录）
+  private func availableLocalizations() -> [String] {
+    let main = Set(Bundle.main.localizations.filter { $0 != "Base" })
+    var langs = main
+    if let langsURL = Bundle.main.url(forResource: "Languages", withExtension: nil),
+       let contents = try? FileManager.default.contentsOfDirectory(at: langsURL, includingPropertiesForKeys: nil) {
+      for u in contents where u.pathExtension == "lproj" {
+        let name = u.deletingPathExtension().lastPathComponent
+        if !name.isEmpty { langs.insert(name) }
+      }
+    }
+    return Array(langs)
   }
 
   /// 获取本地化字符串

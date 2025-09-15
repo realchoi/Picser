@@ -47,8 +47,15 @@
 "drop_overlay_title" = "松开以打开";
 "drop_overlay_subtitle" = "支持图片文件或包含图片的文件夹";
 "open_recent_menu" = "最近打开";
+"image_menu" = "图片";
 "clear_recent_menu" = "清除记录";
 "no_recent_items" = "暂无最近记录";
+
+/* Toolbar: Rotate & Mirror */
+"rotate_ccw_button" = "逆时针旋转 90°";
+"rotate_cw_button" = "顺时针旋转 90°";
+"mirror_horizontal_button" = "水平翻转";
+"mirror_vertical_button" = "垂直翻转";
 
 /* EXIF info */
 "exif_info_button" = "查看 EXIF 信息";
@@ -207,6 +214,21 @@
 "navigation_page_up_down" = "PageUp/PageDown";
 "image_navigation_label" = "图片切换按键";
 "image_navigation_description" = "选择用于切换图片的按键";
+
+/* Transform Shortcuts */
+"transform_shortcuts_title" = "图像变换快捷键";
+"rotate_ccw_shortcut_label" = "逆时针旋转 90°";
+"rotate_cw_shortcut_label" = "顺时针旋转 90°";
+"mirror_horizontal_shortcut_label" = "水平翻转";
+"mirror_vertical_shortcut_label" = "垂直翻转";
+"transform_shortcut_conflict" = "检测到图像变换快捷键冲突，请调整。";
+"transform_shortcut_reserved" = "部分快捷键可能与 macOS 系统快捷键冲突。";
+"transform_conflict_duplicate_item" = "%@ 与 %@ 的快捷键相同：%@";
+"transform_conflict_reserved_item" = "%@ 使用了可能与系统保留快捷键冲突的组合：%@";
+
+/* Reset Transform */
+"reset_transform_button" = "重置图像变换";
+"reset_transform_shortcut_label" = "重置图像变换";
 
 /* Cache Settings */
 "cache_settings_title" = "缓存管理";

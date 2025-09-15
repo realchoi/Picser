@@ -11,6 +11,7 @@ import SwiftUI
 /// 纯SwiftUI实现的缩放图片视图
 struct ZoomableImageView: View {
   let image: NSImage
+  let transform: ImageTransform
 
   @EnvironmentObject var appSettings: AppSettings
 
@@ -57,6 +58,9 @@ struct ZoomableImageView: View {
           //.resizable()
           //.aspectRatio(contentMode: .fit)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
+          // 先应用旋转和镜像，再应用缩放和平移，使交互手感一致
+          .rotationEffect(.degrees(transform.rotation.degrees))
+          .scaleEffect(x: transform.mirrorH ? -1 : 1, y: transform.mirrorV ? -1 : 1, anchor: .center)
           .scaleEffect(effectiveScale)
           .offset(effectiveOffset)
           // 使用overlay添加滚轮处理
@@ -74,7 +78,7 @@ struct ZoomableImageView: View {
                 max: maxScale
               )
 
-              withAnimation(.easeInOut(duration: 0.1)) {
+              withAnimation(Motion.Anim.fast) {
                 scale = clampedScale
                 lastScale = clampedScale
                 // 缩放后约束偏移量，防止越界
@@ -98,7 +102,7 @@ struct ZoomableImageView: View {
                 // 仅当图片超过预览区域边界时允许拖拽
                 let maxOffset = PanZoomMath.maxOffset(
                   viewSize: geometry.size,
-                  imageSize: image.size,
+                  imageSize: effectiveImageSize(),
                   baseFitScale: baseFitScale,
                   scale: scale
                 )
@@ -123,7 +127,7 @@ struct ZoomableImageView: View {
                 guard shouldRespondToPanGesture() else { return }
                 let maxOffset = PanZoomMath.maxOffset(
                   viewSize: geometry.size,
-                  imageSize: image.size,
+                  imageSize: effectiveImageSize(),
                   baseFitScale: baseFitScale,
                   scale: scale
                 )
@@ -132,7 +136,7 @@ struct ZoomableImageView: View {
                   height: lastOffset.height + value.translation.height
                 )
                 let clamped = PanZoomMath.clamp(offset: proposed, to: maxOffset)
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(Motion.Anim.panEnd) {
                   offset = clamped
                 }
                 lastOffset = clamped
@@ -155,12 +159,12 @@ struct ZoomableImageView: View {
                   min: minScale,
                   max: maxScale
                 )
-                withAnimation(.easeInOut(duration: 0.08)) {
+                withAnimation(Motion.Anim.ultraFast) {
                   scale = clamped
                   // 缩放后更新并夹取偏移，避免越界
                   let maxOffset = PanZoomMath.maxOffset(
                     viewSize: geometry.size,
-                    imageSize: image.size,
+                    imageSize: effectiveImageSize(),
                     baseFitScale: baseFitScale,
                     scale: scale
                   )
@@ -180,7 +184,7 @@ struct ZoomableImageView: View {
                 lastScale = clamped
                 let maxOffset = PanZoomMath.maxOffset(
                   viewSize: geometry.size,
-                  imageSize: image.size,
+                  imageSize: effectiveImageSize(),
                   baseFitScale: baseFitScale,
                   scale: scale
                 )
@@ -200,28 +204,24 @@ struct ZoomableImageView: View {
       .overlay(alignment: .bottomTrailing) {
         if PanZoomMath.shouldShowMinimap(
           viewSize: geometry.size,
-          imageSize: image.size,
+          imageSize: effectiveImageSize(),
           baseFitScale: baseFitScale,
           scale: scale
         )
           && appSettings.showMinimap
           && (appSettings.minimapAutoHideSeconds <= 0 || minimapUserVisible)
         {
-          let visRect = PanZoomMath.visibleRectInImage(
-            viewSize: geometry.size,
-            imageSize: image.size,
-            offset: offset,
-            baseFitScale: baseFitScale,
-            scale: scale
-          )
+          let visRect = visibleRectInOriginalImage(geometry: geometry)
           MinimapOverlay(
             image: image,
             containerSize: CGSize(width: 180, height: 140),
-            visibleRectInImage: visRect
+            visibleRectInImage: visRect,
+            transform: transform
           )
           .padding(10)
           .transition(.opacity.combined(with: .move(edge: .bottom)))
-          .animation(.easeInOut(duration: 0.15), value: visRect)
+          .animation(Motion.Anim.standard, value: visRect)
+          .animation(Motion.Anim.minimap, value: transform)
           .allowsHitTesting(false)
         }
       }
@@ -235,6 +235,10 @@ struct ZoomableImageView: View {
         // 图片切换时，重新按视口适配并重置缩放/偏移，避免使用上一张图的 baseFitScale
         fitImageToView(geometry: geometry)
         minimapUserVisible = appSettings.minimapAutoHideSeconds <= 0
+      }
+      .onChange(of: transform) { _, _ in
+        // 旋转/镜像改变时根据新有效尺寸重新适配
+        fitImageToView(geometry: geometry)
       }
     }
     .onChange(of: appSettings.minZoomScale) { _, newValue in
@@ -297,7 +301,7 @@ struct ZoomableImageView: View {
   /// 重置缩放
   private func resetZoom() {
     let t = PanZoomMath.defaultTransform()
-    withAnimation(.easeInOut(duration: 0.3)) {
+    withAnimation(Motion.Anim.reset) {
       scale = t.scale
       lastScale = t.lastScale
       offset = t.offset
@@ -308,7 +312,7 @@ struct ZoomableImageView: View {
 
   /// 重置拖拽
   private func resetPan() {
-    withAnimation(.easeInOut(duration: 0.3)) {
+    withAnimation(Motion.Anim.reset) {
       offset = .zero
       lastOffset = .zero
     }
@@ -317,15 +321,15 @@ struct ZoomableImageView: View {
   /// 适应窗口大小：记录基础适配比例，并将相对缩放恢复为1（即刚好适配）
   private func fitImageToView(geometry: GeometryProxy) {
     let viewSize = geometry.size
-    let imageSize = image.size
+    let imageSize = effectiveImageSize()
 
-    if let (fit, transform) = PanZoomMath.fitAndDefaultTransform(viewSize: viewSize, imageSize: imageSize) {
+    if let (fit, resetT) = PanZoomMath.fitAndDefaultTransform(viewSize: viewSize, imageSize: imageSize) {
       baseFitScale = fit
-      withAnimation(.easeInOut(duration: 0.25)) {
-        scale = transform.scale
-        lastScale = transform.lastScale
-        offset = transform.offset
-        lastOffset = transform.lastOffset
+      withAnimation(Motion.Anim.slow) {
+        scale = resetT.scale
+        lastScale = resetT.lastScale
+        offset = resetT.offset
+        lastOffset = resetT.lastOffset
         invalidateCache()
       }
     } else {
@@ -333,6 +337,66 @@ struct ZoomableImageView: View {
       scale = t.scale
       lastScale = t.lastScale
     }
+  }
+
+  /// 根据旋转得到有效的图像尺寸（90/270 度时交换宽高）
+  private func effectiveImageSize() -> CGSize {
+    let s = image.size
+    switch transform.rotation {
+    case .deg90, .deg270:
+      return CGSize(width: s.height, height: s.width)
+    default:
+      return s
+    }
+  }
+
+  /// 计算在原始图像坐标中的可见区域（考虑旋转与镜像）
+  private func visibleRectInOriginalImage(geometry: GeometryProxy) -> CGRect {
+    let originalSize = image.size
+    let effSize = effectiveImageSize()
+    // 先在“旋转后”的坐标系中计算可见区域（不考虑镜像，镜像不改变区域大小，仅改变原点位置）
+    let r = PanZoomMath.visibleRectInImage(
+      viewSize: geometry.size,
+      imageSize: effSize,
+      offset: offset,
+      baseFitScale: baseFitScale,
+      scale: scale
+    )
+
+    // 将旋转坐标系中的矩形映射回原始图像坐标（不在此处应用镜像；镜像在小地图视图中统一应用）
+    let mapped: CGRect
+    switch transform.rotation {
+    case .deg0:
+      mapped = r
+    case .deg90: // 顺时针90°：x = W - (y' + h'), y = x', w = h', h = w'
+      mapped = CGRect(
+        x: max(0, originalSize.width - (r.origin.y + r.size.height)),
+        y: max(0, r.origin.x),
+        width: max(0, r.size.height),
+        height: max(0, r.size.width)
+      )
+    case .deg180: // 180°：x = W - (x' + w'), y = H - (y' + h')
+      mapped = CGRect(
+        x: max(0, originalSize.width - (r.origin.x + r.size.width)),
+        y: max(0, originalSize.height - (r.origin.y + r.size.height)),
+        width: max(0, r.size.width),
+        height: max(0, r.size.height)
+      )
+    case .deg270: // 逆时针90°：x = y', y = H - (x' + w'), w = h', h = w'
+      mapped = CGRect(
+        x: max(0, r.origin.y),
+        y: max(0, originalSize.height - (r.origin.x + r.size.width)),
+        width: max(0, r.size.height),
+        height: max(0, r.size.width)
+      )
+    }
+
+    // 夹取到原图范围内
+    let x0 = max(0.0, mapped.origin.x)
+    let y0 = max(0.0, mapped.origin.y)
+    let x1 = min(originalSize.width, mapped.origin.x + mapped.size.width)
+    let y1 = min(originalSize.height, mapped.origin.y + mapped.size.height)
+    return CGRect(x: x0, y: y0, width: max(0, x1 - x0), height: max(0, y1 - y0))
   }
 
   /// 缓存最大偏移量
@@ -356,7 +420,7 @@ struct ZoomableImageView: View {
     // 缓存无效，重新计算
     return PanZoomMath.maxOffset(
       viewSize: geometry.size,
-      imageSize: image.size,
+      imageSize: effectiveImageSize(),
       baseFitScale: baseFitScale,
       scale: scale
     )
@@ -388,7 +452,7 @@ struct ZoomableImageView: View {
 
 #Preview {
   if let testImage = NSImage(systemSymbolName: "photo", accessibilityDescription: nil) {
-    ZoomableImageView(image: testImage)
+    ZoomableImageView(image: testImage, transform: .identity)
       .environmentObject(AppSettings())
       .frame(width: 400, height: 300)
   } else {

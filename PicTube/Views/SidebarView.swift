@@ -36,8 +36,8 @@ struct SidebarView: View {
           RoundedRectangle(cornerRadius: 8)
             .stroke((selectedImageURL == url) ? Color.accentColor : Color.clear, lineWidth: 2)
         )
+        .animation(Motion.Anim.standard, value: selectedImageURL)
       }
     }
   }
 }
-
