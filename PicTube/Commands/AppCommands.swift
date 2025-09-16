@@ -19,6 +19,9 @@ extension Notification.Name {
   static let mirrorHRequested = Notification.Name("mirrorHRequested")
   static let mirrorVRequested = Notification.Name("mirrorVRequested")
   static let resetTransformRequested = Notification.Name("resetTransformRequested")
+  // Crop flow
+  static let cropCommitRequested = Notification.Name("cropCommitRequested")
+  static let cropRectPrepared = Notification.Name("cropRectPrepared")
 }
 
 // MARK: - App Commands

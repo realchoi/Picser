@@ -6,21 +6,23 @@
 //
 
 import AppKit
-import QuickLookThumbnailing
 import SwiftUI
 
 // MARK: - Constants
-private enum QLRequestConstants {
+private enum DownsampleRequestConstants {
   // 上限以像素为单位；用于根据屏幕 scale 换算为点
   static let maxLongSidePixels: CGFloat = 3200.0
   // 短边像素下限，避免模糊
-  static let minShortSidePixels: CGFloat = 256.0
 }
 
 /// 渐进式加载主图：先显示快速缩略图，再无缝切换到全尺寸已解码图像
 struct AsyncZoomableImageContainer: View {
   let url: URL
   let transform: ImageTransform
+  // 裁剪参数（向下传递到 ZoomableImageView）
+  var isCropping: Bool = false
+  var cropAspect: CropAspectOption = .freeform
+  var cropControls: CropControlConfiguration? = nil
 
   // 我们现在只需要一个 State 来存储最终显示的图片
   @State private var displayImage: NSImage?
@@ -40,7 +42,13 @@ struct AsyncZoomableImageContainer: View {
     GeometryReader { geometry in
       ZStack {
         if let image = displayImage {
-          ZoomableImageView(image: image, transform: transform)
+          ZoomableImageView(
+            image: image,
+            transform: transform,
+            isCropping: isCropping,
+            cropAspect: cropAspect,
+            cropControls: cropControls
+          )
         } else {
           // 保持加载中的占位符
           Rectangle()
@@ -101,18 +109,19 @@ struct AsyncZoomableImageContainer: View {
           }
         }
 
+        let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+        // 目标：视口长边 * scale * 2.5，并给出上限
+        let targetLongSidePixels = Int(min(
+          DownsampleRequestConstants.maxLongSidePixels,
+          max(viewportSize.width, viewportSize.height) * scale * 2.5
+        ))
+
         // 若尚未显示完整图，尝试基于视口像素的下采样图，作为更清晰的过渡
         if !self.isShowingFull {
-          let scale = NSScreen.main?.backingScaleFactor ?? 2.0
-          // 目标：视口长边 * scale * 2.5，并给出上限
-          let longSidePixels = Int(min(
-            QLRequestConstants.maxLongSidePixels,
-            max(viewportSize.width, viewportSize.height) * scale * 2.5
-          ))
 
           if let ds = await ImageLoader.shared.loadDownsampledImage(
             for: currentURL,
-            targetLongSidePixels: longSidePixels
+            targetLongSidePixels: targetLongSidePixels
           ), !Task.isCancelled, !self.isShowingFull {
             withAnimation(Motion.Anim.medium) {
               self.displayImage = ds
@@ -120,48 +129,17 @@ struct AsyncZoomableImageContainer: View {
           }
         }
 
-        // 如果仍然没有任何图像，再获取一个快速缩略图占位（QuickLook 优先，失败回退自有缩略图）
+        // 如果仍然没有任何图像，再获取一个快速缩略图占位（使用内部下采样方案）
         if self.displayImage == nil {
-          let scale = NSScreen.main?.backingScaleFactor ?? 2.0
-          // 基于实际像素密度自适应上界：在像素维度设定上限，再换算为点
-          let maxLongPoints = QLRequestConstants.maxLongSidePixels / scale
-          let minShortPoints = QLRequestConstants.minShortSidePixels / scale
-
-          // 使用“短边优先”的请求尺寸，尽量贴近原图横竖比，减少无效像素
-          let shortSide = max(minShortPoints, min(min(viewportSize.width, viewportSize.height), maxLongPoints))
-          let longSideLimit = max(minShortPoints, min(max(viewportSize.width, viewportSize.height), maxLongPoints))
-
-          // 尝试读取原图尺寸计算宽高比（后台读取元数据，无需完整解码）
-          let aspect = await Self.readImageAspect(from: currentURL)
-          let requestedSize: CGSize
-          if let aspect, aspect > 0 { // aspect = width/height
-            // 以短边为基准，还原另一边，且不超过长边上限
-            var w: CGFloat
-            var h: CGFloat
-            if aspect >= 1 { // 横图：高为短边
-              h = shortSide
-              w = h * aspect
-            } else { // 竖图：宽为短边
-              w = shortSide
-              h = w / aspect
+          if let downsampled = await ImageLoader.shared.loadDownsampledImage(
+            for: currentURL,
+            targetLongSidePixels: targetLongSidePixels
+          ), !Task.isCancelled, !self.isShowingFull {
+            withAnimation(Motion.Anim.medium) {
+              self.displayImage = downsampled
             }
-            let scaleDown = min(1.0, longSideLimit / max(w, h))
-            requestedSize = CGSize(width: w * scaleDown, height: h * scaleDown)
-          } else {
-            // 无法获取宽高比时，采用方形短边请求
-            requestedSize = CGSize(width: shortSide, height: shortSide)
-          }
-
-          if let cg = await ThumbnailService.generate(
-            url: currentURL,
-            size: requestedSize,
-            scale: scale
-          ) {
-            if !isShowingFull {
-              self.displayImage = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
-            }
-          } else if let thumb = await ImageLoader.shared.loadThumbnail(for: currentURL) {
-            if !isShowingFull {
+          } else if let thumb = await ImageLoader.shared.loadThumbnail(for: currentURL), !Task.isCancelled, !self.isShowingFull {
+            withAnimation(Motion.Anim.medium) {
               self.displayImage = thumb
             }
           }

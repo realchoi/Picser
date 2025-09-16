@@ -147,6 +147,15 @@ class AppSettings: ObservableObject {
     }
   }
 
+  // MARK: - 裁剪设置
+
+  /// 自定义裁剪比例（持久化 JSON）
+  @AppStorage("customCropRatiosJSON") private var customCropRatiosJSON: String = "[]"
+  /// 自定义裁剪比例（UI 显示）
+  @Published var customCropRatios: [CropRatio] = [] {
+    didSet { saveCustomCropRatios() }
+  }
+
   // MARK: - 初始化
 
   init() {
@@ -168,6 +177,9 @@ class AppSettings: ObservableObject {
 
     // 初始化时同步语言设置到本地化管理器
     LocalizationManager.shared.setLanguage(self.appLanguage.rawValue)
+
+    // 加载自定义裁剪比例
+    loadCustomCropRatios()
   }
 
   // MARK: - 公共方法
@@ -233,6 +245,26 @@ class AppSettings: ObservableObject {
       minimapAutoHideSeconds = 0.0
     case .cache:
       break
+    }
+  }
+
+  // MARK: - 裁剪设置持久化
+  private func loadCustomCropRatios() {
+    guard let data = customCropRatiosJSON.data(using: .utf8) else {
+      customCropRatios = []
+      return
+    }
+    if let arr = try? JSONDecoder().decode([CropRatio].self, from: data) {
+      customCropRatios = arr
+    } else {
+      customCropRatios = []
+    }
+  }
+
+  private func saveCustomCropRatios() {
+    if let data = try? JSONEncoder().encode(customCropRatios),
+       let str = String(data: data, encoding: .utf8) {
+      customCropRatiosJSON = str
     }
   }
 }

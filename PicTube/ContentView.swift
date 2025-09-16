@@ -30,6 +30,13 @@ struct ContentView: View {
   // 图像变换（旋转/镜像）状态（按当前选中图片临时生效）
   @State private var imageTransform: ImageTransform = .identity
 
+  // 裁剪状态
+  @State private var isCropping: Bool = false
+  @State private var cropAspect: CropAspectOption = .freeform
+  @State private var showingAddCustomRatio = false
+  @State private var customRatioW: String = "1"
+  @State private var customRatioH: String = "1"
+
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
 
@@ -49,7 +56,10 @@ struct ContentView: View {
           onOpen: openFileOrFolder,
           showingExifInfo: $showingExifInfo,
           exifInfo: currentExifInfo,
-          transform: imageTransform
+          transform: imageTransform,
+          isCropping: $isCropping,
+          cropAspect: $cropAspect,
+          showingAddCustomRatio: $showingAddCustomRatio
         )
         .environmentObject(appSettings)
       }
@@ -79,6 +89,10 @@ struct ContentView: View {
       isFocused = true
       // 切换图片时重置旋转/镜像状态
       imageTransform = .identity
+    }
+    .sheet(isPresented: $showingAddCustomRatio) {
+      AddCustomRatioSheet()
+        .environmentObject(appSettings)
     }
     .onKeyPress { press in
       let handled = handleKeyPress(press)
@@ -123,6 +137,12 @@ struct ContentView: View {
     }
     .onReceive(NotificationCenter.default.publisher(for: .resetTransformRequested)) { _ in
       imageTransform = .identity
+    }
+    // 接收裁剪矩形并执行保存
+    .onReceive(NotificationCenter.default.publisher(for: .cropRectPrepared)) { notif in
+      if let rectVal = notif.userInfo?["rect"] as? NSValue {
+        handleCropRectPrepared(rectVal.rectValue)
+      }
     }
     .toolbar {
       ToolbarItem {
@@ -205,6 +225,22 @@ struct ContentView: View {
           }
           .help("mirror_vertical_button".localized)
         }
+
+        // 裁剪开关
+        ToolbarItem {
+          Button {
+            withAnimation(Motion.Anim.standard) {
+              isCropping.toggle()
+              if !isCropping {
+                cropAspect = .freeform
+              }
+            }
+          } label: {
+            Label("crop_button".localized, systemImage: isCropping ? "crop.rotate" : "crop")
+          }
+          .help("crop_button".localized)
+        }
+
       }
     }
     // 当窗口大小变化时，你可能希望重置缩放和偏移
@@ -283,6 +319,34 @@ struct ContentView: View {
     }
   }
   // computeImageURLs moved to ImageDiscovery
+
+  /// 处理裁剪结果：弹出保存面板并写入文件
+  @MainActor
+  private func handleCropRectPrepared(_ rect: CGRect) {
+    guard let srcURL = selectedImageURL else { return }
+    let panel = NSSavePanel()
+    panel.canCreateDirectories = true
+    panel.isExtensionHidden = false
+    panel.title = "crop_save_panel_title".localized
+    let ext = srcURL.pathExtension
+    let base = srcURL.deletingPathExtension().lastPathComponent
+    panel.nameFieldStringValue = base + "_cropped." + ext
+    let res = panel.runModal()
+    if res == .OK, let destURL = panel.url {
+      do {
+        let img = try ImageCropper.crop(url: srcURL, cropRect: rect)
+        try ImageCropper.save(image: img, to: destURL)
+        // 退出裁剪
+        withAnimation(Motion.Anim.standard) {
+          isCropping = false
+          cropAspect = .freeform
+        }
+      } catch {
+        // 简单失败提示（可扩展为 Alert）
+        NSSound.beep()
+      }
+    }
+  }
 }
 
 // MARK: - Helpers
@@ -298,9 +362,6 @@ extension ContentView {
     var neighbors: [URL] = []
     if idx > 0 { neighbors.append(imageURLs[idx - 1]) }
     if idx + 1 < imageURLs.count { neighbors.append(imageURLs[idx + 1]) }
-    // 仅预热缩略图，降低内存与 IO
-    let scale = NSScreen.main?.backingScaleFactor ?? 2.0
-    ThumbnailService.prefetch(urls: neighbors, size: CGSize(width: 120, height: 120), scale: scale)
     // 额外：预解码较低像素的下采样图，优先速度（约 2048px）
     ImageLoader.shared.prefetch(urls: neighbors)
   }

@@ -57,6 +57,23 @@
 "mirror_horizontal_button" = "Flip Horizontal";
 "mirror_vertical_button" = "Flip Vertical";
 
+/* Cropping */
+"crop_button" = "Crop";
+"crop_save_button" = "Save Crop";
+"crop_cancel_button" = "Cancel";
+"crop_add_custom" = "Add Custom Ratio";
+"crop_save_panel_title" = "Save Cropped Image";
+"crop_add_custom_title" = "Add Custom Ratio";
+"crop_add_custom_invalid" = "Please enter positive integers for width and height.";
+"crop_ratio_freeform" = "Freeform";
+"crop_ratio_original" = "Original";
+"crop_ratio_1_1" = "1:1 Square";
+"crop_ratio_3_2" = "3:2";
+"crop_ratio_4_3" = "4:3";
+"crop_ratio_16_9" = "16:9";
+"crop_ratio_9_16" = "9:16";
+"save_button" = "Save";
+
 /* EXIF info */
 "exif_info_button" = "View EXIF information";
 

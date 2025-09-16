@@ -15,6 +15,10 @@ struct DetailView: View {
   @Binding var showingExifInfo: Bool
   let exifInfo: ExifInfo?
   let transform: ImageTransform
+  // 裁剪参数（由上层传入）
+  @Binding var isCropping: Bool
+  @Binding var cropAspect: CropAspectOption
+  @Binding var showingAddCustomRatio: Bool
   @EnvironmentObject var appSettings: AppSettings
 
   // EXIF 浮动面板拖拽状态
@@ -37,7 +41,34 @@ struct DetailView: View {
           EmptyHint(onOpen: onOpen)
         } else if let url = selectedImageURL {
           ZStack(alignment: .topLeading) {
-            AsyncZoomableImageContainer(url: url, transform: transform)
+            AsyncZoomableImageContainer(
+              url: url,
+              transform: transform,
+              isCropping: isCropping,
+              cropAspect: cropAspect,
+              cropControls: CropControlConfiguration(
+                customRatios: appSettings.customCropRatios,
+                currentAspect: cropAspect,
+                onSelectPreset: { preset in
+                  cropAspect = CropAspectOption.fromPreset(preset)
+                },
+                onSelectCustomRatio: { ratio in
+                  cropAspect = .fixed(ratio)
+                },
+                onAddCustomRatio: {
+                  showingAddCustomRatio = true
+                },
+                onSave: {
+                  NotificationCenter.default.post(name: .cropCommitRequested, object: nil)
+                },
+                onCancel: {
+                  withAnimation(Motion.Anim.standard) {
+                    isCropping = false
+                    cropAspect = .freeform
+                  }
+                }
+              )
+            )
               .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if showingExifInfo, let info = exifInfo {
