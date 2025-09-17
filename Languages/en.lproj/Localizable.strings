@@ -43,6 +43,7 @@
 
 /* File/Folder Open */
 "open_file_or_folder_button" = "Open Image/Folder";
+"refresh_button" = "Refresh";
 "empty_drag_hint" = "Or drag an image or folder into the window to open";
 "drop_overlay_title" = "Release to Open";
 "drop_overlay_subtitle" = "Supports image files or folders containing images";

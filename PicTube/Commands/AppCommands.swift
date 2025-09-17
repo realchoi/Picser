@@ -14,6 +14,7 @@ import AppKit
 extension Notification.Name {
   static let openFileOrFolderRequested = Notification.Name("openFileOrFolderRequested")
   static let openFolderURLRequested = Notification.Name("openFolderURLRequested")
+  static let refreshRequested = Notification.Name("refreshRequested")
   static let rotateCCWRequested = Notification.Name("rotateCCWRequested")
   static let rotateCWRequested = Notification.Name("rotateCWRequested")
   static let mirrorHRequested = Notification.Name("mirrorHRequested")
@@ -37,6 +38,11 @@ struct AppCommands: Commands {
         NotificationCenter.default.post(name: .openFileOrFolderRequested, object: nil)
       }
       .keyboardShortcut("o", modifiers: [.command])
+
+      Button("refresh_button".localized) {
+        NotificationCenter.default.post(name: .refreshRequested, object: nil)
+      }
+      .keyboardShortcut("r", modifiers: [.command])
 
       // File > Open Recent …
       Menu("open_recent_menu".localized) {

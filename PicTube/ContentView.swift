@@ -14,6 +14,7 @@ struct ContentView: View {
   // 使用 @State 属性包装器来声明一个状态变量
   // 当这个变量改变时，SwiftUI 会自动刷新相关的视图
   @State private var imageURLs: [URL] = []  // 文件夹中所有图片的 URL 列表
+  @State private var currentSourceInputs: [URL] = []  // 当前图片列表的来源 URL（文件或文件夹）
   @State private var selectedImageURL: URL?  // 当前选中的图片 URL
   @FocusState private var isFocused: Bool  // 焦点状态管理
   @State private var sidebarVisibility: NavigationSplitViewVisibility = .detailOnly  // 侧边栏可见性控制
@@ -42,53 +43,17 @@ struct ContentView: View {
 
   var body: some View {
     ZStack {
-      NavigationSplitView(columnVisibility: $sidebarVisibility) {
-        SidebarView(imageURLs: imageURLs, selectedImageURL: selectedImageURL) { url in
-          selectedImageURL = url
-          // 选中缩略图后，主动把键盘焦点交还给主视图，确保可用按键切换
-          DispatchQueue.main.async { isFocused = true }
-        }
-        .frame(minWidth: 150)
-      } detail: {
-        DetailView(
-          imageURLs: imageURLs,
-          selectedImageURL: selectedImageURL,
-          onOpen: openFileOrFolder,
-          showingExifInfo: $showingExifInfo,
-          exifInfo: currentExifInfo,
-          transform: imageTransform,
-          isCropping: $isCropping,
-          cropAspect: $cropAspect,
-          showingAddCustomRatio: $showingAddCustomRatio
-        )
-        .environmentObject(appSettings)
-      }
-      // 拖放高亮层
-      if isDropTargeted {
-        DropOverlay()
-          .transition(.opacity.animation(Motion.Anim.medium))
-          .allowsHitTesting(false)
-      }
+      navigationLayout
+      dropHighlightOverlay
     }
-    // 支持将文件/文件夹拖放到窗口打开
     .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in
       handleDropProviders(providers)
     }
     .onChange(of: imageURLs) { _, newURLs in
-      // 当图片列表变化时，更新侧边栏可见性
-      if newURLs.isEmpty {
-        sidebarVisibility = .detailOnly
-      } else {
-        sidebarVisibility = .all
-      }
+      updateSidebarVisibility(for: newURLs)
     }
     .onChange(of: selectedImageURL) { _, newURL in
-      guard let newURL else { return }
-      prefetchNeighbors(around: newURL)
-      // 保持主视图焦点，避免 List 抢占导致按键无效
-      isFocused = true
-      // 切换图片时重置旋转/镜像状态
-      imageTransform = .identity
+      handleSelectionChange(newURL)
     }
     .sheet(isPresented: $showingAddCustomRatio) {
       AddCustomRatioSheet()
@@ -98,31 +63,27 @@ struct ContentView: View {
       let handled = handleKeyPress(press)
       return handled ? .handled : .ignored
     }
-    .focusable()  // 确保视图可以获得焦点
-    .focused($isFocused)  // 绑定焦点状态
-    .onAppear {
-      // 确保视图在出现时获得焦点
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-        isFocused = true
-      }
-    }
-    .onTapGesture {
-      // 点击时重新获得焦点
-      isFocused = true
-    }
-    // 菜单命令触发：打开文件/文件夹（⌘O）
+    .focusable()
+    .focused($isFocused)
+    .onAppear(perform: ensureInitialFocus)
+    .onTapGesture { isFocused = true }
     .onReceive(NotificationCenter.default.publisher(for: .openFileOrFolderRequested)) { _ in
       openFileOrFolder()
     }
-    // 处理从“最近打开”菜单发来的打开指定文件夹请求（统一走 FileOpenService）
+    .onReceive(NotificationCenter.default.publisher(for: .refreshRequested)) { _ in
+      refreshCurrentInputs()
+    }
     .onReceive(NotificationCenter.default.publisher(for: .openFolderURLRequested)) { notif in
       guard let url = notif.object as? URL else { return }
       Task {
-        let uniqueSorted = await FileOpenService.discover(from: [url], recordRecents: false)
-        await MainActor.run { applyImages(uniqueSorted) }
+        let normalized = [url.standardizedFileURL]
+        let uniqueSorted = await FileOpenService.discover(from: normalized, recordRecents: false)
+        let batch = ImageBatch(inputs: normalized, imageURLs: uniqueSorted)
+        await MainActor.run {
+          applyImageBatch(batch)
+        }
       }
     }
-    // 键盘快捷：旋转/镜像
     .onReceive(NotificationCenter.default.publisher(for: .rotateCCWRequested)) { _ in
       imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
     }
@@ -138,114 +99,12 @@ struct ContentView: View {
     .onReceive(NotificationCenter.default.publisher(for: .resetTransformRequested)) { _ in
       imageTransform = .identity
     }
-    // 接收裁剪矩形并执行保存
     .onReceive(NotificationCenter.default.publisher(for: .cropRectPrepared)) { notif in
       if let rectVal = notif.userInfo?["rect"] as? NSValue {
         handleCropRectPrepared(rectVal.rectValue)
       }
     }
-    .toolbar {
-      ToolbarItem {
-        Button {
-          openFileOrFolder()
-        } label: {
-          Label(
-            "open_file_or_folder_button".localized,
-            systemImage: "folder")
-        }
-        // 给 toolbar 的打开文件夹按钮添加一个鼠标悬停的提示文本，且弹窗提示的速度尽量快
-        .help("open_file_or_folder_button".localized)
-      }
-      // 再添加一个工具栏按钮，用来查看图片的 exif 信息
-      if selectedImageURL != nil {
-        ToolbarItem {
-          Button {
-            showExifInfo()
-          } label: {
-            HStack(spacing: 4) {
-              if isLoadingExif {
-                ProgressView()
-                  .scaleEffect(0.8)
-                  .frame(width: 16, height: 16)
-              } else {
-                Image(systemName: "info.circle")
-              }
-
-              if isLoadingExif {
-                Text("loading_text".localized)
-                  .font(.caption)
-              }
-            }
-          }
-          .disabled(isLoadingExif)
-          .help(
-            isLoadingExif
-              ? "exif_loading_hint".localized
-              : "exif_info_button".localized)
-        }
-
-        // 旋转（逆时针 90°）
-        ToolbarItem {
-          Button {
-            imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
-          } label: {
-            Label("rotate_ccw_button".localized, systemImage: "rotate.left")
-          }
-          .help("rotate_ccw_button".localized)
-        }
-
-        // 旋转（顺时针 90°）
-        ToolbarItem {
-          Button {
-            imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
-          } label: {
-            Label("rotate_cw_button".localized, systemImage: "rotate.right")
-          }
-          .help("rotate_cw_button".localized)
-        }
-
-        // 镜像（水平方向）
-        ToolbarItem {
-          Button {
-            imageTransform.mirrorH.toggle()
-          } label: {
-            // 使用左右箭头表示水平翻转
-            Label("mirror_horizontal_button".localized, systemImage: "arrow.left.and.right")
-          }
-          .help("mirror_horizontal_button".localized)
-        }
-
-        // 镜像（垂直方向）
-        ToolbarItem {
-          Button {
-            imageTransform.mirrorV.toggle()
-          } label: {
-            // 使用上下箭头表示垂直翻转
-            Label("mirror_vertical_button".localized, systemImage: "arrow.up.and.down")
-          }
-          .help("mirror_vertical_button".localized)
-        }
-
-        // 裁剪开关
-        ToolbarItem {
-          Button {
-            withAnimation(Motion.Anim.standard) {
-              isCropping.toggle()
-              if !isCropping {
-                cropAspect = .freeform
-              }
-            }
-          } label: {
-            Label("crop_button".localized, systemImage: isCropping ? "crop.rotate" : "crop")
-          }
-          .help("crop_button".localized)
-        }
-
-      }
-    }
-    // 当窗口大小变化时，你可能希望重置缩放和偏移
-    // .onChange(of: geometry.size) { ... } (需要 GeometryReader)
-    // 改为在 DetailView 中以可拖拽 overlay 展示 EXIF，取消 sheet
+    .toolbar { toolbarContent }
     .alert(
       "exif_loading_error_title".localized,
       isPresented: $showingExifError
@@ -258,10 +117,174 @@ struct ContentView: View {
     }
   }
 
+  @ViewBuilder
+  private var navigationLayout: some View {
+    NavigationSplitView(columnVisibility: $sidebarVisibility) {
+      sidebarColumn
+    } detail: {
+      detailColumn
+    }
+  }
+
+  @ViewBuilder
+  private var sidebarColumn: some View {
+    SidebarView(imageURLs: imageURLs, selectedImageURL: selectedImageURL) { url in
+      selectedImageURL = url
+      DispatchQueue.main.async { isFocused = true }
+    }
+    .frame(minWidth: 150)
+  }
+
+  @ViewBuilder
+  private var detailColumn: some View {
+    DetailView(
+      imageURLs: imageURLs,
+      selectedImageURL: selectedImageURL,
+      onOpen: openFileOrFolder,
+      showingExifInfo: $showingExifInfo,
+      exifInfo: currentExifInfo,
+      transform: imageTransform,
+      isCropping: $isCropping,
+      cropAspect: $cropAspect,
+      showingAddCustomRatio: $showingAddCustomRatio
+    )
+    .environmentObject(appSettings)
+  }
+
+  @ViewBuilder
+  private var dropHighlightOverlay: some View {
+    if isDropTargeted {
+      DropOverlay()
+        .transition(.opacity.animation(Motion.Anim.medium))
+        .allowsHitTesting(false)
+    }
+  }
+
+  private func updateSidebarVisibility(for newURLs: [URL]) {
+    sidebarVisibility = newURLs.isEmpty ? .detailOnly : .all
+  }
+
+  private func handleSelectionChange(_ newURL: URL?) {
+    guard let newURL else { return }
+    prefetchNeighbors(around: newURL)
+    isFocused = true
+    imageTransform = .identity
+  }
+
+  private func ensureInitialFocus() {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+      isFocused = true
+    }
+  }
+
+  @ToolbarContentBuilder
+  private var toolbarContent: some ToolbarContent {
+    ToolbarItem {
+      Button {
+        openFileOrFolder()
+      } label: {
+        Label(
+          "open_file_or_folder_button".localized,
+          systemImage: "folder")
+      }
+      .help("open_file_or_folder_button".localized)
+    }
+
+    ToolbarItem {
+      Button {
+        refreshCurrentInputs()
+      } label: {
+        Label("refresh_button".localized, systemImage: "arrow.clockwise")
+      }
+      .disabled(currentSourceInputs.isEmpty)
+      .help("refresh_button".localized)
+    }
+
+    if selectedImageURL != nil {
+      ToolbarItem {
+        Button {
+          showExifInfo()
+        } label: {
+          HStack(spacing: 4) {
+            if isLoadingExif {
+              ProgressView()
+                .scaleEffect(0.8)
+                .frame(width: 16, height: 16)
+            } else {
+              Image(systemName: "info.circle")
+            }
+
+            if isLoadingExif {
+              Text("loading_text".localized)
+                .font(.caption)
+            }
+          }
+        }
+        .disabled(isLoadingExif)
+        .help(
+          isLoadingExif
+            ? "exif_loading_hint".localized
+            : "exif_info_button".localized)
+      }
+
+      ToolbarItem {
+        Button {
+          imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
+        } label: {
+          Label("rotate_ccw_button".localized, systemImage: "rotate.left")
+        }
+        .help("rotate_ccw_button".localized)
+      }
+
+      ToolbarItem {
+        Button {
+          imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
+        } label: {
+          Label("rotate_cw_button".localized, systemImage: "rotate.right")
+        }
+        .help("rotate_cw_button".localized)
+      }
+
+      ToolbarItem {
+        Button {
+          imageTransform.mirrorH.toggle()
+        } label: {
+          Label("mirror_horizontal_button".localized, systemImage: "arrow.left.and.right")
+        }
+        .help("mirror_horizontal_button".localized)
+      }
+
+      ToolbarItem {
+        Button {
+          imageTransform.mirrorV.toggle()
+        } label: {
+          Label("mirror_vertical_button".localized, systemImage: "arrow.up.and.down")
+        }
+        .help("mirror_vertical_button".localized)
+      }
+
+      ToolbarItem {
+        Button {
+          withAnimation(Motion.Anim.standard) {
+            isCropping.toggle()
+            if !isCropping {
+              cropAspect = .freeform
+            }
+          }
+        } label: {
+          Label("crop_button".localized, systemImage: isCropping ? "crop.rotate" : "crop")
+        }
+        .help("crop_button".localized)
+      }
+    }
+  }
+
   private func openFileOrFolder() {
     Task {
-      let uniqueSorted = await FileOpenService.openFileOrFolder()
-      await MainActor.run { applyImages(uniqueSorted) }
+      guard let batch = await FileOpenService.openFileOrFolder() else { return }
+      await MainActor.run {
+        applyImageBatch(batch)
+      }
     }
   }
 
@@ -269,8 +292,11 @@ struct ContentView: View {
   private func handleDropProviders(_ providers: [NSItemProvider]) -> Bool {
     guard !providers.isEmpty else { return false }
     Task {
-      let uniqueSorted = await FileOpenService.processDropProviders(providers)
-      await MainActor.run { applyImages(uniqueSorted) }
+      if let batch = await FileOpenService.processDropProviders(providers) {
+        await MainActor.run {
+          applyImageBatch(batch)
+        }
+      }
     }
     return true
   }
@@ -351,10 +377,46 @@ struct ContentView: View {
 
 // MARK: - Helpers
 extension ContentView {
-  private func applyImages(_ urls: [URL]) {
-    guard !urls.isEmpty else { return }
-    self.imageURLs = urls
-    self.selectedImageURL = urls.first
+  @MainActor
+  private func applyImageBatch(_ batch: ImageBatch, preserveSelection selection: URL? = nil, previouslySelectedIndex: Int? = nil) {
+    currentSourceInputs = batch.inputs
+    imageURLs = batch.imageURLs
+
+    guard !batch.imageURLs.isEmpty else {
+      selectedImageURL = nil
+      imageTransform = .identity
+      isCropping = false
+      return
+    }
+
+    if let selection, batch.imageURLs.contains(selection) {
+      selectedImageURL = selection
+      return
+    }
+
+    if let index = previouslySelectedIndex {
+      let clamped = min(max(index, 0), batch.imageURLs.count - 1)
+      selectedImageURL = batch.imageURLs[clamped]
+      return
+    }
+
+    selectedImageURL = batch.imageURLs.first
+  }
+
+  @MainActor
+  private func refreshCurrentInputs() {
+    guard !currentSourceInputs.isEmpty else { return }
+    let inputs = currentSourceInputs
+
+    Task {
+      let refreshed = await FileOpenService.discover(from: inputs, recordRecents: false)
+      let batch = ImageBatch(inputs: inputs, imageURLs: refreshed)
+      await MainActor.run {
+        let currentSelection = selectedImageURL
+        let previousIndex = currentSelection.flatMap { imageURLs.firstIndex(of: $0) }
+        applyImageBatch(batch, preserveSelection: currentSelection, previouslySelectedIndex: previousIndex)
+      }
+    }
   }
 
   private func prefetchNeighbors(around url: URL) {
