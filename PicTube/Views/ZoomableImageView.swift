@@ -50,13 +50,14 @@ struct ZoomableImageView: View {
   @State private var cropDragStartRect: CGRect?
   @State private var activeCropHandle: CropHandle?
   @State private var cropControlSize: CGSize = .zero
-  @State private var cropControlFrame: CGRect? = nil
+  @State private var isCropHandleDragging: Bool = false // 拖动裁剪手柄时禁止控制栏拦截事件
   private let cropBorderColor = Color.accentColor
   private let cropHandleSize: CGFloat = 14
   private let cropBorderWidth: CGFloat = 2.0
   private let minCropSide: CGFloat = 60
   private let cropEdgeHitThickness: CGFloat = 12
   private let cropControlSpacing: CGFloat = 16
+  private let cropControlSafeMargin: CGFloat = 12
 
   var cropControls: CropControlConfiguration? = nil
 
@@ -249,6 +250,9 @@ struct ZoomableImageView: View {
         minimapUserVisible = appSettings.minimapAutoHideSeconds <= 0
         // 切换图片时清除裁剪框
         cropRect = nil
+        cropDragStartRect = nil
+        activeCropHandle = nil
+        isCropHandleDragging = false
       }
       .onChange(of: transform) { _, _ in
         // 旋转/镜像改变时根据新有效尺寸重新适配
@@ -260,12 +264,13 @@ struct ZoomableImageView: View {
           resetPan()
           setupCropRect(in: geometry)
           activeCropHandle = nil
+          isCropHandleDragging = false
         } else {
           cropRect = nil
           cropDragStartRect = nil
           activeCropHandle = nil
           cropControlSize = .zero
-          cropControlFrame = nil
+          isCropHandleDragging = false
         }
       }
       .onChange(of: cropAspect) { _, _ in
@@ -306,6 +311,7 @@ struct ZoomableImageView: View {
     .onDisappear {
       minimapHideTask?.cancel()
       minimapHideTask = nil
+      isCropHandleDragging = false
     }
   }
 
@@ -534,23 +540,21 @@ struct ZoomableImageView: View {
           )
 
           let size = cropControlSize.width > 0 && cropControlSize.height > 0 ? cropControlSize : CGSize(width: 220, height: 48)
-          let clampedCenterX = min(max(rect.midX, size.width / 2 + 12), geometry.size.width - size.width / 2 - 12)
-          let desiredCenterY = rect.maxY + cropControlSpacing + size.height / 2
-          let clampedCenterY = min(desiredCenterY, geometry.size.height - size.height / 2 - 12)
+          let clampedCenterX = min(max(rect.midX, size.width / 2 + cropControlSafeMargin), geometry.size.width - size.width / 2 - cropControlSafeMargin)
+          let centerY = resolveCropControlCenterY(rect: rect, geometrySize: geometry.size, controlSize: size)
+
           let frame = CGRect(
             x: clampedCenterX - size.width / 2,
-            y: clampedCenterY - size.height / 2,
+            y: centerY - size.height / 2,
             width: size.width,
             height: size.height
           )
 
           CropControlBar(config: config)
             .readSize(into: $cropControlSize)
-            .position(x: clampedCenterX, y: clampedCenterY)
+            .position(x: clampedCenterX, y: centerY)
             .zIndex(1)
-            .onAppear { syncCropControlFrame(frame) }
-            .onChange(of: frame) { _, newFrame in syncCropControlFrame(newFrame) }
-            .onDisappear { syncCropControlFrame(nil) }
+            .allowsHitTesting(!isCropHandleDragging)
         }
       }
     }
@@ -587,7 +591,7 @@ struct ZoomableImageView: View {
     .frame(width: geometry.size.width, height: geometry.size.height)
     .contentShape(Rectangle())
     .highPriorityGesture(
-      cropDragGesture(bounds: bounds, excluding: cropControlFrame)
+      cropDragGesture(bounds: bounds)
     )
   }
 
@@ -668,21 +672,20 @@ struct ZoomableImageView: View {
     }
   }
 
-  private func cropDragGesture(bounds: CGRect, excluding controls: CGRect?) -> some Gesture {
+  private func cropDragGesture(bounds: CGRect) -> some Gesture {
     DragGesture(minimumDistance: 0)
       .onChanged { value in
-        if let controls, controls.contains(value.startLocation) {
-          cropDragStartRect = nil
-          activeCropHandle = nil
-          NSCursor.arrow.set()
-          return
-        }
         guard let currentRect = cropRect else { return }
         if cropDragStartRect == nil {
           cropDragStartRect = currentRect
-          activeCropHandle = detectHandle(at: value.startLocation, in: currentRect)
-          if activeCropHandle == nil {
+          let handle = detectHandle(at: value.startLocation, in: currentRect)
+          if let handle {
+            activeCropHandle = handle
+            isCropHandleDragging = true
+          } else {
             cropDragStartRect = nil
+            activeCropHandle = nil
+            isCropHandleDragging = false
             return
           }
         }
@@ -701,26 +704,15 @@ struct ZoomableImageView: View {
         }
         cropRect = updated
       }
-      .onEnded { value in
-        if let controls, controls.contains(value.startLocation) {
-          cropDragStartRect = nil
-          activeCropHandle = nil
-          NSCursor.arrow.set()
-          return
-        }
+      .onEnded { _ in
         if let rect = cropRect {
           cropRect = clampRect(rect, within: bounds)
         }
         cropDragStartRect = nil
         activeCropHandle = nil
+        isCropHandleDragging = false
         NSCursor.arrow.set()
       }
-  }
-
-  private func syncCropControlFrame(_ frame: CGRect?) {
-    if cropControlFrame != frame {
-      cropControlFrame = frame
-    }
   }
 
   private func detectHandle(at point: CGPoint, in rect: CGRect) -> CropHandle? {
@@ -889,6 +881,26 @@ struct ZoomableImageView: View {
     return CGRect(x: x, y: y, width: width, height: height)
   }
 
+  /// 计算裁剪控制条的垂直中心位置，尽量避开裁剪框底部手柄
+  private func resolveCropControlCenterY(rect: CGRect, geometrySize: CGSize, controlSize: CGSize) -> CGFloat {
+    let safeMargin = cropControlSafeMargin
+    let lowerBound = controlSize.height / 2 + safeMargin
+    let upperBound = max(lowerBound, geometrySize.height - controlSize.height / 2 - safeMargin)
+
+    let desiredBelow = rect.maxY + cropControlSpacing + controlSize.height / 2
+    if desiredBelow <= upperBound {
+      return max(desiredBelow, lowerBound)
+    }
+
+    let desiredAbove = rect.minY - cropControlSpacing - controlSize.height / 2
+    if desiredAbove >= lowerBound {
+      return min(desiredAbove, upperBound)
+    }
+
+    let clampedBelow = min(desiredBelow, upperBound)
+    return max(clampedBelow, lowerBound)
+  }
+
   private func setupCropRectIfNeeded(in geometry: GeometryProxy) {
     guard isCropping else { return }
     if cropRect == nil {
@@ -903,6 +915,7 @@ struct ZoomableImageView: View {
     cropRect = rect
     cropDragStartRect = nil
     activeCropHandle = nil
+    isCropHandleDragging = false
   }
 
   private func defaultCropRect(in frame: CGRect) -> CGRect {
