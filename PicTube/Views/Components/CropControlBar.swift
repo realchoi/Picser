@@ -12,6 +12,7 @@ struct CropControlConfiguration {
   var currentAspect: CropAspectOption
   let onSelectPreset: (CropPreset) -> Void
   let onSelectCustomRatio: (CropRatio) -> Void
+  let onDeleteCustomRatio: (CropRatio) -> Void
   let onAddCustomRatio: () -> Void
   let onSave: () -> Void
   let onCancel: () -> Void
@@ -19,10 +20,11 @@ struct CropControlConfiguration {
 
 struct CropControlBar: View {
   let config: CropControlConfiguration
+  @State private var isAspectPickerPresented = false
 
   var body: some View {
     HStack(spacing: 14) {
-      aspectMenu
+      aspectPicker
       Divider()
         .frame(height: 24)
       Button(action: config.onSave) {
@@ -41,51 +43,104 @@ struct CropControlBar: View {
     .shadow(color: Color.black.opacity(0.2), radius: 18, x: 0, y: 10)
   }
 
-  private var aspectMenu: some View {
-    Menu {
-      ForEach(CropPreset.allCases, id: \.id) { preset in
-        Button {
-          config.onSelectPreset(preset)
-        } label: {
-          menuLabel(text: preset.titleKey.localized, isSelected: isPresetSelected(preset))
-        }
-      }
-
-      if !config.customRatios.isEmpty {
-        Divider()
-        ForEach(config.customRatios, id: \.id) { ratio in
-          Button {
-            config.onSelectCustomRatio(ratio)
-          } label: {
-            menuLabel(text: ratio.displayName, isSelected: isCustomSelected(ratio))
-          }
-        }
-      }
-
-      Divider()
-      Button(action: config.onAddCustomRatio) {
-        Label("crop_add_custom".localized, systemImage: "plus")
-      }
+  private var aspectPicker: some View {
+    Button {
+      isAspectPickerPresented.toggle()
     } label: {
       Label(currentSelectionTitle(), systemImage: "aspectratio")
         .labelStyle(.titleAndIcon)
     }
-    .menuStyle(.borderedButton)
+    .buttonStyle(.bordered)
+    .popover(isPresented: $isAspectPickerPresented, arrowEdge: .bottom) {
+      AspectPickerView(
+        config: config,
+        dismiss: { isAspectPickerPresented = false }
+      )
+    }
   }
 
-  private func menuLabel(text: String, isSelected: Bool) -> some View {
-    HStack {
-      if isSelected {
-        Image(systemName: "checkmark")
-      }
-      Text(text)
+  private func currentSelectionTitle() -> String {
+    switch config.currentAspect {
+    case .freeform:
+      return "crop_ratio_freeform".localized
+    case .original:
+      return "crop_ratio_original".localized
+    case .fixed(let ratio):
+      return ratio.displayName
     }
+  }
+}
+
+private struct AspectPickerView: View {
+  let config: CropControlConfiguration
+  let dismiss: () -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      ScrollView {
+        VStack(alignment: .leading, spacing: 10) {
+          VStack(alignment: .leading, spacing: 6) {
+            ForEach(CropPreset.allCases, id: \.id) { preset in
+              AspectOptionRow(
+                title: preset.titleKey.localized,
+                isSelected: isPresetSelected(preset),
+                onSelect: {
+                  config.onSelectPreset(preset)
+                  dismiss()
+                }
+              )
+            }
+          }
+
+          if !config.customRatios.isEmpty {
+            Divider()
+            VStack(alignment: .leading, spacing: 6) {
+              Text("crop_custom_group".localized)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+
+              ForEach(config.customRatios, id: \.id) { ratio in
+                CustomRatioRow(
+                  ratio: ratio,
+                  isSelected: isCustomSelected(ratio),
+                  onSelect: {
+                    config.onSelectCustomRatio(ratio)
+                    dismiss()
+                  },
+                  onDelete: {
+                    config.onDeleteCustomRatio(ratio)
+                  }
+                )
+              }
+            }
+          }
+        }
+        .padding(.vertical, 6)
+      }
+      .frame(maxHeight: 280)
+
+      Divider()
+
+      Button {
+        dismiss()
+        config.onAddCustomRatio()
+      } label: {
+        Label("crop_add_custom".localized, systemImage: "plus")
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .buttonStyle(.borderless)
+    }
+    .padding(16)
+    .frame(width: 260)
   }
 
   private func isPresetSelected(_ preset: CropPreset) -> Bool {
     switch (preset, config.currentAspect) {
-    case (.freeform, .freeform): return true
-    case (.original, .original): return true
+    case (.freeform, .freeform):
+      return true
+    case (.original, .original):
+      return true
     default:
       if let ratio = preset.fixedRatio, case .fixed(let current) = config.currentAspect {
         return current == ratio
@@ -100,16 +155,77 @@ struct CropControlBar: View {
     }
     return false
   }
+}
 
-  private func currentSelectionTitle() -> String {
-    switch config.currentAspect {
-    case .freeform:
-      return "crop_ratio_freeform".localized
-    case .original:
-      return "crop_ratio_original".localized
-    case .fixed(let ratio):
-      return ratio.displayName
+private struct AspectOptionRow: View {
+  let title: String
+  let isSelected: Bool
+  let onSelect: () -> Void
+
+  var body: some View {
+    Button(action: onSelect) {
+      HStack(spacing: 8) {
+        Text(title)
+          .font(.body)
+          .foregroundColor(.primary)
+          .lineLimit(1)
+          .layoutPriority(1)
+        Spacer(minLength: 8)
+        if isSelected {
+          Image(systemName: "checkmark")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundColor(.accentColor)
+        }
+      }
+      .padding(.horizontal, 12)
+      .padding(.vertical, 6)
+      .background(
+        RoundedRectangle(cornerRadius: 8)
+          .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.12))
+      )
+      .overlay(
+        RoundedRectangle(cornerRadius: 8)
+          .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.35), lineWidth: 1)
+      )
     }
+    .buttonStyle(.plain)
+  }
+}
+
+private struct CustomRatioRow: View {
+  let ratio: CropRatio
+  let isSelected: Bool
+  let onSelect: () -> Void
+  let onDelete: () -> Void
+
+  var body: some View {
+    HStack(spacing: 10) {
+      Text(ratio.displayName)
+        .font(.body)
+        .foregroundColor(isSelected ? Color.accentColor : Color.primary)
+        .lineLimit(1)
+        .layoutPriority(1)
+      Spacer(minLength: 8)
+      Button(action: onDelete) {
+        Image(systemName: "trash")
+          .font(.system(size: 13, weight: .semibold))
+      }
+      .buttonStyle(.plain)
+      .foregroundColor(.red)
+      .help("crop_custom_delete_help".localized)
+    }
+    .padding(.horizontal, 12)
+    .padding(.vertical, 6)
+    .background(
+      RoundedRectangle(cornerRadius: 8)
+        .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.12))
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 8)
+        .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.35), lineWidth: 1)
+    )
+    .contentShape(RoundedRectangle(cornerRadius: 8))
+    .onTapGesture(perform: onSelect)
   }
 }
 

@@ -65,6 +65,8 @@
 "crop_save_panel_title" = "保存截图";
 "crop_add_custom_title" = "添加自定义比例";
 "crop_add_custom_invalid" = "请填写大于 0 的宽度和高度。";
+"crop_custom_group" = "自定义";
+"crop_custom_delete_help" = "删除该自定义比例";
 "crop_ratio_freeform" = "自由比例";
 "crop_ratio_original" = "原始比例";
 "crop_ratio_1_1" = "1:1 正方形";

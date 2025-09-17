@@ -65,6 +65,8 @@
 "crop_save_panel_title" = "Save Cropped Image";
 "crop_add_custom_title" = "Add Custom Ratio";
 "crop_add_custom_invalid" = "Please enter positive integers for width and height.";
+"crop_custom_group" = "Custom";
+"crop_custom_delete_help" = "Remove this custom ratio";
 "crop_ratio_freeform" = "Freeform";
 "crop_ratio_original" = "Original";
 "crop_ratio_1_1" = "1:1 Square";

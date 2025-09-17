@@ -55,6 +55,14 @@ struct DetailView: View {
                 onSelectCustomRatio: { ratio in
                   cropAspect = .fixed(ratio)
                 },
+                onDeleteCustomRatio: { ratio in
+                  if let index = appSettings.customCropRatios.firstIndex(of: ratio) {
+                    appSettings.customCropRatios.remove(at: index)
+                  }
+                  if case .fixed(let current) = cropAspect, current == ratio {
+                    cropAspect = .freeform
+                  }
+                },
                 onAddCustomRatio: {
                   showingAddCustomRatio = true
                 },

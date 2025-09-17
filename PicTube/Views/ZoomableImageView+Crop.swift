@@ -32,6 +32,7 @@ extension ZoomableImageView {
             currentAspect: cropAspect,
             onSelectPreset: controls.onSelectPreset,
             onSelectCustomRatio: controls.onSelectCustomRatio,
+            onDeleteCustomRatio: controls.onDeleteCustomRatio,
             onAddCustomRatio: controls.onAddCustomRatio,
             onSave: controls.onSave,
             onCancel: controls.onCancel
