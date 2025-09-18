@@ -82,7 +82,7 @@ enum FileOpenService {
   /// Unified discovery: optionally record recents, then compute stable-sorted image URLs.
   static func discover(from inputs: [URL], recordRecents: Bool) async -> [URL] {
     if recordRecents {
-      RecentOpensManager.shared.add(urls: inputs)
+      await RecentOpensManager.shared.add(urls: inputs)
     }
     return await ImageDiscovery.computeImageURLs(from: inputs)
   }

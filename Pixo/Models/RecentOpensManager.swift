@@ -24,6 +24,7 @@ struct RecentFolderItem: Codable, Identifiable, Equatable {
 
 /// Manages security-scoped bookmarks for recently opened folders.
 /// Stores data in UserDefaults as JSON.
+@MainActor
 final class RecentOpensManager: ObservableObject {
   static let shared = RecentOpensManager()
 
@@ -190,4 +191,3 @@ final class RecentOpensManager: ObservableObject {
     currentlyAccessedURL = nil
   }
 }
-

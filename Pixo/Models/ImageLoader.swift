@@ -13,6 +13,11 @@ final class ImageLoader: @unchecked Sendable {
   private let thumbnailCache = NSCache<NSString, NSImage>()
   private let fullImageCache = NSCache<NSURL, NSImage>()
   private var memoryPressureSource: DispatchSourceMemoryPressure?
+  /// 专用高优先级队列，用于执行耗时的下采样避免 QoS 逆转。
+  private let downsampleQueue = DispatchQueue(
+    label: "com.pixo.imageloader.downsample",
+    qos: .userInitiated
+  )
 
   private init() {
     // 适度限制内存缓存
@@ -116,19 +121,31 @@ final class ImageLoader: @unchecked Sendable {
       return nil
     }
 
+    if Task.isCancelled { return nil }
+
+    let maxPixelSize = max(64, targetLongSidePixels)
+
     // 后台生成带方向矫正的缩略 CGImage（高质量下采样）
-    let cg: CGImage? = await Task.detached(priority: .userInitiated) {
-      guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-      let opts: [CFString: Any] = [
-        kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
-        kCGImageSourceCreateThumbnailWithTransform: true,   // 应用 EXIF 方向
-        kCGImageSourceShouldCacheImmediately: true,
-        kCGImageSourceThumbnailMaxPixelSize: max(64, targetLongSidePixels),
-      ]
-      return CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary)
-    }.value
+    let cg: CGImage? = await withCheckedContinuation { continuation in
+      downsampleQueue.async {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+          continuation.resume(returning: nil)
+          return
+        }
+        let opts: [CFString: Any] = [
+          kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
+          kCGImageSourceCreateThumbnailWithTransform: true,  // 应用 EXIF 方向
+          kCGImageSourceShouldCacheImmediately: true,
+          kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        ]
+        let result = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary)
+        continuation.resume(returning: result)
+      }
+    }
 
     guard let cgImage = cg else { return nil }
+
+    if Task.isCancelled { return nil }
 
     let size = NSSize(width: cgImage.width, height: cgImage.height)
     let nsImage = NSImage(cgImage: cgImage, size: size)
