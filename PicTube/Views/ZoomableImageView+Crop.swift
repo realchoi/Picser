@@ -183,22 +183,44 @@ extension ZoomableImageView {
         }
         guard let handle = activeCropHandle, let baseRect = cropDragStartRect else { return }
 
+        let aspect = currentAspectValue()
         let translation = value.translation
         let updated: CGRect
         if handle == .move {
           var rect = baseRect
           rect.origin.x += translation.width
           rect.origin.y += translation.height
-          updated = clampRect(rect, within: bounds)
+          if aspect != nil {
+            updated = clampRectPosition(rect, within: bounds)
+          } else {
+            updated = clampRect(rect, within: bounds)
+          }
           NSCursor.closedHand.set()
         } else {
-          updated = rectForHandle(handle: handle, base: baseRect, translation: translation, bounds: bounds)
+          updated = rectForHandle(
+            handle: handle,
+            base: baseRect,
+            translation: translation,
+            bounds: bounds,
+            aspect: aspect
+          )
         }
         cropRect = updated
       }
       .onEnded { _ in
         if let rect = cropRect {
-          cropRect = clampRect(rect, within: bounds)
+          let aspect = currentAspectValue()
+          if let aspect {
+            let handle = activeCropHandle ?? .move
+            if handle == .move {
+              cropRect = clampRectPosition(rect, within: bounds)
+            } else {
+              let baseRect = cropDragStartRect ?? rect
+              cropRect = clampRect(rect, within: bounds, aspect: aspect, base: baseRect, handle: handle)
+            }
+          } else {
+            cropRect = clampRect(rect, within: bounds)
+          }
         }
         cropDragStartRect = nil
         activeCropHandle = nil
@@ -232,11 +254,37 @@ extension ZoomableImageView {
     return nil
   }
 
-  private func rectForHandle(handle: CropHandle, base: CGRect, translation: CGSize, bounds: CGRect) -> CGRect {
+  private func rectForHandle(
+    handle: CropHandle,
+    base: CGRect,
+    translation: CGSize,
+    bounds: CGRect,
+    aspect: CGFloat?
+  ) -> CGRect {
     var rect = base
+
+    if aspect != nil && handle != .move {
+      let dx = abs(translation.width)
+      let dy = abs(translation.height)
+      let effectiveDelta: CGFloat
+      switch handle {
+      case .top, .bottom:
+        effectiveDelta = dy
+      case .left, .right:
+        effectiveDelta = dx
+      default:
+        effectiveDelta = max(dx, dy)
+      }
+      if effectiveDelta < cropHandleActivationThreshold {
+        return base
+      }
+    }
 
     switch handle {
     case .move:
+      if aspect != nil {
+        return clampRectPosition(base, within: bounds)
+      }
       return clampRect(base, within: bounds)
     case .topLeft:
       rect.origin.x += translation.width
@@ -284,8 +332,9 @@ extension ZoomableImageView {
       }
     }
 
-    if let aspect = currentAspectValue() {
+    if let aspect {
       rect = enforceAspect(rect: rect, base: base, handle: handle, aspect: aspect)
+      return clampRect(rect, within: bounds, aspect: aspect, base: base, handle: handle)
     }
 
     return clampRect(rect, within: bounds)
@@ -370,6 +419,124 @@ extension ZoomableImageView {
     if x + width > frame.maxX { x = frame.maxX - width }
     if y + height > frame.maxY { y = frame.maxY - height }
     return CGRect(x: x, y: y, width: width, height: height)
+  }
+
+  private func clampRect(
+    _ rect: CGRect,
+    within frame: CGRect,
+    aspect: CGFloat,
+    base: CGRect,
+    handle: CropHandle
+  ) -> CGRect {
+    guard !frame.isEmpty else { return rect }
+    let anchor = anchorPoint(for: handle, base: base)
+    let limits = aspectLimits(for: handle, anchor: anchor, bounds: frame)
+    var candidates: [CGFloat] = [rect.width]
+    if limits.width > 0 { candidates.append(limits.width) }
+    if limits.height > 0 { candidates.append(limits.height * aspect) }
+    let width = max(0, candidates.min() ?? rect.width)
+    let height = width / aspect
+    let size = CGSize(width: width, height: height)
+    return rectFrom(anchor: anchor, size: size, handle: handle)
+  }
+
+  private func clampRectPosition(_ rect: CGRect, within frame: CGRect) -> CGRect {
+    guard !frame.isEmpty else { return rect }
+    var clamped = rect
+    let maxX = max(frame.minX, frame.maxX - clamped.width)
+    let maxY = max(frame.minY, frame.maxY - clamped.height)
+    if clamped.origin.x < frame.minX {
+      clamped.origin.x = frame.minX
+    } else if clamped.origin.x > maxX {
+      clamped.origin.x = maxX
+    }
+    if clamped.origin.y < frame.minY {
+      clamped.origin.y = frame.minY
+    } else if clamped.origin.y > maxY {
+      clamped.origin.y = maxY
+    }
+    return clamped
+  }
+
+  private func anchorPoint(for handle: CropHandle, base: CGRect) -> CGPoint {
+    switch handle {
+    case .topLeft:
+      return CGPoint(x: base.maxX, y: base.maxY)
+    case .topRight:
+      return CGPoint(x: base.minX, y: base.maxY)
+    case .bottomLeft:
+      return CGPoint(x: base.maxX, y: base.minY)
+    case .bottomRight:
+      return CGPoint(x: base.minX, y: base.minY)
+    case .top:
+      return CGPoint(x: base.midX, y: base.maxY)
+    case .bottom:
+      return CGPoint(x: base.midX, y: base.minY)
+    case .left:
+      return CGPoint(x: base.maxX, y: base.midY)
+    case .right:
+      return CGPoint(x: base.minX, y: base.midY)
+    case .move:
+      return CGPoint(x: base.midX, y: base.midY)
+    }
+  }
+
+  private func aspectLimits(for handle: CropHandle, anchor: CGPoint, bounds: CGRect) -> CGSize {
+    let leftSpace = anchor.x - bounds.minX
+    let rightSpace = bounds.maxX - anchor.x
+    let topSpace = anchor.y - bounds.minY
+    let bottomSpace = bounds.maxY - anchor.y
+
+    switch handle {
+    case .topLeft:
+      return CGSize(width: max(0, leftSpace), height: max(0, topSpace))
+    case .topRight:
+      return CGSize(width: max(0, rightSpace), height: max(0, topSpace))
+    case .bottomLeft:
+      return CGSize(width: max(0, leftSpace), height: max(0, bottomSpace))
+    case .bottomRight:
+      return CGSize(width: max(0, rightSpace), height: max(0, bottomSpace))
+    case .top:
+      let halfWidth = max(0, min(leftSpace, rightSpace))
+      return CGSize(width: halfWidth * 2, height: max(0, topSpace))
+    case .bottom:
+      let halfWidth = max(0, min(leftSpace, rightSpace))
+      return CGSize(width: halfWidth * 2, height: max(0, bottomSpace))
+    case .left:
+      let halfHeight = max(0, min(topSpace, bottomSpace))
+      return CGSize(width: max(0, leftSpace), height: halfHeight * 2)
+    case .right:
+      let halfHeight = max(0, min(topSpace, bottomSpace))
+      return CGSize(width: max(0, rightSpace), height: halfHeight * 2)
+    case .move:
+      return CGSize(width: bounds.width, height: bounds.height)
+    }
+  }
+
+  private func rectFrom(anchor: CGPoint, size: CGSize, handle: CropHandle) -> CGRect {
+    let width = size.width
+    let height = size.height
+
+    switch handle {
+    case .topLeft:
+      return CGRect(x: anchor.x - width, y: anchor.y - height, width: width, height: height)
+    case .topRight:
+      return CGRect(x: anchor.x, y: anchor.y - height, width: width, height: height)
+    case .bottomLeft:
+      return CGRect(x: anchor.x - width, y: anchor.y, width: width, height: height)
+    case .bottomRight:
+      return CGRect(x: anchor.x, y: anchor.y, width: width, height: height)
+    case .top:
+      return CGRect(x: anchor.x - width / 2, y: anchor.y - height, width: width, height: height)
+    case .bottom:
+      return CGRect(x: anchor.x - width / 2, y: anchor.y, width: width, height: height)
+    case .left:
+      return CGRect(x: anchor.x - width, y: anchor.y - height / 2, width: width, height: height)
+    case .right:
+      return CGRect(x: anchor.x, y: anchor.y - height / 2, width: width, height: height)
+    case .move:
+      return CGRect(origin: CGPoint(x: anchor.x - width / 2, y: anchor.y - height / 2), size: size)
+    }
   }
 
   /// 计算裁剪控制条的垂直中心位置，尽量避开裁剪框底部手柄

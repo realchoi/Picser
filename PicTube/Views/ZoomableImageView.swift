@@ -56,6 +56,7 @@ struct ZoomableImageView: View {
   let cropBorderWidth: CGFloat = 2.0
   let minCropSide: CGFloat = 60
   let cropEdgeHitThickness: CGFloat = 12
+  let cropHandleActivationThreshold: CGFloat = 0.75
   let cropControlSpacing: CGFloat = 16
   let cropControlSafeMargin: CGFloat = 12
 
