@@ -56,8 +56,13 @@ struct ContentView: View {
       handleSelectionChange(newURL)
     }
     .sheet(isPresented: $showingAddCustomRatio) {
-      AddCustomRatioSheet()
-        .environmentObject(appSettings)
+      AddCustomRatioSheet { ratio in
+        if !isCropping {
+          isCropping = true
+        }
+        cropAspect = .fixed(ratio)
+      }
+      .environmentObject(appSettings)
     }
     .onKeyPress { press in
       let handled = handleKeyPress(press)

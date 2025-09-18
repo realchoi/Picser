@@ -15,6 +15,12 @@ struct AddCustomRatioSheet: View {
   @State private var heightText: String = "1"
   @State private var error: String?
 
+  let onAdded: (CropRatio) -> Void
+
+  init(onAdded: @escaping (CropRatio) -> Void = { _ in }) {
+    self.onAdded = onAdded
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       Text("crop_add_custom_title".localized)
@@ -58,6 +64,7 @@ struct AddCustomRatioSheet: View {
     if !appSettings.customCropRatios.contains(r) {
       appSettings.customCropRatios.append(r)
     }
+    onAdded(r)
     dismiss()
   }
 }
@@ -66,4 +73,3 @@ struct AddCustomRatioSheet: View {
   AddCustomRatioSheet()
     .environmentObject(AppSettings())
 }
-
