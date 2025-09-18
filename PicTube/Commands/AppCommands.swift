@@ -51,9 +51,12 @@ struct AppCommands: Commands {
             .disabled(true)
         } else {
           ForEach(recent.items) { item in
-            let folderName = URL(fileURLWithPath: item.path).lastPathComponent
-            Button(folderName) {
+            let folderURL = URL(fileURLWithPath: item.path)
+            let folderName = folderURL.lastPathComponent
+            Button {
               recent.open(item: item)
+            } label: {
+              RecentMenuItemView(folderName: folderName, fullPath: folderURL.path)
             }
           }
           Divider()
