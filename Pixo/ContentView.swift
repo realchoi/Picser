@@ -41,6 +41,13 @@ struct ContentView: View {
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
 
+  /// 侧边栏宽度限制，防止用户将其放大全屏
+  private enum LayoutMetrics {
+    static let sidebarMinWidth: CGFloat = 150
+    static let sidebarIdealWidth: CGFloat = 220
+    static let sidebarMaxWidth: CGFloat = 360
+  }
+
   var body: some View {
     ZStack {
       navigationLayout
@@ -126,9 +133,21 @@ struct ContentView: View {
   private var navigationLayout: some View {
     NavigationSplitView(columnVisibility: $sidebarVisibility) {
       sidebarColumn
+        .navigationSplitViewColumnWidth(
+          min: LayoutMetrics.sidebarMinWidth,
+          ideal: LayoutMetrics.sidebarIdealWidth,
+          max: LayoutMetrics.sidebarMaxWidth
+        )
     } detail: {
       detailColumn
     }
+    .background(
+      SplitViewWidthLimiter(
+        minWidth: LayoutMetrics.sidebarMinWidth,
+        maxWidth: LayoutMetrics.sidebarMaxWidth
+      )
+      .allowsHitTesting(false)
+    )
   }
 
   @ViewBuilder
@@ -137,7 +156,11 @@ struct ContentView: View {
       selectedImageURL = url
       DispatchQueue.main.async { isFocused = true }
     }
-    .frame(minWidth: 150)
+    .frame(
+      minWidth: LayoutMetrics.sidebarMinWidth,
+      idealWidth: LayoutMetrics.sidebarIdealWidth,
+      maxWidth: LayoutMetrics.sidebarMaxWidth
+    )
   }
 
   @ViewBuilder

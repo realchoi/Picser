@@ -289,6 +289,7 @@ struct ZoomableImageView: View {
         )
       }
       .onChange(of: geometry.size) { _, _ in
+        handleViewportChange(geometry: geometry)
         if isCropping {
           updateCropRectForAspect(in: geometry)
         }
@@ -372,6 +373,28 @@ struct ZoomableImageView: View {
       offset = .zero
       lastOffset = .zero
     }
+  }
+
+  /// 视口尺寸变化时重新计算基础适配比例，并根据新边界修正偏移
+  private func handleViewportChange(geometry: GeometryProxy) {
+    guard let newBaseFit = PanZoomMath.computeFitScale(
+      viewSize: geometry.size,
+      imageSize: effectiveImageSize()
+    ) else { return }
+
+    let maxOffset = PanZoomMath.maxOffset(
+      viewSize: geometry.size,
+      imageSize: effectiveImageSize(),
+      baseFitScale: newBaseFit,
+      scale: scale
+    )
+
+    baseFitScale = newBaseFit
+    let clampedOffset = PanZoomMath.clamp(offset: offset, to: maxOffset)
+    let clampedLastOffset = PanZoomMath.clamp(offset: lastOffset, to: maxOffset)
+    if clampedOffset != offset { offset = clampedOffset }
+    if clampedLastOffset != lastOffset { lastOffset = clampedLastOffset }
+    invalidateCache()
   }
 
   /// 适应窗口大小：记录基础适配比例，并将相对缩放恢复为1（即刚好适配）
