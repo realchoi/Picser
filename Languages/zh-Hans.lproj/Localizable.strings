@@ -274,3 +274,51 @@
 "language_english" = "English";
 "language_restart_note" = "重新启动应用后语言设置将生效";
 "app_language_description" = "选择应用界面显示的语言";
+
+/* Trial Banner */
+"trial_banner_title" = "全功能试用进行中";
+"trial_banner_remaining_day_hour" = "试用剩余 %d 天 %d 小时";
+"trial_banner_remaining_hour_minute" = "试用剩余 %d 小时 %d 分钟";
+"trial_banner_remaining_minute" = "试用剩余 %d 分钟";
+"trial_banner_remaining_less_than_minute" = "试用即将结束";
+"trial_banner_dismiss" = "暂时隐藏试用提示";
+
+"trial_expired_title" = "试用已结束";
+"trial_expired_subtitle" = "购买完整版以继续使用编辑和转换功能";
+"trial_expired_dismiss" = "暂时隐藏解锁提示";
+"unlock_alert_title" = "解锁完整版";
+"unlock_alert_body_transform" = "试用期已结束，请购买完整版以继续使用旋转、翻转等编辑功能。";
+"unlock_alert_body_crop" = "试用期已结束，请购买完整版以继续使用裁剪功能。";
+"unlock_alert_body_generic" = "试用期已结束，请购买完整版以继续使用高级功能。";
+"unlock_alert_cancel" = "稍后再说";
+
+"purchase_section_title" = "许可证与购买";
+"purchase_section_description" = "管理试用状态、购买完整版或恢复先前购买。";
+"purchase_status_trial_prefix" = "当前状态：试用中";
+"purchase_status_expired" = "当前状态：试用已结束";
+"purchase_status_purchased" = "当前状态：已购买完整版";
+"purchase_status_unknown" = "当前状态：加载中";
+"purchase_status_trial_remaining" = "试用剩余：%@";
+"purchase_section_purchase" = "购买完整版";
+"purchase_section_restore" = "恢复购买";
+"purchase_prompt_confirm" = "确定购买";
+"purchase_prompt_confirm_note" = "App Store 将通过您的 Apple ID 完成支付，请确认账户信息与金额无误。";
+"unlock_alert_body_manual_purchase" = "一次性买断可解锁全部功能并移除试用限制。";
+"unlock_alert_body_manual_restore" = "如果您已购买完整版，可在此恢复凭证以继续使用全部功能。";
+
+"purchase_flow_purchase_failed_title" = "购买失败";
+"purchase_flow_restore_failed_title" = "恢复失败";
+
+"keychain_invalid_data" = "无效的钥匙串数据";
+"keychain_authentication_failed" = "钥匙串认证未通过，状态码：%d";
+"keychain_unhandled_error" = "钥匙串操作失败，状态码：%d";
+"purchase_error_product_unavailable" = "未找到可用的内购商品";
+"purchase_error_failed_verification" = "交易验证失败";
+"purchase_error_cancelled" = "购买已取消";
+"purchase_error_pending" = "购买尚在处理中，请稍后再试";
+"purchase_error_restore_failed" = "恢复购买失败";
+"purchase_error_unknown_result" = "未知的购买结果";
+"purchase_product_name" = "商品：%@";
+"purchase_product_price" = "价格：%@";
+"purchase_product_loading" = "正在加载商品信息...";
+"purchase_keychain_prompt" = "请验证身份以读取或更新购买凭证";

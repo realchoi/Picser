@@ -80,4 +80,5 @@ struct SettingsView: View {
 // 预览
 #Preview {
   SettingsView(appSettings: AppSettings())
+    .environmentObject(PurchaseManager())
 }

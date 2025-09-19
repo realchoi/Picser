@@ -274,3 +274,51 @@
 "language_english" = "English";
 "language_restart_note" = "Language settings will take effect after restarting the app";
 "app_language_description" = "Choose the language for the app interface";
+
+/* Trial Banner */
+"trial_banner_title" = "Full trial in progress";
+"trial_banner_remaining_day_hour" = "%d day(s) and %d hour(s) remaining in trial";
+"trial_banner_remaining_hour_minute" = "%d hour(s) and %d minute(s) remaining in trial";
+"trial_banner_remaining_minute" = "%d minute(s) remaining in trial";
+"trial_banner_remaining_less_than_minute" = "The trial is about to end";
+"trial_banner_dismiss" = "Hide trial banner temporarily";
+
+"trial_expired_title" = "Trial ended";
+"trial_expired_subtitle" = "Purchase the full version to keep editing and converting";
+"trial_expired_dismiss" = "Hide upgrade reminder";
+"unlock_alert_title" = "Unlock Full Version";
+"unlock_alert_body_transform" = "Your trial has ended. Purchase the full version to continue using rotate and flip tools.";
+"unlock_alert_body_crop" = "Your trial has ended. Purchase the full version to keep using crop.";
+"unlock_alert_body_generic" = "Your trial has ended. Purchase the full version to keep using advanced features.";
+"unlock_alert_cancel" = "Maybe later";
+
+"purchase_section_title" = "License & Purchase";
+"purchase_section_description" = "Manage your trial status, unlock the full version, or restore a previous purchase.";
+"purchase_status_trial_prefix" = "Current status: Trial";
+"purchase_status_expired" = "Current status: Trial ended";
+"purchase_status_purchased" = "Current status: Full version unlocked";
+"purchase_status_unknown" = "Current status: Loading";
+"purchase_status_trial_remaining" = "Time remaining: %@";
+"purchase_section_purchase" = "Buy Full Version";
+"purchase_section_restore" = "Restore Purchase";
+"purchase_prompt_confirm" = "Confirm Purchase";
+"purchase_prompt_confirm_note" = "App Store will charge your current Apple ID; verify the account and amount before confirming.";
+"unlock_alert_body_manual_purchase" = "Unlock the full version with a one-time purchase to keep all features permanently.";
+"unlock_alert_body_manual_restore" = "If you already bought the full version, restore your receipt to regain access.";
+
+"purchase_flow_purchase_failed_title" = "Purchase Failed";
+"purchase_flow_restore_failed_title" = "Restore Failed";
+
+"keychain_invalid_data" = "Invalid keychain data";
+"keychain_authentication_failed" = "Keychain authentication failed. Status: %d";
+"keychain_unhandled_error" = "Keychain operation failed. Status: %d";
+"purchase_error_product_unavailable" = "Unable to locate the in-app purchase product.";
+"purchase_error_failed_verification" = "Transaction verification failed.";
+"purchase_error_cancelled" = "Purchase cancelled.";
+"purchase_error_pending" = "Purchase is pending. Please try again later.";
+"purchase_error_restore_failed" = "Failed to restore purchases.";
+"purchase_error_unknown_result" = "Unknown purchase result.";
+"purchase_product_name" = "Product: %@";
+"purchase_product_price" = "Price: %@";
+"purchase_product_loading" = "Loading product information...";
+"purchase_keychain_prompt" = "Authenticate to read or update your purchase license.";

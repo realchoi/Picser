@@ -11,11 +11,14 @@ import SwiftUI
 struct PixoApp: App {
   // 创建全局设置管理器
   @StateObject private var appSettings = AppSettings()
+  // 购买与试用状态管理器
+  @StateObject private var purchaseManager = PurchaseManager()
 
   var body: some Scene {
     WindowGroup {
       ContentView()
         .environmentObject(appSettings)
+        .environmentObject(purchaseManager)
         // 让试图内容延伸至标题栏区域，实现完全无边框效果
         .ignoresSafeArea(.all, edges: .top)
     }
@@ -29,6 +32,7 @@ struct PixoApp: App {
     // 设置窗口 - SwiftUI 会自动创建菜单项
     Settings {
       SettingsView(appSettings: appSettings)
+        .environmentObject(purchaseManager)
     }
   }
 

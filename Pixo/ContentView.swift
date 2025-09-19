@@ -23,8 +23,7 @@ struct ContentView: View {
   @State private var showingExifInfo = false  // 是否显示 EXIF 信息弹窗
   @State private var currentExifInfo: ExifInfo?  // 当前图片的 EXIF 信息
   @State private var isLoadingExif = false  // 是否正在加载 EXIF 信息
-  @State private var exifErrorMessage: String?  // EXIF 错误消息
-  @State private var showingExifError = false  // 是否显示 EXIF 错误弹窗
+  @State private var alertContent: AlertContent?  // 通用弹窗内容
   // 拖放高亮
   @State private var isDropTargeted = false
 
@@ -38,8 +37,12 @@ struct ContentView: View {
   @State private var customRatioW: String = "1"
   @State private var customRatioH: String = "1"
 
+  // 购买解锁引导
+  @State var upgradePromptContext: UpgradePromptContext?
+
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
+  @EnvironmentObject var purchaseManager: PurchaseManager
 
   /// 侧边栏宽度限制，防止用户将其放大全屏
   private enum LayoutMetrics {
@@ -49,83 +52,168 @@ struct ContentView: View {
   }
 
   var body: some View {
+    var view: AnyView = AnyView(baseContent)
+
+    // // 调试代码：重置为“试用进行中”状态
+    // view = AnyView(
+    //   view
+    //     .onAppear(perform: {
+    //       purchaseManager.resetLocalState()
+    //     })
+    // )
+
+    // 调试代码：重置为“试用过期”状态
+    view = AnyView(
+      view
+        .onAppear(perform: {
+          purchaseManager.simulateTrialExpiration()
+        })
+    )
+
+    view = AnyView(
+      view.onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in
+        handleDropProviders(providers)
+      }
+    )
+
+    view = AnyView(
+      view.safeAreaInset(edge: .bottom, spacing: 0) {
+        trialBannerInset
+      }
+    )
+
+    view = AnyView(
+      view
+        .animation(.easeInOut(duration: 0.25), value: purchaseManager.state)
+        .animation(.easeInOut(duration: 0.25), value: purchaseManager.isTrialBannerDismissed)
+    )
+
+    view = AnyView(
+      view
+        .onChange(of: imageURLs) { _, newURLs in
+          updateSidebarVisibility(for: newURLs)
+        }
+        .onChange(of: selectedImageURL) { _, newURL in
+          handleSelectionChange(newURL)
+        }
+        .onChange(of: purchaseManager.state) { _, _ in
+          if !purchaseManager.isEntitled {
+            withAnimation(Motion.Anim.standard) {
+              isCropping = false
+            }
+            showingAddCustomRatio = false
+          }
+        }
+    )
+
+    view = AnyView(
+      view
+        .sheet(isPresented: $showingAddCustomRatio) {
+          AddCustomRatioSheet { ratio in
+            if !isCropping {
+              isCropping = true
+            }
+            cropAspect = .fixed(ratio)
+          }
+          .environmentObject(appSettings)
+        }
+        .sheet(item: $upgradePromptContext) { context in
+          UpgradePromptSheet(
+            context: context,
+            onConfirmPurchase: {
+              startPurchaseFlow()
+            },
+            onCancel: {
+              upgradePromptContext = nil
+            }
+          )
+        }
+    )
+
+    view = AnyView(
+      view
+        .onKeyPress { press in
+          let handled = handleKeyPress(press)
+          return handled ? .handled : .ignored
+        }
+        .focusable()
+        .focused($isFocused)
+        .onAppear(perform: ensureInitialFocus)
+        .onTapGesture { isFocused = true }
+    )
+
+    view = AnyView(
+      view
+        .onReceive(NotificationCenter.default.publisher(for: .openFileOrFolderRequested)) { _ in
+          openFileOrFolder()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .refreshRequested)) { _ in
+          refreshCurrentInputs()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openFolderURLRequested)) { notif in
+          guard let url = notif.object as? URL else { return }
+          Task {
+            let normalized = [url.standardizedFileURL]
+            let uniqueSorted = await FileOpenService.discover(from: normalized, recordRecents: false)
+            let batch = ImageBatch(inputs: normalized, imageURLs: uniqueSorted)
+            await MainActor.run {
+              applyImageBatch(batch)
+            }
+          }
+        }
+    )
+
+    view = AnyView(
+      view
+        .onReceive(NotificationCenter.default.publisher(for: .rotateCCWRequested)) { _ in
+          performIfEntitled(.transform) {
+            imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
+          }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .rotateCWRequested)) { _ in
+          performIfEntitled(.transform) {
+            imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
+          }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorHRequested)) { _ in
+          performIfEntitled(.transform) {
+            imageTransform.mirrorH.toggle()
+          }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mirrorVRequested)) { _ in
+          performIfEntitled(.transform) {
+            imageTransform.mirrorV.toggle()
+          }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .resetTransformRequested)) { _ in
+          imageTransform = .identity
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .cropRectPrepared)) { notif in
+          if let rectVal = notif.userInfo?["rect"] as? NSValue {
+            handleCropRectPrepared(rectVal.rectValue)
+          }
+        }
+    )
+
+    view = AnyView(
+      view
+        .toolbar { toolbarContent }
+        .alert(item: $alertContent) { alertData in
+          Alert(
+            title: Text(alertData.title),
+            message: Text(alertData.message),
+            dismissButton: .default(Text("ok_button".localized))
+          )
+        }
+    )
+
+    return view
+  }
+
+  private var baseContent: some View {
     ZStack {
       navigationLayout
       dropHighlightOverlay
-    }
-    .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in
-      handleDropProviders(providers)
-    }
-    .onChange(of: imageURLs) { _, newURLs in
-      updateSidebarVisibility(for: newURLs)
-    }
-    .onChange(of: selectedImageURL) { _, newURL in
-      handleSelectionChange(newURL)
-    }
-    .sheet(isPresented: $showingAddCustomRatio) {
-      AddCustomRatioSheet { ratio in
-        if !isCropping {
-          isCropping = true
-        }
-        cropAspect = .fixed(ratio)
-      }
-      .environmentObject(appSettings)
-    }
-    .onKeyPress { press in
-      let handled = handleKeyPress(press)
-      return handled ? .handled : .ignored
-    }
-    .focusable()
-    .focused($isFocused)
-    .onAppear(perform: ensureInitialFocus)
-    .onTapGesture { isFocused = true }
-    .onReceive(NotificationCenter.default.publisher(for: .openFileOrFolderRequested)) { _ in
-      openFileOrFolder()
-    }
-    .onReceive(NotificationCenter.default.publisher(for: .refreshRequested)) { _ in
-      refreshCurrentInputs()
-    }
-    .onReceive(NotificationCenter.default.publisher(for: .openFolderURLRequested)) { notif in
-      guard let url = notif.object as? URL else { return }
-      Task {
-        let normalized = [url.standardizedFileURL]
-        let uniqueSorted = await FileOpenService.discover(from: normalized, recordRecents: false)
-        let batch = ImageBatch(inputs: normalized, imageURLs: uniqueSorted)
-        await MainActor.run {
-          applyImageBatch(batch)
-        }
-      }
-    }
-    .onReceive(NotificationCenter.default.publisher(for: .rotateCCWRequested)) { _ in
-      imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
-    }
-    .onReceive(NotificationCenter.default.publisher(for: .rotateCWRequested)) { _ in
-      imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
-    }
-    .onReceive(NotificationCenter.default.publisher(for: .mirrorHRequested)) { _ in
-      imageTransform.mirrorH.toggle()
-    }
-    .onReceive(NotificationCenter.default.publisher(for: .mirrorVRequested)) { _ in
-      imageTransform.mirrorV.toggle()
-    }
-    .onReceive(NotificationCenter.default.publisher(for: .resetTransformRequested)) { _ in
-      imageTransform = .identity
-    }
-    .onReceive(NotificationCenter.default.publisher(for: .cropRectPrepared)) { notif in
-      if let rectVal = notif.userInfo?["rect"] as? NSValue {
-        handleCropRectPrepared(rectVal.rectValue)
-      }
-    }
-    .toolbar { toolbarContent }
-    .alert(
-      "exif_loading_error_title".localized,
-      isPresented: $showingExifError
-    ) {
-      Button("ok_button".localized, role: .cancel) {}
-    } message: {
-      if let errorMessage = exifErrorMessage {
-        Text(errorMessage)
-      }
     }
   }
 
@@ -185,6 +273,50 @@ struct ContentView: View {
       DropOverlay()
         .transition(.opacity.animation(Motion.Anim.medium))
         .allowsHitTesting(false)
+    }
+  }
+
+  @ViewBuilder
+  private var trialBannerInset: some View {
+    if purchaseManager.isTrialBannerDismissed {
+      EmptyView()
+    } else {
+      switch purchaseManager.state {
+      case let .trial(endDate):
+        HStack {
+          Spacer()
+          TrialStatusBanner(endDate: endDate) {
+            withAnimation {
+              purchaseManager.dismissTrialBanner()
+            }
+          }
+          .frame(maxWidth: 360)
+          Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 20)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+      case .trialExpired:
+        HStack {
+          Spacer()
+          TrialExpiredBanner(
+            onPurchase: { requestUpgrade(.purchase) },
+            onRestore: { startRestoreFlow() },
+            onDismiss: {
+              withAnimation {
+                purchaseManager.dismissTrialBanner()
+              }
+            }
+          )
+          .frame(maxWidth: 520)
+          Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 20)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+      case .unknown, .purchased:
+        EmptyView()
+      }
     }
   }
 
@@ -257,7 +389,9 @@ struct ContentView: View {
 
       ToolbarItem {
         Button {
-          imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
+          performIfEntitled(.transform) {
+            imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
+          }
         } label: {
           Label("rotate_ccw_button".localized, systemImage: "rotate.left")
         }
@@ -266,7 +400,9 @@ struct ContentView: View {
 
       ToolbarItem {
         Button {
-          imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
+          performIfEntitled(.transform) {
+            imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
+          }
         } label: {
           Label("rotate_cw_button".localized, systemImage: "rotate.right")
         }
@@ -275,7 +411,9 @@ struct ContentView: View {
 
       ToolbarItem {
         Button {
-          imageTransform.mirrorH.toggle()
+          performIfEntitled(.transform) {
+            imageTransform.mirrorH.toggle()
+          }
         } label: {
           Label("mirror_horizontal_button".localized, systemImage: "arrow.left.and.right")
         }
@@ -284,7 +422,9 @@ struct ContentView: View {
 
       ToolbarItem {
         Button {
-          imageTransform.mirrorV.toggle()
+          performIfEntitled(.transform) {
+            imageTransform.mirrorV.toggle()
+          }
         } label: {
           Label("mirror_vertical_button".localized, systemImage: "arrow.up.and.down")
         }
@@ -293,10 +433,12 @@ struct ContentView: View {
 
       ToolbarItem {
         Button {
-          withAnimation(Motion.Anim.standard) {
-            isCropping.toggle()
-            if !isCropping {
-              cropAspect = .freeform
+          performIfEntitled(.crop) {
+            withAnimation(Motion.Anim.standard) {
+              isCropping.toggle()
+              if !isCropping {
+                cropAspect = .freeform
+              }
             }
           }
         } label: {
@@ -332,8 +474,10 @@ struct ContentView: View {
   /// 显示图片的 exif 信息
   private func showExifInfo() {
     guard let currentURL = selectedImageURL else {
-      exifErrorMessage = "exif_no_image_selected".localized
-      showingExifError = true
+      alertContent = AlertContent(
+        title: "exif_loading_error_title".localized,
+        message: "exif_no_image_selected".localized
+      )
       return
     }
 
@@ -353,21 +497,27 @@ struct ContentView: View {
       } catch ExifExtractionError.failedToCreateImageSource {
         await MainActor.run {
           self.isLoadingExif = false
-          self.exifErrorMessage = "exif_file_read_error".localized
-          self.showingExifError = true
+          self.alertContent = AlertContent(
+            title: "exif_loading_error_title".localized,
+            message: "exif_file_read_error".localized
+          )
         }
       } catch ExifExtractionError.failedToExtractProperties {
         await MainActor.run {
           self.isLoadingExif = false
-          self.exifErrorMessage = "exif_metadata_extract_error".localized
-          self.showingExifError = true
+          self.alertContent = AlertContent(
+            title: "exif_loading_error_title".localized,
+            message: "exif_metadata_extract_error".localized
+          )
         }
       } catch {
         await MainActor.run {
           self.isLoadingExif = false
           // 使用本地化的通用错误提示
-          self.exifErrorMessage = "exif_unexpected_error".localized
-          self.showingExifError = true
+          self.alertContent = AlertContent(
+            title: "exif_loading_error_title".localized,
+            message: "exif_unexpected_error".localized
+          )
         }
       }
     }
@@ -405,6 +555,11 @@ struct ContentView: View {
 
 // MARK: - Helpers
 extension ContentView {
+  @MainActor
+  func presentAlert(_ content: AlertContent) {
+    alertContent = content
+  }
+
   @MainActor
   private func applyImageBatch(_ batch: ImageBatch, preserveSelection selection: URL? = nil, previouslySelectedIndex: Int? = nil) {
     currentSourceInputs = batch.inputs
@@ -515,5 +670,7 @@ extension ContentView {
 // DropOverlay extracted to Pixo/Views/DropOverlay.swift
 
 #Preview {
-  ContentView().environmentObject(AppSettings())
+  ContentView()
+    .environmentObject(AppSettings())
+    .environmentObject(PurchaseManager())
 }

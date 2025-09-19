@@ -109,6 +109,7 @@ struct AppCommands: Commands {
       }
       .keyboardShortcut(appSettings.resetTransformBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.resetTransformModifierKey))
     }
+
   }
 
   // Convert our ModifierKey to SwiftUI EventModifiers
