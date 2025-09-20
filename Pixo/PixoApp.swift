@@ -12,7 +12,17 @@ struct PixoApp: App {
   // 创建全局设置管理器
   @StateObject private var appSettings = AppSettings()
   // 购买与试用状态管理器
-  @StateObject private var purchaseManager = PurchaseManager()
+  @StateObject private var purchaseManager: PurchaseManager
+
+  init() {
+    let sharedSecret = SecretsProvider.purchaseSharedSecret()
+    #if DEBUG
+    if sharedSecret == nil {
+      print("[PixoApp] 未找到 IAP 共享密钥，将仅依赖设备收据与本地状态。")
+    }
+    #endif
+    _purchaseManager = StateObject(wrappedValue: PurchaseManager(sharedSecret: sharedSecret))
+  }
 
   var body: some Scene {
     WindowGroup {

@@ -54,6 +54,8 @@ struct ContentView: View {
   var body: some View {
     var view: AnyView = AnyView(baseContent)
 
+    #if DEBUG
+
     // // 调试代码：重置为“试用进行中”状态
     // view = AnyView(
     //   view
@@ -63,12 +65,14 @@ struct ContentView: View {
     // )
 
     // 调试代码：重置为“试用过期”状态
-    view = AnyView(
-      view
-        .onAppear(perform: {
-          purchaseManager.simulateTrialExpiration()
-        })
-    )
+    // view = AnyView(
+    //   view
+    //     .onAppear(perform: {
+    //       purchaseManager.simulateTrialExpiration()
+    //     })
+    // )
+
+    #endif
 
     view = AnyView(
       view.onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in

@@ -59,7 +59,11 @@ final class PurchaseManager: ObservableObject {
   private let userDefaults: UserDefaults
   private let trialDuration: TimeInterval
   private let productIdentifier: String
-  private let keychainPolicy: KeychainHelper.AccessPolicy
+  private let silentKeychainPolicy: KeychainHelper.AccessPolicy = .standard
+  private let interactiveKeychainPolicy: KeychainHelper.AccessPolicy
+  private let clockSkewTolerance: TimeInterval = 5 * 60
+  private let sharedSecret: String?
+  private let receiptValidator: ReceiptValidator
   private var updatesTask: Task<Void, Never>?
 
   private enum StorageKey {
@@ -72,7 +76,7 @@ final class PurchaseManager: ObservableObject {
 
   private enum KeychainKey {
     static var service: String {
-      let base = Bundle.main.bundleIdentifier ?? "com.pixo.app"
+      let base = Bundle.main.bundleIdentifier ?? "com.soyotube.Pixo"
       return base + ".purchase"
     }
     static let licenseAccount = "full-access"
@@ -81,19 +85,19 @@ final class PurchaseManager: ObservableObject {
   init(
     trialDays: Int = 7,
     userDefaults: UserDefaults = .standard,
-    productIdentifier: String = "com.suyotube.pixo.full"
+    productIdentifier: String = "com.soyotube.Pixo.full",
+    sharedSecret: String? = nil,
+    receiptValidator: ReceiptValidator = ReceiptValidator()
   ) {
     self.trialDuration = TimeInterval(trialDays * 24 * 60 * 60)
     self.userDefaults = userDefaults
     self.productIdentifier = productIdentifier
-    self.keychainPolicy = .userPresence(prompt: "purchase_keychain_prompt".localized)
+    self.interactiveKeychainPolicy = .userPresence(prompt: "purchase_keychain_prompt".localized)
     self.isTrialBannerDismissed = userDefaults.bool(forKey: StorageKey.trialBannerDismissed)
+    self.sharedSecret = sharedSecret
+    self.receiptValidator = receiptValidator
 
-    if let cachedPurchase = loadPurchaseFromKeychain() {
-      state = .purchased(purchaseDate: cachedPurchase.purchaseDate, transactionID: cachedPurchase.transactionID)
-    } else {
-      refreshEntitlements()
-    }
+    refreshEntitlements()
 
     updatesTask = Task(priority: .background) { [weak self] in
       guard let self = self else { return }
@@ -103,6 +107,7 @@ final class PurchaseManager: ObservableObject {
     Task { @MainActor in
       await loadProduct()
       await syncCurrentEntitlements()
+      await validateReceiptIfNeeded()
     }
   }
 
@@ -130,22 +135,74 @@ final class PurchaseManager: ObservableObject {
   func refreshEntitlements(currentDate: Date = Date()) {
     defer { restoreBannerVisibilityIfNeeded() }
 
+    if var cached = loadEntitlementFromKeychain() {
+      if isClockRollbackDetected(currentDate: currentDate, cachedTimestamp: cached.lastUpdated) {
+        let fallbackEnd = cached.trialEndDate ?? cached.lastUpdated
+        let fallbackStart = cached.trialStartDate ?? fallbackEnd
+        userDefaults.set(fallbackStart, forKey: StorageKey.trialStartDate)
+        userDefaults.set(fallbackEnd, forKey: StorageKey.trialEndDate)
+        userDefaults.removeObject(forKey: StorageKey.purchaseDate)
+        userDefaults.removeObject(forKey: StorageKey.transactionID)
+        state = .trialExpired(endDate: fallbackEnd)
+        saveEntitlementToKeychain(cached)
+        return
+      }
+
+      if let purchaseDate = cached.purchaseDate {
+        let transactionID = cached.transactionID
+        userDefaults.set(purchaseDate, forKey: StorageKey.purchaseDate)
+        if let transactionID {
+          userDefaults.set(transactionID, forKey: StorageKey.transactionID)
+        } else {
+          userDefaults.removeObject(forKey: StorageKey.transactionID)
+        }
+        userDefaults.removeObject(forKey: StorageKey.trialStartDate)
+        userDefaults.removeObject(forKey: StorageKey.trialEndDate)
+        state = .purchased(purchaseDate: purchaseDate, transactionID: transactionID)
+        cached.lastUpdated = currentDate
+        saveEntitlementToKeychain(cached)
+        return
+      }
+
+      if let trialStart = cached.trialStartDate, let trialEnd = cached.trialEndDate {
+        userDefaults.set(trialStart, forKey: StorageKey.trialStartDate)
+        userDefaults.set(trialEnd, forKey: StorageKey.trialEndDate)
+        state = currentDate < trialEnd ? .trial(endDate: trialEnd) : .trialExpired(endDate: trialEnd)
+        cached.lastUpdated = currentDate
+        saveEntitlementToKeychain(cached)
+        return
+      }
+    }
+
     if let purchaseDate = userDefaults.object(forKey: StorageKey.purchaseDate) as? Date {
       let transactionID = userDefaults.string(forKey: StorageKey.transactionID)
       state = .purchased(purchaseDate: purchaseDate, transactionID: transactionID)
+      updateKeychainEntitlement { entitlement in
+        entitlement.transactionID = transactionID
+        entitlement.purchaseDate = purchaseDate
+        entitlement.trialStartDate = nil
+        entitlement.trialEndDate = nil
+      }
       return
     }
 
-    if let trialEnd = userDefaults.object(forKey: StorageKey.trialEndDate) as? Date {
-      if currentDate < trialEnd {
-        state = .trial(endDate: trialEnd)
-      } else {
-        state = .trialExpired(endDate: trialEnd)
+    if let trialStart = userDefaults.object(forKey: StorageKey.trialStartDate) as? Date,
+       let trialEnd = userDefaults.object(forKey: StorageKey.trialEndDate) as? Date {
+      state = currentDate < trialEnd ? .trial(endDate: trialEnd) : .trialExpired(endDate: trialEnd)
+      updateKeychainEntitlement { entitlement in
+        entitlement.transactionID = nil
+        entitlement.purchaseDate = nil
+        entitlement.trialStartDate = trialStart
+        entitlement.trialEndDate = trialEnd
       }
       return
     }
 
     startTrial(from: currentDate)
+  }
+
+  private func isClockRollbackDetected(currentDate: Date, cachedTimestamp: Date) -> Bool {
+    currentDate.addingTimeInterval(clockSkewTolerance) < cachedTimestamp
   }
 
   /// 如果当前状态是试用期或试用期过期，且用户之前关闭了试用提示，则恢复显示
@@ -165,18 +222,38 @@ final class PurchaseManager: ObservableObject {
   func recordPurchase(date: Date = Date(), transactionID: String?) {
     userDefaults.set(date, forKey: StorageKey.purchaseDate)
     userDefaults.set(transactionID, forKey: StorageKey.transactionID)
+    userDefaults.removeObject(forKey: StorageKey.trialStartDate)
+    userDefaults.removeObject(forKey: StorageKey.trialEndDate)
     userDefaults.set(true, forKey: StorageKey.trialBannerDismissed)
     isTrialBannerDismissed = true
     state = .purchased(purchaseDate: date, transactionID: transactionID)
 
-    let cached = CachedPurchase(transactionID: transactionID, purchaseDate: date)
-    savePurchaseToKeychain(cached)
+    updateKeychainEntitlement { entitlement in
+      entitlement.transactionID = transactionID
+      entitlement.purchaseDate = date
+      entitlement.trialStartDate = nil
+      entitlement.trialEndDate = nil
+    }
   }
 
   func revokePurchase() {
     userDefaults.removeObject(forKey: StorageKey.purchaseDate)
     userDefaults.removeObject(forKey: StorageKey.transactionID)
-    clearKeychainPurchase()
+    userDefaults.removeObject(forKey: StorageKey.trialStartDate)
+    userDefaults.removeObject(forKey: StorageKey.trialEndDate)
+    userDefaults.set(false, forKey: StorageKey.trialBannerDismissed)
+    isTrialBannerDismissed = false
+
+    updateKeychainEntitlement { entitlement in
+      entitlement.transactionID = nil
+      entitlement.purchaseDate = nil
+      if !entitlement.hasTrial {
+        let now = Date()
+        entitlement.trialStartDate = now
+        entitlement.trialEndDate = now
+      }
+    }
+
     refreshEntitlements()
   }
 
@@ -217,7 +294,24 @@ final class PurchaseManager: ObservableObject {
     do {
       try await AppStore.sync()
       await syncCurrentEntitlements()
+      await validateReceiptIfNeeded()
     } catch {
+      if let cached = loadEntitlementFromKeychain(allowUserInteraction: true),
+         let purchaseDate = cached.purchaseDate {
+        recordPurchase(date: purchaseDate, transactionID: cached.transactionID)
+        return
+      }
+      throw PurchaseManagerError.restoreFailed
+    }
+
+    if isEntitled {
+      return
+    }
+
+    if let cached = loadEntitlementFromKeychain(allowUserInteraction: true),
+       let purchaseDate = cached.purchaseDate {
+      recordPurchase(date: purchaseDate, transactionID: cached.transactionID)
+    } else {
       throw PurchaseManagerError.restoreFailed
     }
   }
@@ -236,6 +330,13 @@ final class PurchaseManager: ObservableObject {
     userDefaults.set(false, forKey: StorageKey.trialBannerDismissed)
     isTrialBannerDismissed = false
     state = .trial(endDate: trialEnd)
+
+    updateKeychainEntitlement { entitlement in
+      entitlement.transactionID = nil
+      entitlement.purchaseDate = nil
+      entitlement.trialStartDate = date
+      entitlement.trialEndDate = trialEnd
+    }
   }
 
   @MainActor
@@ -262,7 +363,7 @@ final class PurchaseManager: ObservableObject {
       await handle(transaction: transaction, shouldFinish: false)
     }
 
-    if !hasActiveEntitlement, loadPurchaseFromKeychain() == nil {
+    if !hasActiveEntitlement {
       refreshEntitlements()
     }
   }
@@ -273,6 +374,31 @@ final class PurchaseManager: ObservableObject {
       guard transaction.productID == productIdentifier else { continue }
 
       await handle(transaction: transaction, shouldFinish: true)
+    }
+  }
+
+  @MainActor
+  private func validateReceiptIfNeeded() async {
+    do {
+      guard let result = try await receiptValidator.validateReceipt(for: productIdentifier, sharedSecret: sharedSecret) else {
+        return
+      }
+
+      if case let .purchased(currentDate, currentTransaction) = state,
+         currentTransaction == result.transactionID,
+         abs(currentDate.timeIntervalSince(result.purchaseDate)) < 1 {
+        return
+      }
+
+      recordPurchase(date: result.purchaseDate, transactionID: result.transactionID)
+    } catch ReceiptValidatorError.missingReceipt {
+      #if DEBUG
+      print("Receipt validation skipped: missing receipt")
+      #endif
+    } catch {
+      #if DEBUG
+      print("Receipt validation error: \(error.localizedDescription)")
+      #endif
     }
   }
 
@@ -291,6 +417,7 @@ final class PurchaseManager: ObservableObject {
       revokePurchase()
     } else {
       recordPurchase(date: transaction.purchaseDate, transactionID: String(transaction.id))
+      await validateReceiptIfNeeded()
     }
 
     if shouldFinish {
@@ -298,14 +425,18 @@ final class PurchaseManager: ObservableObject {
     }
   }
 
-  private func savePurchaseToKeychain(_ purchase: CachedPurchase) {
+  private func saveEntitlementToKeychain(_ entitlement: CachedEntitlement) {
+    var payload = entitlement
+    payload.schemaVersion = CachedEntitlement.currentSchemaVersion
+    payload.lastUpdated = max(entitlement.lastUpdated, Date())
+
     do {
-      let data = try JSONEncoder().encode(purchase)
+      let data = try JSONEncoder().encode(payload)
       try KeychainHelper.save(
         data: data,
         service: KeychainKey.service,
         account: KeychainKey.licenseAccount,
-        policy: keychainPolicy
+        policy: silentKeychainPolicy
       )
     } catch {
       // 保底策略：忽略钥匙串错误，但保持日志便于调试
@@ -315,36 +446,69 @@ final class PurchaseManager: ObservableObject {
     }
   }
 
-  private func loadPurchaseFromKeychain() -> CachedPurchase? {
-    do {
-      guard let data = try KeychainHelper.load(
-        service: KeychainKey.service,
-        account: KeychainKey.licenseAccount,
-        policy: keychainPolicy
-      ) else {
-        return nil
-      }
-      return try JSONDecoder().decode(CachedPurchase.self, from: data)
-    } catch let error as KeychainError {
-      if case .authenticationFailed = error {
+  private func updateKeychainEntitlement(_ transform: (inout CachedEntitlement) -> Void) {
+    var entitlement = loadEntitlementFromKeychain() ?? CachedEntitlement()
+    transform(&entitlement)
+    entitlement.lastUpdated = Date()
+    saveEntitlementToKeychain(entitlement)
+  }
+
+  private func loadEntitlementFromKeychain(allowUserInteraction: Bool = false) -> CachedEntitlement? {
+    func decodeEntitlement(from data: Data) -> CachedEntitlement? {
+      do {
+        return try JSONDecoder().decode(CachedEntitlement.self, from: data)
+      } catch {
         #if DEBUG
-        print("Keychain auth cancelled: \(error.localizedDescription)")
+        print("Keychain decode error: \(error)")
         #endif
         return nil
       }
+    }
+
+    do {
+      if let data = try KeychainHelper.load(
+        service: KeychainKey.service,
+        account: KeychainKey.licenseAccount,
+        policy: silentKeychainPolicy
+      ), let entitlement = decodeEntitlement(from: data) {
+        return entitlement
+      }
+    } catch let error as KeychainError {
       #if DEBUG
-      print("Keychain load error: \(error.localizedDescription)")
+      print("Keychain silent load error: \(error.localizedDescription)")
       #endif
-      return nil
     } catch {
       #if DEBUG
-      print("Keychain load error: \(error)")
+      print("Keychain silent load error: \(error)")
       #endif
-      return nil
     }
+
+    guard allowUserInteraction else { return nil }
+
+    do {
+      if let data = try KeychainHelper.load(
+        service: KeychainKey.service,
+        account: KeychainKey.licenseAccount,
+        policy: interactiveKeychainPolicy
+      ), let entitlement = decodeEntitlement(from: data) {
+        // 成功读取后立即使用静默策略重新保存，避免以后再触发认证
+        saveEntitlementToKeychain(entitlement)
+        return entitlement
+      }
+    } catch let error as KeychainError {
+      #if DEBUG
+      print("Keychain interactive load error: \(error.localizedDescription)")
+      #endif
+    } catch {
+      #if DEBUG
+      print("Keychain interactive load error: \(error)")
+      #endif
+    }
+
+    return nil
   }
 
-  private func clearKeychainPurchase() {
+  private func clearKeychainEntitlement() {
     do {
       try KeychainHelper.delete(service: KeychainKey.service, account: KeychainKey.licenseAccount)
     } catch {
@@ -354,9 +518,73 @@ final class PurchaseManager: ObservableObject {
     }
   }
 
-  private struct CachedPurchase: Codable {
-    let transactionID: String?
-    let purchaseDate: Date
+  private struct CachedEntitlement: Codable {
+    static let currentSchemaVersion = 2
+
+    var schemaVersion: Int
+    var transactionID: String?
+    var purchaseDate: Date?
+    var trialStartDate: Date?
+    var trialEndDate: Date?
+    var lastUpdated: Date
+
+    private enum CodingKeys: String, CodingKey {
+      case schemaVersion
+      case transactionID
+      case purchaseDate
+      case trialStartDate
+      case trialEndDate
+      case lastUpdated
+    }
+
+    init(
+      transactionID: String? = nil,
+      purchaseDate: Date? = nil,
+      trialStartDate: Date? = nil,
+      trialEndDate: Date? = nil,
+      lastUpdated: Date = Date(),
+      schemaVersion: Int = CachedEntitlement.currentSchemaVersion
+    ) {
+      self.schemaVersion = schemaVersion
+      self.transactionID = transactionID
+      self.purchaseDate = purchaseDate
+      self.trialStartDate = trialStartDate
+      self.trialEndDate = trialEndDate
+      self.lastUpdated = lastUpdated
+    }
+
+    init(from decoder: Decoder) throws {
+      let container = try decoder.container(keyedBy: CodingKeys.self)
+      schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+      transactionID = try container.decodeIfPresent(String.self, forKey: .transactionID)
+      purchaseDate = try container.decodeIfPresent(Date.self, forKey: .purchaseDate)
+      trialStartDate = try container.decodeIfPresent(Date.self, forKey: .trialStartDate)
+      trialEndDate = try container.decodeIfPresent(Date.self, forKey: .trialEndDate)
+
+      if let timestamp = try container.decodeIfPresent(Date.self, forKey: .lastUpdated) {
+        lastUpdated = timestamp
+      } else if let purchaseDate {
+        // 兼容旧版本仅存储购买日期的结构
+        lastUpdated = purchaseDate
+      } else if let trialEndDate {
+        lastUpdated = trialEndDate
+      } else {
+        lastUpdated = Date()
+      }
+    }
+
+    func encode(to encoder: Encoder) throws {
+      var container = encoder.container(keyedBy: CodingKeys.self)
+      try container.encode(schemaVersion, forKey: .schemaVersion)
+      try container.encodeIfPresent(transactionID, forKey: .transactionID)
+      try container.encodeIfPresent(purchaseDate, forKey: .purchaseDate)
+      try container.encodeIfPresent(trialStartDate, forKey: .trialStartDate)
+      try container.encodeIfPresent(trialEndDate, forKey: .trialEndDate)
+      try container.encode(lastUpdated, forKey: .lastUpdated)
+    }
+
+    var hasPurchase: Bool { purchaseDate != nil }
+    var hasTrial: Bool { trialStartDate != nil && trialEndDate != nil }
   }
 
   #if DEBUG
@@ -367,6 +595,7 @@ final class PurchaseManager: ObservableObject {
     userDefaults.removeObject(forKey: StorageKey.purchaseDate)
     userDefaults.removeObject(forKey: StorageKey.transactionID)
     userDefaults.removeObject(forKey: StorageKey.trialBannerDismissed)
+    clearKeychainEntitlement()
     isTrialBannerDismissed = false
     state = .unknown
     refreshEntitlements()
@@ -380,6 +609,14 @@ final class PurchaseManager: ObservableObject {
     userDefaults.set(trialEnd, forKey: StorageKey.trialEndDate)
     userDefaults.set(false, forKey: StorageKey.trialBannerDismissed)
     isTrialBannerDismissed = false
+
+    updateKeychainEntitlement { entitlement in
+      entitlement.transactionID = nil
+      entitlement.purchaseDate = nil
+      entitlement.trialStartDate = trialStart
+      entitlement.trialEndDate = trialEnd
+    }
+
     refreshEntitlements(currentDate: referenceDate)
     restoreBannerVisibilityIfNeeded()
   }
