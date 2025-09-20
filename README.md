@@ -6,6 +6,43 @@ Pixor [`/ˈpɪksɔːr/`] 是一款 macOS 系统上的看图软件，主打简约
 
 它使用 Swift/SwiftUI 原生开发。
 
+### 开发
+#### 环境变量
+- `PIXOR_IAP_PRODUCT_ID`：覆盖默认的商品 ID。若不配置，代码会使用 SecretsProvider.defaultProductIdentifier。
+- `PIXOR_IAP_SHARED_SECRET`：用于收据验证的共享密钥。默认可为空。
+- `PIXOR_ENABLE_RECEIPT_VALIDATION`：是否启用收据校验（1 表示开启，其它或缺省表示关闭）。
+
+> 本地调试如何设置环境变量
+
+在 Xcode 中操作最方便：
+1. 选中 Scheme → Edit Scheme → “Run” → “Arguments” → 在 “Environment Variables” 区域新增上述变量。
+2. 也可以在终端运行前 `export PIXOR_IAP_PRODUCT_ID=com.soyotube.Pixor.full` 等，然后通过命令行启动 `xcodebuild` 或 `xed`。
+3. 若要模拟不同场景，可临时在 Info.plist 中添加对应键值（`PIXOR_IAP_PRODUCT_ID` 等），或调用 SecretsProvider.storePurchaseSharedSecret 写入钥匙串以便调试。
+
+> 正式发布如何设置
+
+- 商品 ID：通常保持默认值即可，除非按渠道/版本区分；可在构建脚本中通过 `xcodebuild` 的 `-scheme/-configuration` 搭配 `ENVVAR=value` 导出。
+- 共享密钥：推荐优先写入钥匙串或在 CI/CD 环境的私密变量中设置 `PIXOR_IAP_SHARED_SECRET`，避免直接硬编码在工程里。
+- 收据验证开关：根据需要在打包脚本里 `export PIXOR_ENABLE_RECEIPT_VALIDATION=1`，未准备好共享密钥时保持关闭。
+
+一般做法是在 CI/CD 管线或本地打包脚本中导出这些环境变量，例如：
+``` bash
+export PIXOR_IAP_PRODUCT_ID="com.soyotube.Pixor.full"
+export PIXOR_IAP_SHARED_SECRET="$APP_SPECIFIC_SECRET"
+export PIXOR_ENABLE_RECEIPT_VALIDATION=1   # 若暂不启用就省略
+xcodebuild -scheme Pixor -configuration Release …
+```
+
+这样开发调试、测试和正式发布都能按需切换，而本地缺省逻辑也会自动回退到默认值或钥匙串配置，无需频繁改代码。
+
+### 打包
+- 在 .env.local 文件中配置环境变量
+- 依次执行以下命令：
+``` bash
+chmod +x scripts/build_release.sh # 给脚本执行权限（只需运行一次）
+./scripts/build_release.sh Release Pixor
+```
+
 ### 🕒 计划清单
 - [x] 鼠标按住左键移动图片
 - [x] 图片缩放大小限制

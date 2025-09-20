@@ -284,7 +284,7 @@
 "trial_banner_dismiss" = "暂时隐藏试用提示";
 
 "trial_expired_title" = "试用已结束";
-"trial_expired_subtitle" = "购买完整版以继续使用编辑和转换功能";
+"trial_expired_subtitle" = "一次性购买即可永久解锁 Pixor。之前买过？点击“恢复购买”即可无须再次付费。";
 "trial_expired_dismiss" = "暂时隐藏解锁提示";
 "unlock_alert_title" = "解锁完整版";
 "unlock_alert_body_transform" = "试用期已结束，请购买完整版以继续使用旋转、翻转等编辑功能。";
@@ -293,7 +293,7 @@
 "unlock_alert_cancel" = "稍后再说";
 
 "purchase_section_title" = "许可证与购买";
-"purchase_section_description" = "管理试用状态、购买完整版或恢复先前购买。";
+"purchase_section_description" = "管理试用状态、购买完整版或恢复先前购买。若已在其他设备购买，可直接点击“恢复购买”重新启用，无需再次付费。";
 "purchase_status_trial_prefix" = "当前状态：试用中";
 "purchase_status_expired" = "当前状态：试用已结束";
 "purchase_status_purchased" = "当前状态：已购买完整版";

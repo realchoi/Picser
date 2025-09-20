@@ -17,6 +17,13 @@ enum SecretsProvider {
     static let iapSharedSecretAccount = "iap-shared-secret"
   }
 
+  private enum InfoKey {
+    static let sharedSecret = "PIXOR_IAP_SHARED_SECRET"
+    static let primaryProductIdentifier = "PIXOR_IAP_PRODUCT_ID"
+  }
+
+  static let defaultProductIdentifier = "com.soyotube.Pixor.full"
+
   /// 读取 App Store Connect 中配置的共享密钥。
   /// 加载顺序：钥匙串 → 环境变量 → Info.plist（或自定义配置文件）。
   static func purchaseSharedSecret() -> String? {
@@ -24,15 +31,29 @@ enum SecretsProvider {
       return keychainSecret
     }
 
-    if let envSecret = ProcessInfo.processInfo.environment["PIXO_IAP_SHARED_SECRET"], !envSecret.isEmpty {
+    if let envSecret = ProcessInfo.processInfo.environment["PIXOR_IAP_SHARED_SECRET"], !envSecret.isEmpty {
       return envSecret
     }
 
-    if let infoSecret = Bundle.main.object(forInfoDictionaryKey: "PIXO_IAP_SHARED_SECRET") as? String, !infoSecret.isEmpty {
+    if let infoSecret = Bundle.main.object(forInfoDictionaryKey: InfoKey.sharedSecret) as? String, !infoSecret.isEmpty {
       return infoSecret
     }
 
     return nil
+  }
+
+  /// 读取主要的 IAP 产品标识。加载顺序：环境变量 → Info.plist → 默认值。
+  static func purchaseProductIdentifier() -> String {
+    if let envProduct = ProcessInfo.processInfo.environment["PIXOR_IAP_PRODUCT_ID"], !envProduct.isEmpty {
+      return envProduct
+    }
+
+    if let infoProduct = Bundle.main.object(forInfoDictionaryKey: InfoKey.primaryProductIdentifier) as? String,
+       !infoProduct.isEmpty {
+      return infoProduct
+    }
+
+    return defaultProductIdentifier
   }
 
   /// 调试用途：写入共享密钥到钥匙串，方便本地测试。

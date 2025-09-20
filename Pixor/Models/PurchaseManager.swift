@@ -60,10 +60,10 @@ final class PurchaseManager: ObservableObject {
   private let trialDuration: TimeInterval
   private let productIdentifier: String
   private let silentKeychainPolicy: KeychainHelper.AccessPolicy = .standard
-  private let interactiveKeychainPolicy: KeychainHelper.AccessPolicy
   private let clockSkewTolerance: TimeInterval = 5 * 60
+  private let isReceiptValidationEnabled: Bool
   private let sharedSecret: String?
-  private let receiptValidator: ReceiptValidator
+  private let receiptValidator: ReceiptValidator?
   private var updatesTask: Task<Void, Never>?
 
   private enum StorageKey {
@@ -85,17 +85,22 @@ final class PurchaseManager: ObservableObject {
   init(
     trialDays: Int = 7,
     userDefaults: UserDefaults = .standard,
-    productIdentifier: String = "com.soyotube.Pixor.full",
+    productIdentifier: String = SecretsProvider.defaultProductIdentifier,
+    enableReceiptValidation: Bool = false,
     sharedSecret: String? = nil,
-    receiptValidator: ReceiptValidator = ReceiptValidator()
+    receiptValidator: ReceiptValidator? = nil
   ) {
     self.trialDuration = TimeInterval(trialDays * 24 * 60 * 60)
     self.userDefaults = userDefaults
     self.productIdentifier = productIdentifier
-    self.interactiveKeychainPolicy = .userPresence(prompt: "purchase_keychain_prompt".localized)
     self.isTrialBannerDismissed = userDefaults.bool(forKey: StorageKey.trialBannerDismissed)
+    self.isReceiptValidationEnabled = enableReceiptValidation
     self.sharedSecret = sharedSecret
-    self.receiptValidator = receiptValidator
+    if enableReceiptValidation {
+      self.receiptValidator = receiptValidator ?? ReceiptValidator()
+    } else {
+      self.receiptValidator = nil
+    }
 
     refreshEntitlements()
 
@@ -296,7 +301,7 @@ final class PurchaseManager: ObservableObject {
       await syncCurrentEntitlements()
       await validateReceiptIfNeeded()
     } catch {
-      if let cached = loadEntitlementFromKeychain(allowUserInteraction: true),
+      if let cached = loadEntitlementFromKeychain(),
          let purchaseDate = cached.purchaseDate {
         recordPurchase(date: purchaseDate, transactionID: cached.transactionID)
         return
@@ -308,7 +313,7 @@ final class PurchaseManager: ObservableObject {
       return
     }
 
-    if let cached = loadEntitlementFromKeychain(allowUserInteraction: true),
+    if let cached = loadEntitlementFromKeychain(),
        let purchaseDate = cached.purchaseDate {
       recordPurchase(date: purchaseDate, transactionID: cached.transactionID)
     } else {
@@ -379,8 +384,10 @@ final class PurchaseManager: ObservableObject {
 
   @MainActor
   private func validateReceiptIfNeeded() async {
+    guard isReceiptValidationEnabled, let validator = receiptValidator else { return }
+
     do {
-      guard let result = try await receiptValidator.validateReceipt(for: productIdentifier, sharedSecret: sharedSecret) else {
+      guard let result = try await validator.validateReceipt(for: productIdentifier, sharedSecret: sharedSecret) else {
         return
       }
 
@@ -453,55 +460,22 @@ final class PurchaseManager: ObservableObject {
     saveEntitlementToKeychain(entitlement)
   }
 
-  private func loadEntitlementFromKeychain(allowUserInteraction: Bool = false) -> CachedEntitlement? {
-    func decodeEntitlement(from data: Data) -> CachedEntitlement? {
-      do {
-        return try JSONDecoder().decode(CachedEntitlement.self, from: data)
-      } catch {
-        #if DEBUG
-        print("Keychain decode error: \(error)")
-        #endif
-        return nil
-      }
-    }
-
+  private func loadEntitlementFromKeychain() -> CachedEntitlement? {
     do {
       if let data = try KeychainHelper.load(
         service: KeychainKey.service,
         account: KeychainKey.licenseAccount,
         policy: silentKeychainPolicy
-      ), let entitlement = decodeEntitlement(from: data) {
-        return entitlement
+      ) {
+        return try JSONDecoder().decode(CachedEntitlement.self, from: data)
       }
     } catch let error as KeychainError {
       #if DEBUG
-      print("Keychain silent load error: \(error.localizedDescription)")
+      print("Keychain load error: \(error.localizedDescription)")
       #endif
     } catch {
       #if DEBUG
-      print("Keychain silent load error: \(error)")
-      #endif
-    }
-
-    guard allowUserInteraction else { return nil }
-
-    do {
-      if let data = try KeychainHelper.load(
-        service: KeychainKey.service,
-        account: KeychainKey.licenseAccount,
-        policy: interactiveKeychainPolicy
-      ), let entitlement = decodeEntitlement(from: data) {
-        // 成功读取后立即使用静默策略重新保存，避免以后再触发认证
-        saveEntitlementToKeychain(entitlement)
-        return entitlement
-      }
-    } catch let error as KeychainError {
-      #if DEBUG
-      print("Keychain interactive load error: \(error.localizedDescription)")
-      #endif
-    } catch {
-      #if DEBUG
-      print("Keychain interactive load error: \(error)")
+      print("Keychain load error: \(error)")
       #endif
     }
 

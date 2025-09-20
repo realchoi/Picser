@@ -16,12 +16,15 @@ struct PixorApp: App {
 
   init() {
     let sharedSecret = SecretsProvider.purchaseSharedSecret()
-    #if DEBUG
-    if sharedSecret == nil {
-      print("[PixoApp] 未找到 IAP 共享密钥，将仅依赖设备收据与本地状态。")
-    }
-    #endif
-    _purchaseManager = StateObject(wrappedValue: PurchaseManager(sharedSecret: sharedSecret))
+    let productIdentifier = SecretsProvider.purchaseProductIdentifier()
+    let enableReceiptValidation = ProcessInfo.processInfo.environment["PIXOR_ENABLE_RECEIPT_VALIDATION"] == "1"
+    _purchaseManager = StateObject(
+      wrappedValue: PurchaseManager(
+        productIdentifier: productIdentifier,
+        enableReceiptValidation: enableReceiptValidation,
+        sharedSecret: sharedSecret
+      )
+    )
   }
 
   var body: some Scene {

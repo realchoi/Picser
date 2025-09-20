@@ -284,7 +284,7 @@
 "trial_banner_dismiss" = "Hide trial banner temporarily";
 
 "trial_expired_title" = "Trial ended";
-"trial_expired_subtitle" = "Purchase the full version to keep editing and converting";
+"trial_expired_subtitle" = "One-time purchase unlocks Pixor forever. Already bought? Restore your access without paying again.";
 "trial_expired_dismiss" = "Hide upgrade reminder";
 "unlock_alert_title" = "Unlock Full Version";
 "unlock_alert_body_transform" = "Your trial has ended. Purchase the full version to continue using rotate and flip tools.";
@@ -293,7 +293,7 @@
 "unlock_alert_cancel" = "Maybe later";
 
 "purchase_section_title" = "License & Purchase";
-"purchase_section_description" = "Manage your trial status, unlock the full version, or restore a previous purchase.";
+"purchase_section_description" = "Manage your trial status, unlock the full version, or restore a previous purchase. If you already bought Pixor on another device, tap Restore to enable it again without paying.";
 "purchase_status_trial_prefix" = "Current status: Trial";
 "purchase_status_expired" = "Current status: Trial ended";
 "purchase_status_purchased" = "Current status: Full version unlocked";
