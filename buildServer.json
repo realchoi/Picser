@@ -12,8 +12,8 @@
 	"argv": [
 		"/opt/homebrew/bin/xcode-build-server"
 	],
-	"workspace": "/Volumes/pssd/Users/eric/01.HelloWord/05.macos/Pixo/Pixo.xcodeproj/project.xcworkspace",
-	"build_root": "/Volumes/pssd/Users/eric/Library/Developer/Xcode/DerivedData/Pixo-hhkxrpoxpmlbqfborbgrammcheux",
-	"scheme": "Pixo",
+	"workspace": "/Volumes/pssd/Users/eric/01.HelloWord/05.macos/Pixor/Pixor.xcodeproj/project.xcworkspace",
+	"build_root": "/Volumes/pssd/Users/eric/Library/Developer/Xcode/DerivedData/Pixor-hhkxrpoxpmlbqfborbgrammcheux",
+	"scheme": "Pixor",
 	"kind": "xcode"
 }
