@@ -5,6 +5,7 @@
 //  Created by Eric Cai on 2025/8/18.
 //
 
+import AppKit
 import Foundation
 import ImageIO
 import SwiftUI
@@ -16,7 +17,6 @@ struct ContentView: View {
   @State private var imageURLs: [URL] = []  // 文件夹中所有图片的 URL 列表
   @State private var currentSourceInputs: [URL] = []  // 当前图片列表的来源 URL（文件或文件夹）
   @State private var selectedImageURL: URL?  // 当前选中的图片 URL
-  @FocusState private var isFocused: Bool  // 焦点状态管理
   @State private var sidebarVisibility: NavigationSplitViewVisibility = .detailOnly  // 侧边栏可见性控制
 
   // EXIF 信息相关状态
@@ -37,6 +37,9 @@ struct ContentView: View {
   @State private var customRatioW: String = "1"
   @State private var customRatioH: String = "1"
 
+  // 窗口引用（用于多窗口行为隔离）
+  @State private var hostWindow: NSWindow?
+
   // 购买解锁引导
   @State var upgradePromptContext: UpgradePromptContext?
 
@@ -49,6 +52,17 @@ struct ContentView: View {
     static let sidebarMinWidth: CGFloat = 150
     static let sidebarIdealWidth: CGFloat = 220
     static let sidebarMaxWidth: CGFloat = 360
+  }
+
+  private var keyboardShortcutHandler: KeyboardShortcutHandler {
+    KeyboardShortcutHandler(
+      appSettings: appSettings,
+      imageURLs: { imageURLs },
+      selectedImageURL: { selectedImageURL },
+      setSelectedImage: { selectedImageURL = $0 },
+      showingExifInfo: { showingExifInfo },
+      setShowingExifInfo: { showingExifInfo = $0 }
+    )
   }
 
   var body: some View {
@@ -136,25 +150,16 @@ struct ContentView: View {
 
     view = AnyView(
       view
-        .onKeyPress { press in
-          let handled = handleKeyPress(press)
-          return handled ? .handled : .ignored
-        }
-        .focusable()
-        .focused($isFocused)
-        .onAppear(perform: ensureInitialFocus)
-        .onTapGesture { isFocused = true }
-    )
-
-    view = AnyView(
-      view
         .onReceive(NotificationCenter.default.publisher(for: .openFileOrFolderRequested)) { _ in
+          guard isActiveWindow else { return }
           openFileOrFolder()
         }
         .onReceive(NotificationCenter.default.publisher(for: .refreshRequested)) { _ in
+          guard isActiveWindow else { return }
           refreshCurrentInputs()
         }
         .onReceive(NotificationCenter.default.publisher(for: .openFolderURLRequested)) { notif in
+          guard isActiveWindow else { return }
           guard let url = notif.object as? URL else { return }
           Task {
             let normalized = [url.standardizedFileURL]
@@ -170,29 +175,35 @@ struct ContentView: View {
     view = AnyView(
       view
         .onReceive(NotificationCenter.default.publisher(for: .rotateCCWRequested)) { _ in
+          guard isActiveWindow else { return }
           performIfEntitled(.transform) {
             imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
           }
         }
         .onReceive(NotificationCenter.default.publisher(for: .rotateCWRequested)) { _ in
+          guard isActiveWindow else { return }
           performIfEntitled(.transform) {
             imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
           }
         }
         .onReceive(NotificationCenter.default.publisher(for: .mirrorHRequested)) { _ in
+          guard isActiveWindow else { return }
           performIfEntitled(.transform) {
             imageTransform.mirrorH.toggle()
           }
         }
         .onReceive(NotificationCenter.default.publisher(for: .mirrorVRequested)) { _ in
+          guard isActiveWindow else { return }
           performIfEntitled(.transform) {
             imageTransform.mirrorV.toggle()
           }
         }
         .onReceive(NotificationCenter.default.publisher(for: .resetTransformRequested)) { _ in
+          guard isActiveWindow else { return }
           imageTransform = .identity
         }
         .onReceive(NotificationCenter.default.publisher(for: .cropRectPrepared)) { notif in
+          guard isActiveWindow else { return }
           if let rectVal = notif.userInfo?["rect"] as? NSValue {
             handleCropRectPrepared(rectVal.rectValue)
           }
@@ -209,6 +220,22 @@ struct ContentView: View {
             dismissButton: .default(Text("ok_button".localized))
           )
         }
+    )
+
+    view = AnyView(
+      view
+        .background(
+          KeyboardShortcutBridge {
+            { event in
+              keyboardShortcutHandler.handle(event: event)
+            }
+          }
+        )
+        .background(
+          WindowTrackerView { window in
+            hostWindow = window
+          }
+        )
     )
 
     return view
@@ -246,7 +273,6 @@ struct ContentView: View {
   private var sidebarColumn: some View {
     SidebarView(imageURLs: imageURLs, selectedImageURL: selectedImageURL) { url in
       selectedImageURL = url
-      DispatchQueue.main.async { isFocused = true }
     }
     .frame(
       minWidth: LayoutMetrics.sidebarMinWidth,
@@ -331,14 +357,7 @@ struct ContentView: View {
   private func handleSelectionChange(_ newURL: URL?) {
     guard let newURL else { return }
     prefetchNeighbors(around: newURL)
-    isFocused = true
     imageTransform = .identity
-  }
-
-  private func ensureInitialFocus() {
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-      isFocused = true
-    }
   }
 
   @ToolbarContentBuilder
@@ -460,6 +479,11 @@ struct ContentView: View {
         applyImageBatch(batch)
       }
     }
+  }
+
+  private var isActiveWindow: Bool {
+    guard let window = hostWindow else { return true }
+    return window.isKeyWindow
   }
 
   /// 处理拖放进窗口的文件/文件夹 URL 提供者
@@ -615,52 +639,6 @@ extension ContentView {
     ImageLoader.shared.prefetch(urls: neighbors)
   }
 
-  /// 处理键盘按键事件，实现图片切换功能
-  /// 返回是否已处理，未处理则让系统/菜单接管（避免拦截快捷键）。
-  private func handleKeyPress(_ press: KeyPress) -> Bool {
-    guard !imageURLs.isEmpty, let currentURL = selectedImageURL else {
-      // print("handleKeyPress: 图片列表为空或没有选中的图片")
-      return false
-    }
-
-    let currentIndex = imageURLs.firstIndex(of: currentURL) ?? 0
-    let totalCount = imageURLs.count
-
-    // print("handleKeyPress: 按键 \(press.key), 当前索引: \(currentIndex), 总数: \(totalCount)")
-
-    // ESC 关闭 EXIF 浮动面板
-    if press.key == .escape {
-      if showingExifInfo { showingExifInfo = false }
-      // 保持焦点
-      DispatchQueue.main.async { isFocused = true }
-      return true
-    }
-
-    if let newIndex = ImageNavigation.nextIndex(
-      for: press.key,
-      mode: appSettings.imageNavigationKey,
-      currentIndex: currentIndex,
-      totalCount: totalCount
-    ) {
-      navigateToImage(at: newIndex)
-      // 确保按键后焦点保持
-      DispatchQueue.main.async { isFocused = true }
-      return true
-    }
-
-    // 未处理的按键不拦截，让菜单快捷键（如 ⌥+数字）正常生效
-    return false
-  }
-
-  /// 导航到指定索引的图片
-  private func navigateToImage(at index: Int) {
-    guard index >= 0 && index < imageURLs.count else {
-      print("navigateToImage: 无效索引 \(index), 总数: \(imageURLs.count)")
-      return
-    }
-    // print("navigateToImage: 切换到索引 \(index), URL: \(imageURLs[index].lastPathComponent)")
-    selectedImageURL = imageURLs[index]
-  }
 }
 
 #Preview {
