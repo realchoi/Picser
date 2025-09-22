@@ -11,12 +11,14 @@ import AppKit
 final class KeyboardShortcutManager {
   static let shared = KeyboardShortcutManager()
 
-  private struct Entry {
+  private struct WindowInfo {
     weak var window: NSWindow?
     var handler: (NSEvent) -> Bool
+    let token: UUID
   }
 
-  private var entries: [UUID: Entry] = [:]
+  private var windows: [ObjectIdentifier: WindowInfo] = [:]
+  private var tokenLookup: [UUID: ObjectIdentifier] = [:]
   private var monitor: Any?
   private var observers: [NSObjectProtocol] = []
   private weak var activeWindow: NSWindow?
@@ -36,8 +38,23 @@ final class KeyboardShortcutManager {
   @discardableResult
   func register(window: NSWindow, handler: @escaping (NSEvent) -> Bool) -> UUID {
     cleanupEntries()
+    let id = ObjectIdentifier(window)
+
+    if var info = windows[id] {
+      info.window = window
+      info.handler = handler
+      windows[id] = info
+      tokenLookup[info.token] = id
+      if window === NSApp.keyWindow {
+        activeWindow = window
+      }
+      startMonitorIfNeeded()
+      return info.token
+    }
+
     let token = UUID()
-    entries[token] = Entry(window: window, handler: handler)
+    windows[id] = WindowInfo(window: window, handler: handler, token: token)
+    tokenLookup[token] = id
     if window === NSApp.keyWindow {
       activeWindow = window
     }
@@ -49,17 +66,20 @@ final class KeyboardShortcutManager {
   @MainActor
   func update(token: UUID, handler: @escaping (NSEvent) -> Bool) {
     cleanupEntries()
-    guard var entry = entries[token] else { return }
-    entry.handler = handler
-    entries[token] = entry
+    guard let id = tokenLookup[token], var info = windows[id] else { return }
+    info.handler = handler
+    windows[id] = info
   }
 
   /// 注销此前注册的窗口快捷键回调。
   @MainActor
   func unregister(token: UUID) {
-    entries.removeValue(forKey: token)
+    if let id = tokenLookup[token] {
+      windows.removeValue(forKey: id)
+      tokenLookup.removeValue(forKey: token)
+    }
     cleanupEntries()
-    if entries.isEmpty {
+    if windows.isEmpty {
       stopMonitor()
     }
   }
@@ -131,21 +151,17 @@ final class KeyboardShortcutManager {
   }
 
   private func handler(for window: NSWindow) -> ((NSEvent) -> Bool)? {
-    for entry in entries.values {
-      if let entryWindow = entry.window, entryWindow === window {
-        return entry.handler
-      }
-    }
-    return nil
+    let id = ObjectIdentifier(window)
+    return windows[id]?.handler
   }
 
   @MainActor
   private func removeEntries(for window: NSWindow) {
-    entries = entries.filter { _, entry in
-      guard let entryWindow = entry.window else { return false }
-      return entryWindow !== window
+    let id = ObjectIdentifier(window)
+    if let info = windows.removeValue(forKey: id) {
+      tokenLookup.removeValue(forKey: info.token)
     }
-    if entries.isEmpty {
+    if windows.isEmpty {
       stopMonitor()
     }
   }
@@ -165,9 +181,18 @@ final class KeyboardShortcutManager {
   }
 
   private func cleanupEntries() {
-    entries = entries.filter { _, entry in
-      guard let entryWindow = entry.window else { return false }
-      return entryWindow.isVisible
+    var toRemove: [ObjectIdentifier] = []
+    for (id, info) in windows {
+      guard info.window != nil else {
+        toRemove.append(id)
+        continue
+      }
+      tokenLookup[info.token] = id
+    }
+    for id in toRemove {
+      if let info = windows.removeValue(forKey: id) {
+        tokenLookup.removeValue(forKey: info.token)
+      }
     }
   }
 }

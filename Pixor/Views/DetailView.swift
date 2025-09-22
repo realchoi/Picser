@@ -12,6 +12,7 @@ struct DetailView: View {
   let imageURLs: [URL]
   let selectedImageURL: URL?
   let onOpen: () -> Void
+  let windowToken: UUID
   @Binding var showingExifInfo: Bool
   let exifInfo: ExifInfo?
   let transform: ImageTransform
@@ -44,6 +45,7 @@ struct DetailView: View {
             AsyncZoomableImageContainer(
               url: url,
               transform: transform,
+              windowToken: windowToken,
               isCropping: isCropping,
               cropAspect: cropAspect,
               cropControls: CropControlConfiguration(
@@ -67,7 +69,11 @@ struct DetailView: View {
                   showingAddCustomRatio = true
                 },
                 onSave: {
-                  NotificationCenter.default.post(name: .cropCommitRequested, object: nil)
+                  NotificationCenter.default.post(
+                    name: .cropCommitRequested,
+                    object: nil,
+                    userInfo: ["windowToken": windowToken]
+                  )
                 },
                 onCancel: {
                   withAnimation(Motion.Anim.standard) {

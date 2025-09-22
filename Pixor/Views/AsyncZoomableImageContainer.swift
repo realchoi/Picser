@@ -19,6 +19,7 @@ private enum DownsampleRequestConstants {
 struct AsyncZoomableImageContainer: View {
   let url: URL
   let transform: ImageTransform
+  let windowToken: UUID
   // 裁剪参数（向下传递到 ZoomableImageView）
   var isCropping: Bool = false
   var cropAspect: CropAspectOption = .freeform
@@ -45,6 +46,7 @@ struct AsyncZoomableImageContainer: View {
           ZoomableImageView(
             image: image,
             transform: transform,
+            windowToken: windowToken,
             isCropping: isCropping,
             cropAspect: cropAspect,
             cropControls: cropControls

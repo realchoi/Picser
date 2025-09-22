@@ -12,6 +12,7 @@ import SwiftUI
 struct ZoomableImageView: View {
   let image: NSImage
   let transform: ImageTransform
+  let windowToken: UUID
   // 裁剪开关与比例（默认关闭）
   var isCropping: Bool = false
   var cropAspect: CropAspectOption = .freeform
@@ -278,14 +279,18 @@ struct ZoomableImageView: View {
         // 更换比例时，保持中心点，按新比例自适应
         if isCropping { updateCropRectForAspect(in: geometry) }
       }
-      .onReceive(NotificationCenter.default.publisher(for: .cropCommitRequested)) { _ in
+      .onReceive(NotificationCenter.default.publisher(for: .cropCommitRequested)) { notif in
+        guard let token = notif.userInfo?["windowToken"] as? UUID, token == windowToken else { return }
         guard isCropping, let rect = cropRect else { return }
         let rotated = rotatedImageRect(from: rect, geometry: geometry)
         let original = mapRotatedRectToOriginal(rotated).integral
         NotificationCenter.default.post(
           name: .cropRectPrepared,
           object: nil,
-          userInfo: ["rect": NSValue(rect: original)]
+          userInfo: [
+            "rect": NSValue(rect: original),
+            "windowToken": windowToken
+          ]
         )
       }
       .onChange(of: geometry.size) { _, _ in
@@ -532,7 +537,7 @@ struct ZoomableImageView: View {
 
 #Preview {
   if let testImage = NSImage(systemSymbolName: "photo", accessibilityDescription: nil) {
-    ZoomableImageView(image: testImage, transform: .identity)
+    ZoomableImageView(image: testImage, transform: .identity, windowToken: UUID())
       .environmentObject(AppSettings())
       .frame(width: 400, height: 300)
   } else {

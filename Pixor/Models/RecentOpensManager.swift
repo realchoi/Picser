@@ -35,8 +35,6 @@ final class RecentOpensManager: ObservableObject {
   private let userDefaultsKey = "recentFolders.v1"
   private let maxCount = 10
 
-  // Keep the currently accessed URL to hold security scope while in use.
-  private var currentlyAccessedURL: URL?
 
   private init() {
     load()
@@ -107,25 +105,19 @@ final class RecentOpensManager: ObservableObject {
     }
   }
 
-  /// Clear all recent items and stop any active security scope.
+  /// Clear all recent items.
   func clear() {
-    stopAccessingCurrentIfNeeded()
     items.removeAll()
     persist()
   }
 
   /// Attempt to resolve and open the given recent item.
-  /// Posts `.openFolderURLRequested` notification on success.
-  func open(item: RecentFolderItem) {
-    guard let resolved = resolveURL(from: item) else { return }
+  /// Returns the resolved URL with security scope active when successful.
+  @discardableResult
+  func open(item: RecentFolderItem) -> URL? {
+    guard let resolved = resolveURL(from: item) else { return nil }
 
-    // Keep scope open for current folder usage
-    stopAccessingCurrentIfNeeded()
-    if resolved.startAccessingSecurityScopedResource() {
-      currentlyAccessedURL = resolved
-    }
-
-    // Move item to top and update time
+    // 将条目移动到列表顶部并更新时间戳
     if let index = items.firstIndex(where: { $0.id == item.id }) {
       var updated = items.remove(at: index)
       updated.lastOpenedAt = Date()
@@ -133,13 +125,14 @@ final class RecentOpensManager: ObservableObject {
       persist()
     }
 
-    NotificationCenter.default.post(name: .openFolderURLRequested, object: resolved)
+    return resolved
   }
 
   /// Reopen the last recent item (top of list).
-  func reopenLast() {
-    guard let first = items.first else { return }
-    open(item: first)
+  @discardableResult
+  func reopenLast() -> URL? {
+    guard let first = items.first else { return nil }
+    return open(item: first)
   }
 
   // MARK: - Helpers
@@ -186,8 +179,4 @@ final class RecentOpensManager: ObservableObject {
     }
   }
 
-  private func stopAccessingCurrentIfNeeded() {
-    currentlyAccessedURL?.stopAccessingSecurityScopedResource()
-    currentlyAccessedURL = nil
-  }
 }

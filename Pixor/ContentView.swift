@@ -12,6 +12,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
+  @State private var windowToken: UUID?
+  private let fallbackWindowToken = UUID()
   // 使用 @State 属性包装器来声明一个状态变量
   // 当这个变量改变时，SwiftUI 会自动刷新相关的视图
   @State private var imageURLs: [URL] = []  // 文件夹中所有图片的 URL 列表
@@ -36,9 +38,7 @@ struct ContentView: View {
   @State private var showingAddCustomRatio = false
   @State private var customRatioW: String = "1"
   @State private var customRatioH: String = "1"
-
-  // 窗口引用（用于多窗口行为隔离）
-  @State private var hostWindow: NSWindow?
+  @State private var securityAccess: SecurityScopedAccess?
 
   // 购买解锁引导
   @State var upgradePromptContext: UpgradePromptContext?
@@ -63,6 +63,23 @@ struct ContentView: View {
       showingExifInfo: { showingExifInfo },
       setShowingExifInfo: { showingExifInfo = $0 }
     )
+  }
+
+  private var windowCommandHandlers: WindowCommandHandlers {
+    WindowCommandHandlers(
+      openFileOrFolder: { openFileOrFolder() },
+      refresh: { refreshCurrentInputs() },
+      rotateCCW: { rotateCCW() },
+      rotateCW: { rotateCW() },
+      mirrorHorizontal: { mirrorHorizontal() },
+      mirrorVertical: { mirrorVertical() },
+      resetTransform: { resetTransform() },
+      openResolvedURL: { url in openResolvedURL(url) }
+    )
+  }
+
+  private var activeWindowToken: UUID {
+    windowToken ?? fallbackWindowToken
   }
 
   var body: some View {
@@ -150,60 +167,8 @@ struct ContentView: View {
 
     view = AnyView(
       view
-        .onReceive(NotificationCenter.default.publisher(for: .openFileOrFolderRequested)) { _ in
-          guard isActiveWindow else { return }
-          openFileOrFolder()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .refreshRequested)) { _ in
-          guard isActiveWindow else { return }
-          refreshCurrentInputs()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openFolderURLRequested)) { notif in
-          guard isActiveWindow else { return }
-          guard let url = notif.object as? URL else { return }
-          Task {
-            let normalized = [url.standardizedFileURL]
-            let uniqueSorted = await FileOpenService.discover(from: normalized, recordRecents: false)
-            let batch = ImageBatch(inputs: normalized, imageURLs: uniqueSorted)
-            await MainActor.run {
-              applyImageBatch(batch)
-            }
-          }
-        }
-    )
-
-    view = AnyView(
-      view
-        .onReceive(NotificationCenter.default.publisher(for: .rotateCCWRequested)) { _ in
-          guard isActiveWindow else { return }
-          performIfEntitled(.transform) {
-            imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
-          }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .rotateCWRequested)) { _ in
-          guard isActiveWindow else { return }
-          performIfEntitled(.transform) {
-            imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
-          }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mirrorHRequested)) { _ in
-          guard isActiveWindow else { return }
-          performIfEntitled(.transform) {
-            imageTransform.mirrorH.toggle()
-          }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mirrorVRequested)) { _ in
-          guard isActiveWindow else { return }
-          performIfEntitled(.transform) {
-            imageTransform.mirrorV.toggle()
-          }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .resetTransformRequested)) { _ in
-          guard isActiveWindow else { return }
-          imageTransform = .identity
-        }
         .onReceive(NotificationCenter.default.publisher(for: .cropRectPrepared)) { notif in
-          guard isActiveWindow else { return }
+          guard let token = notif.userInfo?["windowToken"] as? UUID, token == activeWindowToken else { return }
           if let rectVal = notif.userInfo?["rect"] as? NSValue {
             handleCropRectPrepared(rectVal.rectValue)
           }
@@ -225,17 +190,22 @@ struct ContentView: View {
     view = AnyView(
       view
         .background(
-          KeyboardShortcutBridge {
-            { event in
-              keyboardShortcutHandler.handle(event: event)
+          KeyboardShortcutBridge(
+            handlerProvider: {
+              { event in
+                keyboardShortcutHandler.handle(event: event)
+              }
+            },
+            tokenUpdate: { token in
+              windowToken = token
             }
-          }
+          )
         )
-        .background(
-          WindowTrackerView { window in
-            hostWindow = window
-          }
-        )
+    )
+
+    view = AnyView(
+      view
+        .focusedSceneValue(\.windowCommandHandlers, windowCommandHandlers)
     )
 
     return view
@@ -287,6 +257,7 @@ struct ContentView: View {
       imageURLs: imageURLs,
       selectedImageURL: selectedImageURL,
       onOpen: openFileOrFolder,
+      windowToken: activeWindowToken,
       showingExifInfo: $showingExifInfo,
       exifInfo: currentExifInfo,
       transform: imageTransform,
@@ -412,9 +383,7 @@ struct ContentView: View {
 
       ToolbarItem {
         Button {
-          performIfEntitled(.transform) {
-            imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
-          }
+          rotateCCW()
         } label: {
           Label("rotate_ccw_button".localized, systemImage: "rotate.left")
         }
@@ -423,9 +392,7 @@ struct ContentView: View {
 
       ToolbarItem {
         Button {
-          performIfEntitled(.transform) {
-            imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
-          }
+          rotateCW()
         } label: {
           Label("rotate_cw_button".localized, systemImage: "rotate.right")
         }
@@ -434,9 +401,7 @@ struct ContentView: View {
 
       ToolbarItem {
         Button {
-          performIfEntitled(.transform) {
-            imageTransform.mirrorH.toggle()
-          }
+          mirrorHorizontal()
         } label: {
           Label("mirror_horizontal_button".localized, systemImage: "arrow.left.and.right")
         }
@@ -445,9 +410,7 @@ struct ContentView: View {
 
       ToolbarItem {
         Button {
-          performIfEntitled(.transform) {
-            imageTransform.mirrorV.toggle()
-          }
+          mirrorVertical()
         } label: {
           Label("mirror_vertical_button".localized, systemImage: "arrow.up.and.down")
         }
@@ -476,14 +439,10 @@ struct ContentView: View {
     Task {
       guard let batch = await FileOpenService.openFileOrFolder() else { return }
       await MainActor.run {
+        updateSecurityAccess(using: batch.inputs)
         applyImageBatch(batch)
       }
     }
-  }
-
-  private var isActiveWindow: Bool {
-    guard let window = hostWindow else { return true }
-    return window.isKeyWindow
   }
 
   /// 处理拖放进窗口的文件/文件夹 URL 提供者
@@ -492,6 +451,7 @@ struct ContentView: View {
     Task {
       if let batch = await FileOpenService.processDropProviders(providers) {
         await MainActor.run {
+          updateSecurityAccess(using: batch.inputs)
           applyImageBatch(batch)
         }
       }
@@ -639,10 +599,77 @@ extension ContentView {
     ImageLoader.shared.prefetch(urls: neighbors)
   }
 
+  private func rotateCCW() {
+    performIfEntitled(.transform) {
+      imageTransform.rotation = imageTransform.rotation.rotated(by: -90)
+    }
+  }
+
+  private func rotateCW() {
+    performIfEntitled(.transform) {
+      imageTransform.rotation = imageTransform.rotation.rotated(by: 90)
+    }
+  }
+
+  private func mirrorHorizontal() {
+    performIfEntitled(.transform) {
+      imageTransform.mirrorH.toggle()
+    }
+  }
+
+  private func mirrorVertical() {
+    performIfEntitled(.transform) {
+      imageTransform.mirrorV.toggle()
+    }
+  }
+
+  private func resetTransform() {
+    imageTransform = .identity
+  }
+
+  private func openResolvedURL(_ url: URL) {
+    Task {
+      let directory = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
+      let access = SecurityScopedAccess(url: directory)
+      let normalized = [directory.standardizedFileURL]
+      let uniqueSorted = await FileOpenService.discover(from: normalized, recordRecents: false)
+      let batch = ImageBatch(inputs: normalized, imageURLs: uniqueSorted)
+      await MainActor.run {
+        securityAccess = access
+        applyImageBatch(batch)
+      }
+    }
+  }
+
+  private func updateSecurityAccess(using inputs: [URL]) {
+    guard let first = inputs.first else {
+      securityAccess = nil
+      return
+    }
+    let directory = first.hasDirectoryPath ? first : first.deletingLastPathComponent()
+    securityAccess = SecurityScopedAccess(url: directory)
+  }
+
 }
 
 #Preview {
   ContentView()
     .environmentObject(AppSettings())
     .environmentObject(PurchaseManager())
+}
+
+private final class SecurityScopedAccess {
+  private let url: URL
+  private let didStart: Bool
+
+  init(url: URL) {
+    self.url = url
+    self.didStart = url.startAccessingSecurityScopedResource()
+  }
+
+  deinit {
+    if didStart {
+      url.stopAccessingSecurityScopedResource()
+    }
+  }
 }
