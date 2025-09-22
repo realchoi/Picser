@@ -2,7 +2,7 @@
 //  UpgradePromptSheet.swift
 //  Pixor
 //
-//  Created by Codex on 2025/2/15.
+//  Created by Eric Cai on 2025/09/19.
 //
 
 import SwiftUI

@@ -2,7 +2,7 @@
 //  WindowTrackerView.swift
 //  Pixor
 //
-//  Created by Codex on 2025/03/10.
+//  Created by Eric Cai on 2025/09/22.
 //
 
 import AppKit
