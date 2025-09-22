@@ -114,8 +114,11 @@ final class KeyboardShortcutManager {
       }
     }
     let closeObs = nc.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: nil) { [weak self] notif in
-      guard let self, let window = notif.object as? NSWindow else { return }
-      self.removeEntries(for: window)
+      guard let window = notif.object as? NSWindow else { return }
+      Task { @MainActor in
+        guard let self else { return }
+        self.removeEntries(for: window)
+      }
     }
     observers.append(contentsOf: [becomeObs, resignObs, closeObs])
   }
