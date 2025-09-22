@@ -10,7 +10,7 @@ import Combine
 
 /// 展示试用剩余时间的提示横幅
 struct TrialStatusBanner: View {
-  let endDate: Date
+  let status: TrialStatus
   let onDismiss: () -> Void
 
   @State private var now: Date = Date()
@@ -61,6 +61,6 @@ struct TrialStatusBanner: View {
   }
 
   private var remainingDescription: String {
-    TrialFormatter.remainingDescription(now: now, endDate: endDate)
+    TrialFormatter.remainingDescription(now: now, endDate: status.endDate)
   }
 }

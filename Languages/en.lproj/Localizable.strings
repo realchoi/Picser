@@ -322,3 +322,22 @@
 "purchase_product_price" = "Price: %@";
 "purchase_product_loading" = "Loading product information...";
 "purchase_keychain_prompt" = "Authenticate to read or update your purchase license.";
+
+/* Purchase Info Page */
+"purchase_info_title" = "Upgrade Options";
+"purchase_info_headline" = "Unlock the full Pixor experience";
+"purchase_info_description" = "Choose the plan that fits you best. You can subscribe with a free trial or unlock everything forever with a one-time purchase.";
+"purchase_info_features_title" = "What's included";
+"purchase_info_offerings_title" = "Available plans";
+"purchase_info_legal_title" = "Legal";
+"purchase_info_legal_terms" = "Terms of Use";
+"purchase_info_legal_privacy" = "Privacy Policy";
+"purchase_info_restore_button" = "Restore Purchases";
+"purchase_info_restore_note" = "If you have already purchased, sign in with the same Apple ID and restore.";
+"purchase_info_trial_note" = "%d-day free trial included";
+"purchase_info_feature_full_access_title" = "Unlimited access";
+"purchase_info_feature_full_access_desc" = "All premium tools with no feature restrictions across updates.";
+"purchase_info_feature_crop_title" = "Advanced crop & transform";
+"purchase_info_feature_crop_desc" = "Precise aspect ratios, custom presets, rotation and mirroring controls.";
+"purchase_info_feature_exif_title" = "Detailed EXIF insights";
+"purchase_info_feature_exif_desc" = "Inspect camera metadata, exposure settings, and lens details instantly.";

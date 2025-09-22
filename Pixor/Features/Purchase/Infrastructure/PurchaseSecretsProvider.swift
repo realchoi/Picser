@@ -1,5 +1,5 @@
 //
-//  SecretsProvider.swift
+//  PurchaseSecretsProvider.swift
 //  Pixor
 //
 //  Created by Eric Cai on 2025/09/20.
@@ -8,7 +8,7 @@
 import Foundation
 
 /// 统一管理敏感配置的获取方式，避免在代码中硬编码共享密钥
-enum SecretsProvider {
+enum PurchaseSecretsProvider {
   private enum KeychainKey {
     static var service: String {
       let base = Bundle.main.bundleIdentifier ?? "com.soyotube.Pixor"
@@ -19,10 +19,13 @@ enum SecretsProvider {
 
   private enum InfoKey {
     static let sharedSecret = "PIXOR_IAP_SHARED_SECRET"
-    static let primaryProductIdentifier = "PIXOR_IAP_PRODUCT_ID"
+    static let lifetimeProductIdentifier = "PIXOR_IAP_LIFETIME_ID"
+    static let subscriptionProductIdentifier = "PIXOR_IAP_SUBSCRIPTION_ID"
+    static let legacyPrimaryProductIdentifier = "PIXOR_IAP_PRODUCT_ID"
   }
 
-  static let defaultProductIdentifier = "com.soyotube.Pixor.full"
+  static let defaultLifetimeIdentifier = "com.soyotube.Pixor.full"
+  static let defaultSubscriptionIdentifier = "com.soyotube.Pixor.subscription"
 
   /// 读取 App Store Connect 中配置的共享密钥。
   /// 加载顺序：钥匙串 → 环境变量 → Info.plist（或自定义配置文件）。
@@ -42,18 +45,41 @@ enum SecretsProvider {
     return nil
   }
 
-  /// 读取主要的 IAP 产品标识。加载顺序：环境变量 → Info.plist → 默认值。
-  static func purchaseProductIdentifier() -> String {
-    if let envProduct = ProcessInfo.processInfo.environment["PIXOR_IAP_PRODUCT_ID"], !envProduct.isEmpty {
+  /// 读取一次性买断商品的标识。加载顺序：环境变量 → Info.plist → 默认值。
+  static func purchaseLifetimeIdentifier() -> String {
+    if let envProduct = ProcessInfo.processInfo.environment["PIXOR_IAP_LIFETIME_ID"], !envProduct.isEmpty {
       return envProduct
     }
 
-    if let infoProduct = Bundle.main.object(forInfoDictionaryKey: InfoKey.primaryProductIdentifier) as? String,
+    if let infoProduct = Bundle.main.object(forInfoDictionaryKey: InfoKey.lifetimeProductIdentifier) as? String,
        !infoProduct.isEmpty {
       return infoProduct
     }
 
-    return defaultProductIdentifier
+    if let legacyEnv = ProcessInfo.processInfo.environment["PIXOR_IAP_PRODUCT_ID"], !legacyEnv.isEmpty {
+      return legacyEnv
+    }
+
+    if let legacyInfo = Bundle.main.object(forInfoDictionaryKey: InfoKey.legacyPrimaryProductIdentifier) as? String,
+       !legacyInfo.isEmpty {
+      return legacyInfo
+    }
+
+    return defaultLifetimeIdentifier
+  }
+
+  /// 读取订阅商品的标识。加载顺序：环境变量 → Info.plist → 默认值。
+  static func purchaseSubscriptionIdentifier() -> String {
+    if let envProduct = ProcessInfo.processInfo.environment["PIXOR_IAP_SUBSCRIPTION_ID"], !envProduct.isEmpty {
+      return envProduct
+    }
+
+    if let infoProduct = Bundle.main.object(forInfoDictionaryKey: InfoKey.subscriptionProductIdentifier) as? String,
+       !infoProduct.isEmpty {
+      return infoProduct
+    }
+
+    return defaultSubscriptionIdentifier
   }
 
   /// 调试用途：写入共享密钥到钥匙串，方便本地测试。
@@ -89,7 +115,7 @@ enum SecretsProvider {
       return String(data: data, encoding: .utf8)
     } catch {
       #if DEBUG
-      print("SecretsProvider keychain load failed: \(error.localizedDescription)")
+      print("PurchaseSecretsProvider keychain load failed: \(error.localizedDescription)")
       #endif
       return nil
     }

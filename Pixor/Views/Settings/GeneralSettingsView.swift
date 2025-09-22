@@ -10,7 +10,7 @@ import SwiftUI
 struct GeneralSettingsView: View {
   @ObservedObject var appSettings: AppSettings
   @State private var showLanguageChangeNote = false
-  @State private var purchasePrompt: UpgradePromptContext?
+  @State private var purchaseInfoContext: UpgradePromptContext?
   @State private var alertContent: AlertContent?
   @EnvironmentObject private var purchaseManager: PurchaseManager
 
@@ -91,16 +91,19 @@ struct GeneralSettingsView: View {
       .frame(maxWidth: .infinity, minHeight: 350, alignment: .topLeading)
     }
     .scrollIndicators(.visible)
-    .sheet(item: $purchasePrompt) { context in
-      UpgradePromptSheet(
+    .sheet(item: $purchaseInfoContext) { context in
+      PurchaseInfoView(
         context: context,
-        onConfirmPurchase: {
-          performPurchase()
+        onPurchase: { kind in
+          purchaseInfoContext = nil
+          performPurchase(kind: kind)
         },
-        onCancel: {
-          purchasePrompt = nil
+        onRestore: {
+          purchaseInfoContext = nil
+          performRestore()
         }
       )
+      .environmentObject(purchaseManager)
     }
     .alert(item: $alertContent) { alertData in
       Alert(
@@ -138,7 +141,7 @@ struct GeneralSettingsView: View {
             .buttonStyle(.bordered)
 
             Button("purchase_section_purchase".localized) {
-              purchasePrompt = .purchase
+              purchaseInfoContext = .purchase
             }
             .buttonStyle(.borderedProminent)
           }
@@ -150,45 +153,67 @@ struct GeneralSettingsView: View {
 
   private var purchaseStatusText: String {
     switch purchaseManager.state {
-    case .trial:
-      return "purchase_status_trial_prefix".localized
-    case .trialExpired:
-      return "purchase_status_expired".localized
-    case .purchased:
-      return "purchase_status_purchased".localized
-    case .unknown:
-      return "purchase_status_unknown".localized
+    case .trial(_):
+      return localized("purchase_status_trial_prefix", fallback: "当前状态：试用")
+    case .trialExpired(_):
+      return localized("purchase_status_expired", fallback: "当前状态：试用已结束")
+    case .subscriber(_):
+      return localized("purchase_status_subscribed", fallback: "当前状态：订阅中")
+    case .subscriberLapsed(_):
+      return localized("purchase_status_subscribed_lapsed", fallback: "当前状态：订阅已过期")
+    case .lifetime(_):
+      return localized("purchase_status_purchased", fallback: "当前状态：已买断")
+    case .revoked(_):
+      return localized("purchase_status_revoked", fallback: "当前状态：权限已撤销")
+    case .onboarding, .unknown:
+      return localized("purchase_status_unknown", fallback: "当前状态：加载中")
     }
   }
 
   private var purchaseStatusIcon: String {
     switch purchaseManager.state {
-    case .trial:
+    case .trial(_):
       return "clock"
-    case .trialExpired:
+    case .trialExpired(_):
       return "lock.circle"
-    case .purchased:
+    case .subscriber(_):
+      return "bell.badge"
+    case .subscriberLapsed(_):
+      return "bell.slash"
+    case .lifetime(_):
       return "checkmark.seal"
-    case .unknown:
+    case .revoked(_):
+      return "exclamationmark.shield"
+    case .onboarding, .unknown:
       return "questionmark.circle"
     }
   }
 
   private var trialRemainingText: String? {
-    guard case let .trial(endDate) = purchaseManager.state else { return nil }
-    let description = TrialFormatter.remainingDescription(endDate: endDate)
-    return String(format: "purchase_status_trial_remaining".localized, description)
+    switch purchaseManager.state {
+    case let .trial(status):
+      let description = TrialFormatter.remainingDescription(endDate: status.endDate)
+      let template = localized("purchase_status_trial_remaining", fallback: "试用剩余时间：%@")
+      return String(format: template, description)
+    case let .subscriber(status):
+      if let expiry = status.expirationDate, expiry > Date() {
+        let description = TrialFormatter.remainingDescription(endDate: expiry)
+        let template = localized("purchase_status_subscription_remaining", fallback: "订阅剩余时间：%@")
+        return String(format: template, description)
+      }
+      return nil
+    default:
+      return nil
+    }
   }
 
-  private func performPurchase() {
+  private func performPurchase(kind: PurchaseProductKind) {
     Task { @MainActor in
       do {
-        try await purchaseManager.purchaseFullVersion()
-        purchasePrompt = nil
+        try await purchaseManager.purchase(kind: kind)
       } catch {
-        let shouldDismiss = !((error as? PurchaseManagerError)?.shouldSuppressAlert ?? false)
-        if shouldDismiss {
-          purchasePrompt = nil
+        if ((error as? PurchaseManagerError)?.shouldSuppressAlert ?? false) {
+          return
         }
         handlePurchaseError(error, operation: .purchase)
       }
@@ -199,11 +224,9 @@ struct GeneralSettingsView: View {
     Task { @MainActor in
       do {
         try await purchaseManager.restorePurchases()
-        purchasePrompt = nil
       } catch {
-        let shouldDismiss = !((error as? PurchaseManagerError)?.shouldSuppressAlert ?? false)
-        if shouldDismiss {
-          purchasePrompt = nil
+        if ((error as? PurchaseManagerError)?.shouldSuppressAlert ?? false) {
+          return
         }
         handlePurchaseError(error, operation: .restore)
       }
@@ -224,6 +247,11 @@ struct GeneralSettingsView: View {
       title: operation.failureTitle,
       message: error.purchaseDisplayMessage
     )
+  }
+
+  private func localized(_ key: String, fallback: String) -> String {
+    let value = key.localized
+    return value == key ? fallback : value
   }
 }
 

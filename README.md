@@ -8,7 +8,8 @@ Pixor [`/ˈpɪksɔːr/`] 是一款 macOS 系统上的看图软件，主打简约
 
 ### 开发
 #### 环境变量
-- `PIXOR_IAP_PRODUCT_ID`：覆盖默认的商品 ID。若不配置，代码会使用 SecretsProvider.defaultProductIdentifier。
+- `PIXOR_IAP_LIFETIME_ID`：覆盖默认的一次性买断商品 ID。若不配置，代码会使用 PurchaseSecretsProvider.defaultLifetimeIdentifier。
+- `PIXOR_IAP_SUBSCRIPTION_ID`：覆盖默认的订阅商品 ID。若不配置，代码会使用 PurchaseSecretsProvider.defaultSubscriptionIdentifier。
 - `PIXOR_IAP_SHARED_SECRET`：用于收据验证的共享密钥。默认可为空。
 - `PIXOR_ENABLE_RECEIPT_VALIDATION`：是否启用收据校验（1 表示开启，其它或缺省表示关闭）。
 
@@ -16,18 +17,19 @@ Pixor [`/ˈpɪksɔːr/`] 是一款 macOS 系统上的看图软件，主打简约
 
 在 Xcode 中操作最方便：
 1. 选中 Scheme → Edit Scheme → “Run” → “Arguments” → 在 “Environment Variables” 区域新增上述变量。
-2. 也可以在终端运行前 `export PIXOR_IAP_PRODUCT_ID=com.soyotube.Pixor.full` 等，然后通过命令行启动 `xcodebuild` 或 `xed`。
-3. 若要模拟不同场景，可临时在 Info.plist 中添加对应键值（`PIXOR_IAP_PRODUCT_ID` 等），或调用 SecretsProvider.storePurchaseSharedSecret 写入钥匙串以便调试。
+2. 也可以在终端运行前 `export PIXOR_IAP_LIFETIME_ID=com.soyotube.Pixor.full`、`export PIXOR_IAP_SUBSCRIPTION_ID=com.soyotube.Pixor.subscription` 等，然后通过命令行启动 `xcodebuild` 或 `xed`。
+3. 若要模拟不同场景，可临时在 Info.plist 中添加对应键值（`PIXOR_IAP_LIFETIME_ID` 等），或调用 PurchaseSecretsProvider.storePurchaseSharedSecret 写入钥匙串以便调试。
 
 > 正式发布如何设置
 
-- 商品 ID：通常保持默认值即可，除非按渠道/版本区分；可在构建脚本中通过 `xcodebuild` 的 `-scheme/-configuration` 搭配 `ENVVAR=value` 导出。
+- 商品 ID：通常保持默认值即可，可按需分别覆盖 `PIXOR_IAP_LIFETIME_ID` 与 `PIXOR_IAP_SUBSCRIPTION_ID`；若需分渠道，可在构建脚本中通过 `xcodebuild` 的 `-scheme/-configuration` 搭配 `ENVVAR=value` 导出。
 - 共享密钥：推荐优先写入钥匙串或在 CI/CD 环境的私密变量中设置 `PIXOR_IAP_SHARED_SECRET`，避免直接硬编码在工程里。
 - 收据验证开关：根据需要在打包脚本里 `export PIXOR_ENABLE_RECEIPT_VALIDATION=1`，未准备好共享密钥时保持关闭。
 
 一般做法是在 CI/CD 管线或本地打包脚本中导出这些环境变量，例如：
 ``` bash
-export PIXOR_IAP_PRODUCT_ID="com.soyotube.Pixor.full"
+export PIXOR_IAP_LIFETIME_ID="com.soyotube.Pixor.full"
+export PIXOR_IAP_SUBSCRIPTION_ID="com.soyotube.Pixor.subscription"
 export PIXOR_IAP_SHARED_SECRET="$APP_SPECIFIC_SECRET"
 export PIXOR_ENABLE_RECEIPT_VALIDATION=1   # 若暂不启用就省略
 xcodebuild -scheme Pixor -configuration Release …

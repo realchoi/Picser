@@ -322,3 +322,22 @@
 "purchase_product_price" = "价格：%@";
 "purchase_product_loading" = "正在加载商品信息...";
 "purchase_keychain_prompt" = "请验证身份以读取或更新购买凭证";
+
+/* 购买信息页面 */
+"purchase_info_title" = "升级选项";
+"purchase_info_headline" = "解锁完整的 Pixor 体验";
+"purchase_info_description" = "根据需求选择合适方案：可以先订阅享受免费试用，也可以一次性买断永久使用。";
+"purchase_info_features_title" = "包含内容";
+"purchase_info_offerings_title" = "可选方案";
+"purchase_info_legal_title" = "协议与隐私";
+"purchase_info_legal_terms" = "用户协议";
+"purchase_info_legal_privacy" = "隐私政策";
+"purchase_info_restore_button" = "恢复购买";
+"purchase_info_restore_note" = "如果您已购买，请使用相同的 Apple ID 登录并点击恢复。";
+"purchase_info_trial_note" = "包含 %d 天免费试用";
+"purchase_info_feature_full_access_title" = "无限制功能";
+"purchase_info_feature_full_access_desc" = "更新期间所有高级功能全部开放，不再受限。";
+"purchase_info_feature_crop_title" = "高级裁剪与变换";
+"purchase_info_feature_crop_desc" = "支持精确比例、自定义预设、旋转与镜像控制。";
+"purchase_info_feature_exif_title" = "详尽 EXIF 信息";
+"purchase_info_feature_exif_desc" = "快速查看相机元数据、曝光参数与镜头细节。";

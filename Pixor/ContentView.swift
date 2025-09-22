@@ -153,15 +153,18 @@ struct ContentView: View {
           .environmentObject(appSettings)
         }
         .sheet(item: $upgradePromptContext) { context in
-          UpgradePromptSheet(
+          PurchaseInfoView(
             context: context,
-            onConfirmPurchase: {
-              startPurchaseFlow()
-            },
-            onCancel: {
+            onPurchase: { kind in
               upgradePromptContext = nil
+              startPurchaseFlow(kind: kind)
+            },
+            onRestore: {
+              upgradePromptContext = nil
+              startRestoreFlow()
             }
           )
+          .environmentObject(purchaseManager)
         }
     )
 
@@ -283,42 +286,71 @@ struct ContentView: View {
       EmptyView()
     } else {
       switch purchaseManager.state {
-      case let .trial(endDate):
-        HStack {
-          Spacer()
-          TrialStatusBanner(endDate: endDate) {
-            withAnimation {
-              purchaseManager.dismissTrialBanner()
-            }
+      case let .trial(status):
+        bannerContainer {
+          TrialStatusBanner(status: status) {
+            withAnimation { purchaseManager.dismissTrialBanner() }
           }
-          .frame(maxWidth: 360)
-          Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 20)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-      case .trialExpired:
-        HStack {
-          Spacer()
+      case .trialExpired(_):
+        bannerContainer {
           TrialExpiredBanner(
+            title: localized("trial_expired_title", fallback: "试用已结束"),
+            message: localized("trial_expired_subtitle", fallback: "试用已结束，请升级解锁全部功能。"),
             onPurchase: { requestUpgrade(.purchase) },
             onRestore: { startRestoreFlow() },
             onDismiss: {
-              withAnimation {
-                purchaseManager.dismissTrialBanner()
-              }
+              withAnimation { purchaseManager.dismissTrialBanner() }
             }
           )
-          .frame(maxWidth: 520)
-          Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 20)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-      case .unknown, .purchased:
+      case .subscriberLapsed(_):
+        let fallbackTitle = "订阅已到期"
+        let fallbackMessage = "订阅已到期，请续订或恢复购买以继续使用高级功能。"
+        bannerContainer {
+          TrialExpiredBanner(
+            title: localized("subscription_lapsed_title", fallback: fallbackTitle),
+            message: localized("subscription_lapsed_subtitle", fallback: fallbackMessage),
+            onPurchase: { requestUpgrade(.purchase) },
+            onRestore: { startRestoreFlow() },
+            onDismiss: {
+              withAnimation { purchaseManager.dismissTrialBanner() }
+            }
+          )
+        }
+      case .revoked:
+        let fallbackTitle = "权限已撤销"
+        let fallbackMessage = "检测到账户存在异常，已暂时停用高级功能，请尝试恢复购买或联系支持。"
+        bannerContainer {
+          TrialExpiredBanner(
+            title: localized("purchase_revoked_title", fallback: fallbackTitle),
+            message: localized("purchase_revoked_subtitle", fallback: fallbackMessage),
+            onPurchase: { requestUpgrade(.purchase) },
+            onRestore: { startRestoreFlow() },
+            onDismiss: {
+              withAnimation { purchaseManager.dismissTrialBanner() }
+            }
+          )
+        }
+      case .subscriber, .lifetime:
+        EmptyView()
+      case .onboarding, .unknown:
         EmptyView()
       }
     }
+  }
+
+  @ViewBuilder
+  private func bannerContainer<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    HStack {
+      Spacer()
+      content()
+        .frame(maxWidth: 520)
+      Spacer()
+    }
+    .padding(.horizontal, 16)
+    .padding(.bottom, 20)
+    .transition(.move(edge: .bottom).combined(with: .opacity))
   }
 
   private func updateSidebarVisibility(for newURLs: [URL]) {
@@ -648,6 +680,11 @@ extension ContentView {
     }
     let directory = first.hasDirectoryPath ? first : first.deletingLastPathComponent()
     securityAccess = SecurityScopedAccess(url: directory)
+  }
+
+  private func localized(_ key: String, fallback: String) -> String {
+    let value = key.localized
+    return value == key ? fallback : value
   }
 
 }

@@ -60,10 +60,10 @@ extension ContentView {
     }
   }
 
-  func startPurchaseFlow() {
+  func startPurchaseFlow(kind: PurchaseProductKind) {
     Task { @MainActor in
       do {
-        try await purchaseManager.purchaseFullVersion()
+        try await purchaseManager.purchase(kind: kind)
         upgradePromptContext = nil
       } catch {
         let shouldDismiss = !((error as? PurchaseManagerError)?.shouldSuppressAlert ?? false)

@@ -1,5 +1,5 @@
 //
-//  ReceiptValidator.swift
+//  PurchaseReceiptValidator.swift
 //  Pixor
 //
 //  Created by Eric Cai on 2025/09/20.
@@ -8,13 +8,14 @@
 import Foundation
 
 /// 通过 App Store 服务器校验收据，确认购买有效性
-struct ReceiptValidationResult {
+struct PurchaseReceiptValidationResult {
   let transactionID: String
   let purchaseDate: Date
+  let expirationDate: Date?
   let environment: String?
 }
 
-enum ReceiptValidatorError: LocalizedError {
+enum PurchaseReceiptValidatorError: LocalizedError {
   case missingReceipt
   case network(Error)
   case invalidHTTPStatus(code: Int)
@@ -38,7 +39,7 @@ enum ReceiptValidatorError: LocalizedError {
 }
 
 /// 苹果官方收据验证 API 的封装
-final class ReceiptValidator {
+final class PurchaseReceiptValidator {
   private enum VerificationEndpoint {
     static let production = URL(string: "https://buy.itunes.apple.com/verifyReceipt")!
     static let sandbox = URL(string: "https://sandbox.itunes.apple.com/verifyReceipt")!
@@ -104,6 +105,11 @@ final class ReceiptValidator {
       }
       return nil
     }
+
+    var expirationDate: Date? {
+      guard let ms = expiresDateMs, let value = Double(ms) else { return nil }
+      return Date(timeIntervalSince1970: value / 1000)
+    }
   }
 
   private let session: URLSession
@@ -115,7 +121,7 @@ final class ReceiptValidator {
   }
 
   /// 校验指定商品的收据信息
-  func validateReceipt(for productIdentifier: String, sharedSecret: String?) async throws -> ReceiptValidationResult? {
+  func validateReceipt(for productIdentifier: String, sharedSecret: String?) async throws -> PurchaseReceiptValidationResult? {
     let payloadData = try buildPayloadData(sharedSecret: sharedSecret)
 
     let productionResponse = try await sendRequest(to: VerificationEndpoint.production, body: payloadData)
@@ -127,11 +133,11 @@ final class ReceiptValidator {
       // 生产环境返回沙盒状态，需要切换到沙盒接口
       let sandboxResponse = try await sendRequest(to: VerificationEndpoint.sandbox, body: payloadData)
       guard sandboxResponse.status == 0 else {
-        throw ReceiptValidatorError.serverStatus(code: sandboxResponse.status)
+        throw PurchaseReceiptValidatorError.serverStatus(code: sandboxResponse.status)
       }
       return extractResult(from: sandboxResponse, for: productIdentifier)
     default:
-      throw ReceiptValidatorError.serverStatus(code: productionResponse.status)
+      throw PurchaseReceiptValidatorError.serverStatus(code: productionResponse.status)
     }
   }
 
@@ -146,17 +152,17 @@ final class ReceiptValidator {
 
   private func loadReceiptData() throws -> Data {
     guard let receiptURL = Bundle.main.appStoreReceiptURL else {
-      throw ReceiptValidatorError.missingReceipt
+      throw PurchaseReceiptValidatorError.missingReceipt
     }
 
     do {
       let data = try Data(contentsOf: receiptURL)
       if data.isEmpty {
-        throw ReceiptValidatorError.missingReceipt
+        throw PurchaseReceiptValidatorError.missingReceipt
       }
       return data
     } catch {
-      throw ReceiptValidatorError.missingReceipt
+      throw PurchaseReceiptValidatorError.missingReceipt
     }
   }
 
@@ -169,26 +175,26 @@ final class ReceiptValidator {
     do {
       let (data, response) = try await session.data(for: request)
       guard let httpResponse = response as? HTTPURLResponse else {
-        throw ReceiptValidatorError.invalidHTTPStatus(code: -1)
+        throw PurchaseReceiptValidatorError.invalidHTTPStatus(code: -1)
       }
 
       guard 200 ..< 300 ~= httpResponse.statusCode else {
-        throw ReceiptValidatorError.invalidHTTPStatus(code: httpResponse.statusCode)
+        throw PurchaseReceiptValidatorError.invalidHTTPStatus(code: httpResponse.statusCode)
       }
 
       do {
         return try decoder.decode(ValidationResponse.self, from: data)
       } catch {
-        throw ReceiptValidatorError.decoding(error)
+        throw PurchaseReceiptValidatorError.decoding(error)
       }
-    } catch let error as ReceiptValidatorError {
+    } catch let error as PurchaseReceiptValidatorError {
       throw error
     } catch {
-      throw ReceiptValidatorError.network(error)
+      throw PurchaseReceiptValidatorError.network(error)
     }
   }
 
-  private func extractResult(from response: ValidationResponse, for productIdentifier: String) -> ReceiptValidationResult? {
+  private func extractResult(from response: ValidationResponse, for productIdentifier: String) -> PurchaseReceiptValidationResult? {
     let candidates: [ReceiptItem] = {
       if let latest = response.latestReceiptInfo, !latest.isEmpty {
         return latest
@@ -209,9 +215,10 @@ final class ReceiptValidator {
 
     guard let purchase = matched, let purchaseDate = purchase.purchaseDate else { return nil }
 
-    return ReceiptValidationResult(
+    return PurchaseReceiptValidationResult(
       transactionID: purchase.transactionId,
       purchaseDate: purchaseDate,
+      expirationDate: purchase.expirationDate,
       environment: response.environment
     )
   }

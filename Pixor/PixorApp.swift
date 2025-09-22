@@ -15,12 +15,12 @@ struct PixorApp: App {
   @StateObject private var purchaseManager: PurchaseManager
 
   init() {
-    let sharedSecret = SecretsProvider.purchaseSharedSecret()
-    let productIdentifier = SecretsProvider.purchaseProductIdentifier()
+    let sharedSecret = PurchaseSecretsProvider.purchaseSharedSecret()
+    let configuration = PurchaseConfiguration.loadDefault()
     let enableReceiptValidation = ProcessInfo.processInfo.environment["PIXOR_ENABLE_RECEIPT_VALIDATION"] == "1"
     _purchaseManager = StateObject(
       wrappedValue: PurchaseManager(
-        productIdentifier: productIdentifier,
+        configuration: configuration,
         enableReceiptValidation: enableReceiptValidation,
         sharedSecret: sharedSecret
       )

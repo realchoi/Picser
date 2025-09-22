@@ -9,9 +9,25 @@ import SwiftUI
 
 /// 试用结束后的升级提示横幅
 struct TrialExpiredBanner: View {
+  let title: String
+  let message: String
   let onPurchase: () -> Void
   let onRestore: () -> Void
   let onDismiss: () -> Void
+
+  init(
+    title: String = "trial_expired_title".localized,
+    message: String = "trial_expired_subtitle".localized,
+    onPurchase: @escaping () -> Void,
+    onRestore: @escaping () -> Void,
+    onDismiss: @escaping () -> Void
+  ) {
+    self.title = title
+    self.message = message
+    self.onPurchase = onPurchase
+    self.onRestore = onRestore
+    self.onDismiss = onDismiss
+  }
 
   var body: some View {
     HStack(alignment: .center, spacing: 16) {
@@ -20,9 +36,9 @@ struct TrialExpiredBanner: View {
         .foregroundStyle(.orange)
 
       VStack(alignment: .leading, spacing: 4) {
-        Text("trial_expired_title".localized)
+        Text(title)
           .font(.headline)
-        Text("trial_expired_subtitle".localized)
+        Text(message)
           .font(.subheadline)
           .foregroundStyle(.secondary)
       }
