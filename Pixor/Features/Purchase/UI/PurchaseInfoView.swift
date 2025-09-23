@@ -3,12 +3,12 @@ import SwiftUI
 /// 展示订阅和买断方案的购买信息页面
 struct PurchaseInfoView: View {
   @EnvironmentObject private var purchaseManager: PurchaseManager
-  @Environment(\.dismiss) private var dismiss
   @Environment(\.openURL) private var openURL
 
   let context: UpgradePromptContext?
   let onPurchase: (PurchaseProductKind) -> Void
   let onRestore: () -> Void
+  let onClose: () -> Void
 
   private let featureItems: [PurchaseFeatureItem] = [
     PurchaseFeatureItem(icon: "sparkles", titleKey: "purchase_info_feature_full_access_title", descriptionKey: "purchase_info_feature_full_access_desc"),
@@ -17,9 +17,17 @@ struct PurchaseInfoView: View {
   ]
 
   private let legalItems: [PurchaseLegalItem] = [
-    PurchaseLegalItem(titleKey: "purchase_info_legal_terms", subdirectory: "terms-of-use"),
-    PurchaseLegalItem(titleKey: "purchase_info_legal_privacy", subdirectory: "privacy-policy"),
+    PurchaseLegalItem(titleKey: "purchase_info_legal_terms", url: URL(string: "https://soyotube.vercel.app/terms")!),
+    PurchaseLegalItem(titleKey: "purchase_info_legal_privacy", url: URL(string: "https://soyotube.vercel.app/privacy")!),
   ]
+
+  private var linkColor: Color {
+    #if os(macOS)
+    Color(nsColor: .linkColor)
+    #else
+    Color(uiColor: .link)
+    #endif
+  }
 
   var body: some View {
     NavigationStack {
@@ -39,7 +47,7 @@ struct PurchaseInfoView: View {
       .navigationTitle("purchase_info_title".localized)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button("close_button".localized) { dismiss() }
+          Button("close_button".localized) { onClose() }
         }
       }
       .background(Color(nsColor: .windowBackgroundColor))
@@ -50,14 +58,18 @@ struct PurchaseInfoView: View {
   @ViewBuilder
   private var contextSection: some View {
     if let context {
-      HStack(alignment: .top, spacing: 12) {
+      HStack(alignment: .center, spacing: 12) {
         Image(systemName: "lightbulb")
           .font(.title3)
           .foregroundStyle(Color.accentColor)
+          .frame(width: 28, height: 28)
         Text(context.message)
           .font(.subheadline)
           .foregroundStyle(.primary)
+          .multilineTextAlignment(.leading)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
+      .frame(maxWidth: .infinity, alignment: .center)
       .padding(16)
       .background(
         RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -141,7 +153,7 @@ struct PurchaseInfoView: View {
       }
 
       Button(action: {
-        dismiss()
+        onClose()
         onPurchase(offering.kind)
       }) {
         Text(buttonTitle(for: offering.kind))
@@ -163,24 +175,13 @@ struct PurchaseInfoView: View {
         .font(.headline)
 
       ForEach(legalItems) { item in
-        if let url = item.resolveURL() {
-          Button(action: { openURL(url) }) {
-            HStack(spacing: 6) {
-              Text(item.title)
-                .font(.footnote)
-                .underline()
-                .foregroundStyle(Color.accentColor)
-              Image(systemName: "arrow.up.right.square")
-                .font(.footnote)
-                .foregroundStyle(Color.accentColor)
-            }
-          }
-          .buttonStyle(.plain)
-        } else {
+        Button(action: { openURL(item.url) }) {
           Text(item.title)
             .font(.footnote)
-            .foregroundStyle(.secondary)
+            .underline()
+            .foregroundStyle(linkColor)
         }
+        .buttonStyle(.plain)
       }
     }
   }
@@ -188,7 +189,6 @@ struct PurchaseInfoView: View {
   private var actionSection: some View {
     VStack(alignment: .leading, spacing: 12) {
       Button("purchase_info_restore_button".localized) {
-        dismiss()
         onRestore()
       }
       .buttonStyle(.bordered)
@@ -235,24 +235,8 @@ private struct PurchaseFeatureItem: Identifiable {
 private struct PurchaseLegalItem: Identifiable {
   let id = UUID()
   let titleKey: String
-  let subdirectory: String
+  let url: URL
 
   var title: String { titleKey.localized }
-
-  func resolveURL() -> URL? {
-    if let preferredURL = localizedDocumentURL() {
-      return preferredURL
-    }
-    return Bundle.main.url(forResource: "en-US", withExtension: "md", subdirectory: "legal/\(subdirectory)")
-  }
-
-  private func localizedDocumentURL() -> URL? {
-    let preferredLanguages = Locale.preferredLanguages.map { Locale(identifier: $0).identifier }
-    for language in preferredLanguages {
-      if let url = Bundle.main.url(forResource: language, withExtension: "md", subdirectory: "legal/\(subdirectory)") {
-        return url
-      }
-    }
-    return nil
-  }
 }
+

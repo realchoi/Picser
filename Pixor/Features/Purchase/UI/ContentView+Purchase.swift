@@ -57,6 +57,19 @@ extension ContentView {
   func requestUpgrade(_ context: UpgradePromptContext) {
     Task { @MainActor in
       upgradePromptContext = context
+      PurchaseFlowCoordinator.shared.present(
+        context: context,
+        purchaseManager: purchaseManager,
+        onPurchase: { kind in
+          self.startPurchaseFlow(kind: kind)
+        },
+        onRestore: {
+          self.startRestoreFlow()
+        },
+        onDismiss: {
+          self.upgradePromptContext = nil
+        }
+      )
     }
   }
 
@@ -64,27 +77,25 @@ extension ContentView {
     Task { @MainActor in
       do {
         try await purchaseManager.purchase(kind: kind)
+        PurchaseFlowCoordinator.shared.dismiss()
         upgradePromptContext = nil
       } catch {
-        let shouldDismiss = !((error as? PurchaseManagerError)?.shouldSuppressAlert ?? false)
-        if shouldDismiss {
-          upgradePromptContext = nil
-        }
         handlePurchaseFlowError(error, operation: .purchase)
       }
     }
   }
 
   func startRestoreFlow() {
+    guard PurchaseFlowCoordinator.shared.tryBeginRestore() else { return }
+
     Task { @MainActor in
+      defer { PurchaseFlowCoordinator.shared.endRestore() }
+
       do {
         try await purchaseManager.restorePurchases()
+        PurchaseFlowCoordinator.shared.dismiss()
         upgradePromptContext = nil
       } catch {
-        let shouldDismiss = !((error as? PurchaseManagerError)?.shouldSuppressAlert ?? false)
-        if shouldDismiss {
-          upgradePromptContext = nil
-        }
         handlePurchaseFlowError(error, operation: .restore)
       }
     }
@@ -101,11 +112,16 @@ extension ContentView {
     print("Purchase flow (\(operation.debugLabel)) failed: \(error.localizedDescription)")
     #endif
 
-    presentAlert(
-      AlertContent(
-        title: operation.failureTitle,
-        message: error.purchaseDisplayMessage
+    PurchaseFlowCoordinator.shared.presentError(
+      title: operation.failureTitle,
+      message: error.purchaseDisplayMessage
+    ) {
+      self.presentAlert(
+        AlertContent(
+          title: operation.failureTitle,
+          message: error.purchaseDisplayMessage
+        )
       )
-    )
+    }
   }
 }

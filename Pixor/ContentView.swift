@@ -152,20 +152,6 @@ struct ContentView: View {
           }
           .environmentObject(appSettings)
         }
-        .sheet(item: $upgradePromptContext) { context in
-          PurchaseInfoView(
-            context: context,
-            onPurchase: { kind in
-              upgradePromptContext = nil
-              startPurchaseFlow(kind: kind)
-            },
-            onRestore: {
-              upgradePromptContext = nil
-              startRestoreFlow()
-            }
-          )
-          .environmentObject(purchaseManager)
-        }
     )
 
     view = AnyView(

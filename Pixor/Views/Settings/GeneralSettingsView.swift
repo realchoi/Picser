@@ -10,7 +10,6 @@ import SwiftUI
 struct GeneralSettingsView: View {
   @ObservedObject var appSettings: AppSettings
   @State private var showLanguageChangeNote = false
-  @State private var purchaseInfoContext: UpgradePromptContext?
   @State private var alertContent: AlertContent?
   @EnvironmentObject private var purchaseManager: PurchaseManager
 
@@ -91,20 +90,6 @@ struct GeneralSettingsView: View {
       .frame(maxWidth: .infinity, minHeight: 350, alignment: .topLeading)
     }
     .scrollIndicators(.visible)
-    .sheet(item: $purchaseInfoContext) { context in
-      PurchaseInfoView(
-        context: context,
-        onPurchase: { kind in
-          purchaseInfoContext = nil
-          performPurchase(kind: kind)
-        },
-        onRestore: {
-          purchaseInfoContext = nil
-          performRestore()
-        }
-      )
-      .environmentObject(purchaseManager)
-    }
     .alert(item: $alertContent) { alertData in
       Alert(
         title: Text(alertData.title),
@@ -141,7 +126,7 @@ struct GeneralSettingsView: View {
             .buttonStyle(.bordered)
 
             Button("purchase_section_purchase".localized) {
-              purchaseInfoContext = .purchase
+              presentPurchasePrompt()
             }
             .buttonStyle(.borderedProminent)
           }
@@ -207,10 +192,25 @@ struct GeneralSettingsView: View {
     }
   }
 
+  private func presentPurchasePrompt() {
+    PurchaseFlowCoordinator.shared.present(
+      context: .purchase,
+      purchaseManager: purchaseManager,
+      onPurchase: { kind in
+        performPurchase(kind: kind)
+      },
+      onRestore: {
+        performRestore()
+      },
+      onDismiss: {}
+    )
+  }
+
   private func performPurchase(kind: PurchaseProductKind) {
     Task { @MainActor in
       do {
         try await purchaseManager.purchase(kind: kind)
+        PurchaseFlowCoordinator.shared.dismiss()
       } catch {
         if ((error as? PurchaseManagerError)?.shouldSuppressAlert ?? false) {
           return
@@ -221,9 +221,14 @@ struct GeneralSettingsView: View {
   }
 
   private func performRestore() {
+    guard PurchaseFlowCoordinator.shared.tryBeginRestore() else { return }
+
     Task { @MainActor in
+      defer { PurchaseFlowCoordinator.shared.endRestore() }
+
       do {
         try await purchaseManager.restorePurchases()
+        PurchaseFlowCoordinator.shared.dismiss()
       } catch {
         if ((error as? PurchaseManagerError)?.shouldSuppressAlert ?? false) {
           return
@@ -243,10 +248,15 @@ struct GeneralSettingsView: View {
     print("Settings purchase flow (\(operation.debugLabel)) failed: \(error.localizedDescription)")
     #endif
 
-    alertContent = AlertContent(
+    PurchaseFlowCoordinator.shared.presentError(
       title: operation.failureTitle,
       message: error.purchaseDisplayMessage
-    )
+    ) {
+      self.alertContent = AlertContent(
+        title: operation.failureTitle,
+        message: error.purchaseDisplayMessage
+      )
+    }
   }
 
   private func localized(_ key: String, fallback: String) -> String {
