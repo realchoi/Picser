@@ -345,3 +345,9 @@
 "purchase_info_feature_crop_desc" = "Precise aspect ratios, custom presets, rotation and mirroring controls.";
 "purchase_info_feature_exif_title" = "Detailed EXIF insights";
 "purchase_info_feature_exif_desc" = "Inspect camera metadata, exposure settings, and lens details instantly.";
+"purchase_primary_trial_button" = "Start Free Trial";
+"purchase_primary_subscribe_button" = "Subscribe Now";
+"purchase_primary_lifetime_button" = "Unlock Forever";
+"purchase_primary_trial_subtitle" = "Free trial, then %@ per year.";
+"purchase_primary_subscribe_subtitle" = "Renews at %@ per year unless cancelled.";
+"purchase_primary_lifetime_subtitle" = "One-time payment of %@.";

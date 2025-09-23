@@ -345,3 +345,9 @@
 "purchase_info_feature_crop_desc" = "支持精确比例、自定义预设、旋转与镜像控制。";
 "purchase_info_feature_exif_title" = "详尽 EXIF 信息";
 "purchase_info_feature_exif_desc" = "快速查看相机元数据、曝光参数与镜头细节。";
+"purchase_primary_trial_button" = "免费试用";
+"purchase_primary_subscribe_button" = "立即订阅";
+"purchase_primary_lifetime_button" = "立即解锁";
+"purchase_primary_trial_subtitle" = "免费试用结束后按 %@/年自动续订，可随时取消。";
+"purchase_primary_subscribe_subtitle" = "按 %@/年自动续订，可随时在设置中取消。";
+"purchase_primary_lifetime_subtitle" = "一次性支付 %@，永久解锁全部功能。";

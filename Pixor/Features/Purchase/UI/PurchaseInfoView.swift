@@ -4,12 +4,15 @@ import SwiftUI
 struct PurchaseInfoView: View {
   @EnvironmentObject private var purchaseManager: PurchaseManager
   @Environment(\.openURL) private var openURL
+  @ObservedObject private var localizationManager = LocalizationManager.shared
 
   let context: UpgradePromptContext?
   let onPurchase: (PurchaseProductKind) -> Void
   let onRestore: () -> Void
   let onRefreshReceipt: () -> Void
   let onClose: () -> Void
+
+  @State private var selectedProductKind: PurchaseProductKind?
 
   private let featureItems: [PurchaseFeatureItem] = [
     PurchaseFeatureItem(icon: "sparkles", titleKey: "purchase_info_feature_full_access_title", descriptionKey: "purchase_info_feature_full_access_desc"),
@@ -22,12 +25,71 @@ struct PurchaseInfoView: View {
     PurchaseLegalItem(titleKey: "purchase_info_legal_privacy", url: URL(string: "https://soyotube.vercel.app/privacy")!),
   ]
 
+  private var selectedOffering: PurchaseOffering? {
+    guard let selectedProductKind else {
+      return purchaseManager.offerings.first
+    }
+    return purchaseManager.offerings.first(where: { $0.kind == selectedProductKind })
+  }
+
+  private var isSubscriptionTrialAvailable: Bool {
+    guard let subscription = purchaseManager.subscriptionOffering,
+          subscription.configuration.introductoryTrialDuration != nil else {
+      return false
+    }
+
+    switch purchaseManager.state {
+    case .unknown, .onboarding, .trial:
+      return true
+    case .trialExpired, .subscriber, .subscriberLapsed, .lifetime, .revoked:
+      return false
+    }
+  }
+
   private var linkColor: Color {
     #if os(macOS)
     Color(nsColor: .linkColor)
     #else
     Color(uiColor: .link)
     #endif
+  }
+
+  private func ensureValidSelection() {
+    guard !purchaseManager.offerings.isEmpty else {
+      if selectedProductKind != nil {
+        selectedProductKind = nil
+      }
+      return
+    }
+
+    if let selectedProductKind,
+       purchaseManager.offerings.contains(where: { $0.kind == selectedProductKind }) {
+      return
+    }
+
+    selectedProductKind = purchaseManager.offerings.first?.kind
+  }
+
+  private func primaryActionTitle(for offering: PurchaseOffering) -> String {
+    switch offering.kind {
+    case .subscription:
+      return isSubscriptionTrialAvailable ? "purchase_primary_trial_button".localized : "purchase_primary_subscribe_button".localized
+    case .lifetime:
+      return "purchase_primary_lifetime_button".localized
+    }
+  }
+
+  private func primaryActionSubtitle(for offering: PurchaseOffering) -> String? {
+    switch offering.kind {
+    case .subscription:
+      if isSubscriptionTrialAvailable {
+        return String(format: "purchase_primary_trial_subtitle".localized, offering.product.displayPrice)
+      } else {
+        return String(format: "purchase_primary_subscribe_subtitle".localized, offering.product.displayPrice)
+      }
+    case .lifetime:
+      return String(format: "purchase_primary_lifetime_subtitle".localized, offering.product.displayPrice)
+    }
   }
 
   var body: some View {
@@ -38,8 +100,9 @@ struct PurchaseInfoView: View {
           headerSection
           featureSection
           offeringSection
+          primaryActionSection
           legalSection
-          actionSection
+          supportActionSection
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 32)
@@ -54,6 +117,10 @@ struct PurchaseInfoView: View {
       .background(Color(nsColor: .windowBackgroundColor))
     }
     .frame(minWidth: 420, minHeight: 540)
+    .onAppear { ensureValidSelection() }
+    .onChange(of: purchaseManager.offerings) {
+      ensureValidSelection()
+    }
   }
 
   @ViewBuilder
@@ -137,37 +204,68 @@ struct PurchaseInfoView: View {
   }
 
   private func offeringRow(for offering: PurchaseOffering) -> some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack(alignment: .firstTextBaseline) {
-        Text(offering.product.displayName)
-          .font(.subheadline)
-          .fontWeight(.semibold)
-        Spacer()
-        Text(offering.product.displayPrice)
-          .font(.subheadline)
-      }
+    let isSelected = offering.kind == selectedProductKind || (selectedProductKind == nil && offering.id == purchaseManager.offerings.first?.id)
 
-      if let trialDescription = trialText(for: offering) {
-        Text(trialDescription)
-          .font(.footnote)
-          .foregroundStyle(.secondary)
+    return Button(action: {
+      withAnimation(.easeInOut(duration: 0.2)) {
+        selectedProductKind = offering.kind
       }
+    }) {
+      VStack(alignment: .leading, spacing: 12) {
+        HStack(alignment: .firstTextBaseline) {
+          Text(offering.product.displayName)
+            .font(.subheadline)
+            .fontWeight(.semibold)
+          Spacer()
+          Text(offering.product.displayPrice)
+            .font(.subheadline)
+        }
 
-      Button(action: {
-        onClose()
-        onPurchase(offering.kind)
-      }) {
-        Text(buttonTitle(for: offering.kind))
-          .frame(maxWidth: .infinity)
+        if let trialDescription = trialText(for: offering) {
+          Text(trialDescription)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
       }
-      .buttonStyle(.borderedProminent)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.vertical, 16)
+      .padding(.horizontal, 16)
+      .background(
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+          .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.05))
+      )
+      .overlay(
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+          .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+      )
     }
-    .padding(.vertical, 16)
-    .padding(.horizontal, 16)
-    .background(
-      RoundedRectangle(cornerRadius: 16, style: .continuous)
-        .fill(Color.primary.opacity(0.05))
-    )
+    .buttonStyle(.plain)
+  }
+
+  @ViewBuilder
+  private var primaryActionSection: some View {
+    if let offering = selectedOffering {
+      VStack(alignment: .leading, spacing: 12) {
+        Button(action: {
+          onClose()
+          onPurchase(offering.kind)
+        }) {
+          Text(primaryActionTitle(for: offering))
+            .font(.title3.weight(.semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+
+        if let subtitle = primaryActionSubtitle(for: offering) {
+          Text(subtitle)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+      }
+      .accessibilityElement(children: .contain)
+    }
   }
 
   private var legalSection: some View {
@@ -187,7 +285,7 @@ struct PurchaseInfoView: View {
     }
   }
 
-  private var actionSection: some View {
+  private var supportActionSection: some View {
     VStack(alignment: .leading, spacing: 12) {
       Button("purchase_info_restore_button".localized) {
         onRestore()
@@ -208,15 +306,6 @@ struct PurchaseInfoView: View {
       Text("purchase_info_refresh_receipt_note".localized)
         .font(.footnote)
         .foregroundStyle(.secondary)
-    }
-  }
-
-  private func buttonTitle(for kind: PurchaseProductKind) -> String {
-    switch kind {
-    case .subscription:
-      return "purchase_button_subscribe".localized
-    case .lifetime:
-      return "purchase_button_lifetime".localized
     }
   }
 

@@ -41,16 +41,19 @@ struct TrialExpiredBanner: View {
         Text(message)
           .font(.subheadline)
           .foregroundStyle(.secondary)
+          .lineLimit(2)
+          .fixedSize(horizontal: false, vertical: true)
       }
 
       Spacer(minLength: 12)
 
-      HStack(spacing: 8) {
-        Button("purchase_section_restore".localized, action: onRestore)
-          .buttonStyle(.bordered)
-
-        Button("purchase_section_purchase".localized, action: onPurchase)
-          .buttonStyle(.borderedProminent)
+      ViewThatFits(in: .horizontal) {
+        HStack(spacing: 8) {
+          actionButtons
+        }
+        VStack(alignment: .trailing, spacing: 8) {
+          actionButtons
+        }
       }
 
       Button(action: onDismiss) {
@@ -72,5 +75,16 @@ struct TrialExpiredBanner: View {
         .stroke(Color.primary.opacity(0.12), lineWidth: 1)
     )
     .shadow(color: .black.opacity(0.08), radius: 16, x: 0, y: 8)
+  }
+
+  @ViewBuilder
+  private var actionButtons: some View {
+    Button("purchase_section_restore".localized, action: onRestore)
+      .buttonStyle(.bordered)
+      .layoutPriority(1)
+
+    Button("purchase_section_purchase".localized, action: onPurchase)
+      .buttonStyle(.borderedProminent)
+      .layoutPriority(1)
   }
 }

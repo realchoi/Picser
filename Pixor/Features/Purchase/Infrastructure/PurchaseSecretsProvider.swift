@@ -25,7 +25,7 @@ enum PurchaseSecretsProvider {
   }
 
   static let defaultLifetimeIdentifier = "com.soyotube.Pixor.full"
-  static let defaultSubscriptionIdentifier = "com.soyotube.Pixor.subscription"
+  static let defaultSubscriptionIdentifier = "com.soyotube.Pixor.pro.yearly"
 
   /// 读取 App Store Connect 中配置的共享密钥。
   /// 加载顺序：钥匙串 → 环境变量 → Info.plist（或自定义配置文件）。
