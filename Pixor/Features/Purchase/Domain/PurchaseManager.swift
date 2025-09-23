@@ -19,6 +19,8 @@ final class PurchaseManager: ObservableObject {
 
   private enum StorageKey {
     static let trialBannerDismissed = "purchase.trialBannerDismissed"
+    static let legacyTrialConsumed = "purchase.legacyTrialConsumed"
+    static let legacyTrialStartedAt = "purchase.legacyTrialStartedAt"
   }
 
   private let configuration: PurchaseConfiguration
@@ -30,6 +32,7 @@ final class PurchaseManager: ObservableObject {
   private let receiptSharedSecret: String?
   private let receiptValidator: PurchaseReceiptValidator?
 
+  @MainActor private var isRefreshingReceipt = false
   private var updatesTask: Task<Void, Never>?
 
   init(
@@ -146,13 +149,28 @@ final class PurchaseManager: ObservableObject {
     currentDate.addingTimeInterval(clockSkewTolerance) < cachedTimestamp
   }
   private func startTrial(from date: Date) {
+    let legacyConsumed = userDefaults.bool(forKey: StorageKey.legacyTrialConsumed)
+    let legacyStart = userDefaults.object(forKey: StorageKey.legacyTrialStartedAt) as? Date
+
+    if legacyConsumed {
+      markTrialConsumed(originalStart: legacyStart ?? date)
+      return
+    }
+
+    if let existingTrial = entitlementStore.loadSnapshot(),
+       let start = existingTrial.trialStartDate,
+       let end = existingTrial.trialEndDate {
+      let status = TrialStatus(startDate: start, endDate: end)
+      state = Date() < end ? .trial(status) : .trialExpired(status)
+      return
+    }
+
     let trialEnd = date.addingTimeInterval(configuration.trialDuration)
     let status = TrialStatus(startDate: date, endDate: trialEnd)
-    let snapshot = PurchaseEntitlementSnapshot(
-      trialStartDate: date,
-      trialEndDate: trialEnd,
-      lastUpdated: date
-    )
+    var snapshot = entitlementStore.loadSnapshot() ?? PurchaseEntitlementSnapshot()
+    snapshot.trialStartDate = date
+    snapshot.trialEndDate = trialEnd
+    snapshot.lastUpdated = date
     entitlementStore.saveSnapshot(snapshot)
     userDefaults.set(false, forKey: StorageKey.trialBannerDismissed)
     isTrialBannerDismissed = false
@@ -168,6 +186,27 @@ final class PurchaseManager: ObservableObject {
     default:
       break
     }
+  }
+
+  private func markTrialConsumed(originalStart: Date) {
+    let storedStart = userDefaults.object(forKey: StorageKey.legacyTrialStartedAt) as? Date
+    let effectiveStart = min(originalStart, storedStart ?? originalStart)
+
+    userDefaults.set(true, forKey: StorageKey.legacyTrialConsumed)
+    userDefaults.set(effectiveStart, forKey: StorageKey.legacyTrialStartedAt)
+
+    let trialEnd = effectiveStart.addingTimeInterval(configuration.trialDuration)
+    var snapshot = entitlementStore.loadSnapshot() ?? PurchaseEntitlementSnapshot()
+    snapshot.trialStartDate = effectiveStart
+    snapshot.trialEndDate = trialEnd
+    snapshot.lastUpdated = Date()
+    entitlementStore.saveSnapshot(snapshot)
+
+    userDefaults.set(false, forKey: StorageKey.trialBannerDismissed)
+    isTrialBannerDismissed = false
+
+    let status = TrialStatus(startDate: effectiveStart, endDate: trialEnd)
+    state = Date() < trialEnd ? .trial(status) : .trialExpired(status)
   }
   /// 用户主动关闭试用提示
   func dismissTrialBanner() {
@@ -283,13 +322,7 @@ final class PurchaseManager: ObservableObject {
       await validateReceiptIfNeeded()
     } catch {
       if let snapshot = entitlementStore.loadSnapshot(),
-         let lifetimeDate = snapshot.lifetimePurchaseDate {
-        let lifetimeStatus = LifetimeStatus(
-          productID: snapshot.lifetimeProductID ?? configuration.lifetime?.identifier ?? "",
-          transactionID: snapshot.lifetimeTransactionID,
-          purchaseDate: lifetimeDate
-        )
-        state = .lifetime(lifetimeStatus)
+         applyCachedEntitlementIfAvailable(snapshot, currentDate: Date()) {
         return
       }
       throw PurchaseManagerError.restoreFailed
@@ -300,18 +333,73 @@ final class PurchaseManager: ObservableObject {
       return
     default:
       if let snapshot = entitlementStore.loadSnapshot(),
-         let lifetimeDate = snapshot.lifetimePurchaseDate {
-        let lifetimeStatus = LifetimeStatus(
-          productID: snapshot.lifetimeProductID ?? configuration.lifetime?.identifier ?? "",
-          transactionID: snapshot.lifetimeTransactionID,
-          purchaseDate: lifetimeDate
-        )
-        state = .lifetime(lifetimeStatus)
+         applyCachedEntitlementIfAvailable(snapshot, currentDate: Date()) {
+        return
       } else {
         throw PurchaseManagerError.restoreFailed
       }
     }
   }
+
+  @MainActor
+  func refreshReceipt() async throws {
+    guard !isRefreshingReceipt else { return }
+    isRefreshingReceipt = true
+    defer { isRefreshingReceipt = false }
+
+    do {
+      try await PurchaseReceiptValidator.refreshLocalReceipt()
+      await syncCurrentEntitlements()
+      await validateReceiptIfNeeded()
+    } catch {
+      #if DEBUG
+      print("Receipt refresh failed: \(error.localizedDescription)")
+      #endif
+      throw PurchaseManagerError.receiptRefreshFailed
+    }
+  }
+
+  @MainActor @discardableResult
+  private func applyCachedEntitlementIfAvailable(_ snapshot: PurchaseEntitlementSnapshot, currentDate: Date = Date()) -> Bool {
+    if let lifetimeDate = snapshot.lifetimePurchaseDate {
+      let lifetimeStatus = LifetimeStatus(
+        productID: snapshot.lifetimeProductID ?? configuration.lifetime?.identifier ?? "",
+        transactionID: snapshot.lifetimeTransactionID,
+        purchaseDate: lifetimeDate
+      )
+      userDefaults.set(true, forKey: StorageKey.trialBannerDismissed)
+      isTrialBannerDismissed = true
+      state = .lifetime(lifetimeStatus)
+      return true
+    }
+
+    if let expirationDate = snapshot.subscriptionExpirationDate {
+      let productID = snapshot.subscriptionProductID ?? configuration.subscription?.identifier ?? ""
+      let transactionID = snapshot.subscriptionTransactionID
+      let graceLimit = expirationDate.addingTimeInterval(3 * 24 * 60 * 60)
+      let status = SubscriptionStatus(
+        productID: productID,
+        transactionID: transactionID,
+        expirationDate: expirationDate,
+        isInGracePeriod: currentDate <= graceLimit
+      )
+
+      if expirationDate > currentDate {
+        userDefaults.set(true, forKey: StorageKey.trialBannerDismissed)
+        isTrialBannerDismissed = true
+        state = .subscriber(status)
+        return true
+      }
+
+      if status.isInGracePeriod {
+        state = .subscriberLapsed(status)
+        return true
+      }
+    }
+
+    return false
+  }
+
   @MainActor
   private func handle(transaction: Transaction, shouldFinish: Bool) async {
     guard let config = configuration.configuration(for: transaction.productID) else {
@@ -420,6 +508,19 @@ final class PurchaseManager: ObservableObject {
     for config in configuration.allProductConfigurations {
       do {
         if let result = try await validator.validateReceipt(for: config.identifier, sharedSecret: receiptSharedSecret) {
+          if let revocationDate = result.revocationDate {
+            handleRevocation(productID: config.identifier, date: revocationDate)
+            continue
+          }
+
+          if let originalDate = result.originalPurchaseDate,
+             originalDate < Date() {
+            let storedStart = userDefaults.object(forKey: StorageKey.legacyTrialStartedAt) as? Date
+            if storedStart == nil || originalDate < storedStart! {
+              markTrialConsumed(originalStart: originalDate)
+            }
+          }
+
           switch config.kind {
           case .lifetime:
             recordLifetimePurchase(
@@ -451,6 +552,8 @@ final class PurchaseManager: ObservableObject {
   func resetLocalState() {
     entitlementStore.clearSnapshot()
     userDefaults.removeObject(forKey: StorageKey.trialBannerDismissed)
+    userDefaults.removeObject(forKey: StorageKey.legacyTrialConsumed)
+    userDefaults.removeObject(forKey: StorageKey.legacyTrialStartedAt)
     isTrialBannerDismissed = false
     state = .unknown
     refreshEntitlements()

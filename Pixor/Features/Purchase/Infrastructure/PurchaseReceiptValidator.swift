@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import StoreKit
 
 /// 通过 App Store 服务器校验收据，确认购买有效性
 struct PurchaseReceiptValidationResult {
@@ -13,6 +14,10 @@ struct PurchaseReceiptValidationResult {
   let purchaseDate: Date
   let expirationDate: Date?
   let environment: String?
+  let revocationDate: Date?
+  let revocationReason: String?
+  let originalPurchaseDate: Date?
+  let originalApplicationVersion: String?
 }
 
 enum PurchaseReceiptValidatorError: LocalizedError {
@@ -45,6 +50,11 @@ final class PurchaseReceiptValidator {
     static let sandbox = URL(string: "https://sandbox.itunes.apple.com/verifyReceipt")!
   }
 
+  @MainActor private static var refreshDelegate: ReceiptRefreshDelegate?
+  @MainActor private static var pendingRefreshContinuations: [CheckedContinuation<Void, Error>] = []
+  @MainActor private static var lastRefreshDate: Date?
+  private static let refreshCooldown: TimeInterval = 3
+
   private struct ValidationPayload: Encodable {
     let receiptData: String
     let password: String?
@@ -73,9 +83,11 @@ final class PurchaseReceiptValidator {
 
   private struct ReceiptObject: Decodable {
     let inApp: [ReceiptItem]?
+    let originalApplicationVersion: String?
 
     enum CodingKeys: String, CodingKey {
       case inApp = "in_app"
+      case originalApplicationVersion = "original_application_version"
     }
   }
 
@@ -86,6 +98,8 @@ final class PurchaseReceiptValidator {
     let purchaseDateMs: String?
     let originalPurchaseDateMs: String?
     let expiresDateMs: String?
+    let cancellationDateMs: String?
+    let cancellationReason: String?
 
     enum CodingKeys: String, CodingKey {
       case productId = "product_id"
@@ -94,6 +108,8 @@ final class PurchaseReceiptValidator {
       case purchaseDateMs = "purchase_date_ms"
       case originalPurchaseDateMs = "original_purchase_date_ms"
       case expiresDateMs = "expires_date_ms"
+      case cancellationDateMs = "cancellation_date_ms"
+      case cancellationReason = "cancellation_reason"
     }
 
     var purchaseDate: Date? {
@@ -110,6 +126,16 @@ final class PurchaseReceiptValidator {
       guard let ms = expiresDateMs, let value = Double(ms) else { return nil }
       return Date(timeIntervalSince1970: value / 1000)
     }
+
+    var originalPurchaseDate: Date? {
+      guard let ms = originalPurchaseDateMs, let value = Double(ms) else { return nil }
+      return Date(timeIntervalSince1970: value / 1000)
+    }
+
+    var cancellationDate: Date? {
+      guard let ms = cancellationDateMs, let value = Double(ms) else { return nil }
+      return Date(timeIntervalSince1970: value / 1000)
+    }
   }
 
   private let session: URLSession
@@ -122,7 +148,7 @@ final class PurchaseReceiptValidator {
 
   /// 校验指定商品的收据信息
   func validateReceipt(for productIdentifier: String, sharedSecret: String?) async throws -> PurchaseReceiptValidationResult? {
-    let payloadData = try buildPayloadData(sharedSecret: sharedSecret)
+    let payloadData = try await buildPayloadData(sharedSecret: sharedSecret)
 
     let productionResponse = try await sendRequest(to: VerificationEndpoint.production, body: payloadData)
 
@@ -143,26 +169,76 @@ final class PurchaseReceiptValidator {
 
   // MARK: - Private Helpers
 
-  private func buildPayloadData(sharedSecret: String?) throws -> Data {
-    let receipt = try loadReceiptData()
+  private func buildPayloadData(sharedSecret: String?) async throws -> Data {
+    let receipt = try await loadReceiptData()
     let base64String = receipt.base64EncodedString()
     let payload = ValidationPayload(receiptData: base64String, password: sharedSecret, excludeOldTransactions: true)
     return try encoder.encode(payload)
   }
 
-  private func loadReceiptData() throws -> Data {
+  private func loadReceiptData(allowRefresh: Bool = true) async throws -> Data {
     guard let receiptURL = Bundle.main.appStoreReceiptURL else {
+      if allowRefresh {
+        try await PurchaseReceiptValidator.refreshLocalReceipt()
+        return try await loadReceiptData(allowRefresh: false)
+      }
       throw PurchaseReceiptValidatorError.missingReceipt
     }
 
     do {
       let data = try Data(contentsOf: receiptURL)
       if data.isEmpty {
+        if allowRefresh {
+          try await PurchaseReceiptValidator.refreshLocalReceipt()
+          return try await loadReceiptData(allowRefresh: false)
+        }
         throw PurchaseReceiptValidatorError.missingReceipt
       }
       return data
     } catch {
+      if allowRefresh {
+        try await PurchaseReceiptValidator.refreshLocalReceipt()
+        return try await loadReceiptData(allowRefresh: false)
+      }
       throw PurchaseReceiptValidatorError.missingReceipt
+    }
+  }
+
+  @MainActor
+  static func refreshLocalReceipt() async throws {
+    if refreshDelegate == nil,
+       let last = lastRefreshDate,
+       Date().timeIntervalSince(last) < refreshCooldown {
+      return
+    }
+
+    try await withCheckedThrowingContinuation { continuation in
+      pendingRefreshContinuations.append(continuation)
+
+      guard refreshDelegate == nil else { return }
+
+      let delegate = ReceiptRefreshDelegate { result in
+        Task { @MainActor in
+          finishRefresh(with: result)
+        }
+      }
+      refreshDelegate = delegate
+      delegate.start()
+    }
+  }
+
+  @MainActor
+  private static func finishRefresh(with result: Result<Void, Error>) {
+    let continuations = pendingRefreshContinuations
+    pendingRefreshContinuations.removeAll()
+    refreshDelegate = nil
+
+    switch result {
+    case .success:
+      lastRefreshDate = Date()
+      continuations.forEach { $0.resume(returning: ()) }
+    case .failure(let error):
+      continuations.forEach { $0.resume(throwing: error) }
     }
   }
 
@@ -204,8 +280,27 @@ final class PurchaseReceiptValidator {
 
     guard !candidates.isEmpty else { return nil }
 
-    let matched = candidates
-      .filter { $0.productId == productIdentifier }
+    let relevant = candidates.filter { $0.productId == productIdentifier }
+    guard !relevant.isEmpty else { return nil }
+
+    if let refunded = relevant
+      .filter({ $0.cancellationDate != nil })
+      .sorted(by: { ($0.cancellationDate ?? .distantPast) < ($1.cancellationDate ?? .distantPast) })
+      .last {
+      let purchaseDate = refunded.purchaseDate ?? refunded.cancellationDate ?? .distantPast
+      return PurchaseReceiptValidationResult(
+        transactionID: refunded.transactionId,
+        purchaseDate: purchaseDate,
+        expirationDate: refunded.expirationDate,
+        environment: response.environment,
+        revocationDate: refunded.cancellationDate,
+        revocationReason: refunded.cancellationReason,
+        originalPurchaseDate: refunded.originalPurchaseDate,
+        originalApplicationVersion: response.receipt?.originalApplicationVersion
+      )
+    }
+
+    let matched = relevant
       .sorted { (lhs, rhs) -> Bool in
         let left = lhs.purchaseDate ?? .distantPast
         let right = rhs.purchaseDate ?? .distantPast
@@ -219,7 +314,38 @@ final class PurchaseReceiptValidator {
       transactionID: purchase.transactionId,
       purchaseDate: purchaseDate,
       expirationDate: purchase.expirationDate,
-      environment: response.environment
+      environment: response.environment,
+      revocationDate: nil,
+      revocationReason: nil,
+      originalPurchaseDate: purchase.originalPurchaseDate,
+      originalApplicationVersion: response.receipt?.originalApplicationVersion
     )
+  }
+}
+
+@MainActor
+private extension PurchaseReceiptValidator {
+  final class ReceiptRefreshDelegate: NSObject, SKRequestDelegate {
+    private let request = SKReceiptRefreshRequest()
+    private let completion: (Result<Void, Error>) -> Void
+
+    init(completion: @escaping (Result<Void, Error>) -> Void) {
+      self.completion = completion
+    }
+
+    func start() {
+      request.delegate = self
+      request.start()
+    }
+
+    func requestDidFinish(_ request: SKRequest) {
+      request.delegate = nil
+      completion(.success(()))
+    }
+
+    func request(_ request: SKRequest, didFailWithError error: Error) {
+      request.delegate = nil
+      completion(.failure(error))
+    }
   }
 }

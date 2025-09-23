@@ -308,6 +308,7 @@
 
 "purchase_flow_purchase_failed_title" = "购买失败";
 "purchase_flow_restore_failed_title" = "恢复失败";
+"purchase_flow_refresh_failed_title" = "刷新收据失败";
 
 "keychain_invalid_data" = "无效的钥匙串数据";
 "keychain_authentication_failed" = "钥匙串认证未通过，状态码：%d";
@@ -317,6 +318,7 @@
 "purchase_error_cancelled" = "购买已取消";
 "purchase_error_pending" = "购买尚在处理中，请稍后再试";
 "purchase_error_restore_failed" = "恢复购买失败";
+"purchase_error_receipt_refresh_failed" = "无法刷新收据，请检查网络或稍后重试";
 "purchase_error_unknown_result" = "未知的购买结果";
 "purchase_product_name" = "商品：%@";
 "purchase_product_price" = "价格：%@";
@@ -334,6 +336,8 @@
 "purchase_info_legal_privacy" = "隐私政策";
 "purchase_info_restore_button" = "恢复购买";
 "purchase_info_restore_note" = "如果您已购买，请使用相同的 Apple ID 登录并点击恢复。";
+"purchase_info_refresh_receipt_button" = "刷新收据";
+"purchase_info_refresh_receipt_note" = "若仍未恢复，请确认已登录 App Store，并尝试刷新收据。";
 "purchase_info_trial_note" = "包含 %d 天免费试用";
 "purchase_info_feature_full_access_title" = "无限制功能";
 "purchase_info_feature_full_access_desc" = "更新期间所有高级功能全部开放，不再受限。";

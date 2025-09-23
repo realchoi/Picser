@@ -8,6 +8,7 @@ struct PurchaseInfoView: View {
   let context: UpgradePromptContext?
   let onPurchase: (PurchaseProductKind) -> Void
   let onRestore: () -> Void
+  let onRefreshReceipt: () -> Void
   let onClose: () -> Void
 
   private let featureItems: [PurchaseFeatureItem] = [
@@ -194,7 +195,17 @@ struct PurchaseInfoView: View {
       .buttonStyle(.bordered)
       .frame(maxWidth: .infinity)
 
+      Button("purchase_info_refresh_receipt_button".localized) {
+        onRefreshReceipt()
+      }
+      .buttonStyle(.bordered)
+      .frame(maxWidth: .infinity)
+
       Text("purchase_info_restore_note".localized)
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+
+      Text("purchase_info_refresh_receipt_note".localized)
         .font(.footnote)
         .foregroundStyle(.secondary)
     }

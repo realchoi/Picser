@@ -18,6 +18,7 @@ final class PurchaseFlowCoordinator {
     purchaseManager: PurchaseManager,
     onPurchase: @escaping (PurchaseProductKind) -> Void,
     onRestore: @escaping () -> Void,
+    onRefreshReceipt: @escaping () -> Void,
     onDismiss: @escaping () -> Void
   ) {
     dismissHandler = onDismiss
@@ -30,6 +31,7 @@ final class PurchaseFlowCoordinator {
       anchorWindow: anchorWindow,
       onPurchase: onPurchase,
       onRestore: onRestore,
+      onRefreshReceipt: onRefreshReceipt,
       onDismissRequested: { [weak self] in
         self?.handleDismiss()
       }
@@ -83,6 +85,7 @@ final class PurchaseFlowCoordinator {
     purchaseManager: PurchaseManager,
     onPurchase: @escaping (PurchaseProductKind) -> Void,
     onRestore: @escaping () -> Void,
+    onRefreshReceipt: @escaping () -> Void,
     onDismiss: @escaping () -> Void
   ) {
     onDismiss()

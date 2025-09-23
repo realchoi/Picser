@@ -7,6 +7,7 @@ enum PurchaseManagerError: LocalizedError {
   case purchaseCancelled
   case purchasePending
   case restoreFailed
+  case receiptRefreshFailed
   case unknown(Error)
 
   var errorDescription: String? {
@@ -21,6 +22,8 @@ enum PurchaseManagerError: LocalizedError {
       return "purchase_error_pending".localized
     case .restoreFailed:
       return "purchase_error_restore_failed".localized
+    case .receiptRefreshFailed:
+      return "purchase_error_receipt_refresh_failed".localized
     case .unknown(let error):
       return error.localizedDescription
     }

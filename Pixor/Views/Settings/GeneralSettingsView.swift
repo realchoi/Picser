@@ -202,6 +202,9 @@ struct GeneralSettingsView: View {
       onRestore: {
         performRestore()
       },
+      onRefreshReceipt: {
+        performRefreshReceipt()
+      },
       onDismiss: {}
     )
   }
@@ -234,6 +237,16 @@ struct GeneralSettingsView: View {
           return
         }
         handlePurchaseError(error, operation: .restore)
+      }
+    }
+  }
+
+  private func performRefreshReceipt() {
+    Task { @MainActor in
+      do {
+        try await purchaseManager.refreshReceipt()
+      } catch {
+        handlePurchaseError(error, operation: .refreshReceipt)
       }
     }
   }

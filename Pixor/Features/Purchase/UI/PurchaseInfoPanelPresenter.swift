@@ -20,6 +20,7 @@ final class PurchaseInfoPanelPresenter: NSObject, NSWindowDelegate {
     anchorWindow: NSWindow? = nil,
     onPurchase: @escaping (PurchaseProductKind) -> Void,
     onRestore: @escaping () -> Void,
+    onRefreshReceipt: @escaping () -> Void,
     onDismissRequested: @escaping () -> Void
   ) {
     let rootView = PurchaseInfoPanelContent(
@@ -27,6 +28,7 @@ final class PurchaseInfoPanelPresenter: NSObject, NSWindowDelegate {
       context: context,
       onPurchase: onPurchase,
       onRestore: onRestore,
+      onRefreshReceipt: onRefreshReceipt,
       onClose: { [weak self] in self?.dismiss() }
     )
 
@@ -141,6 +143,7 @@ private struct PurchaseInfoPanelContent: View {
   let context: UpgradePromptContext
   let onPurchase: (PurchaseProductKind) -> Void
   let onRestore: () -> Void
+  let onRefreshReceipt: () -> Void
   let onClose: () -> Void
 
   var body: some View {
@@ -148,6 +151,7 @@ private struct PurchaseInfoPanelContent: View {
       context: context,
       onPurchase: onPurchase,
       onRestore: onRestore,
+      onRefreshReceipt: onRefreshReceipt,
       onClose: onClose
     )
     .environmentObject(purchaseManager)

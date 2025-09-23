@@ -11,6 +11,7 @@ import SwiftUI
 enum PurchaseFlowOperation {
   case purchase
   case restore
+  case refreshReceipt
 
   var failureTitle: String {
     switch self {
@@ -18,6 +19,8 @@ enum PurchaseFlowOperation {
       return "purchase_flow_purchase_failed_title".localized
     case .restore:
       return "purchase_flow_restore_failed_title".localized
+    case .refreshReceipt:
+      return "purchase_flow_refresh_failed_title".localized
     }
   }
 
@@ -27,6 +30,8 @@ enum PurchaseFlowOperation {
       return "purchase"
     case .restore:
       return "restore"
+    case .refreshReceipt:
+      return "refresh_receipt"
     }
   }
 }
@@ -66,6 +71,9 @@ extension ContentView {
         onRestore: {
           self.startRestoreFlow()
         },
+        onRefreshReceipt: {
+          self.startRefreshReceiptFlow()
+        },
         onDismiss: {
           self.upgradePromptContext = nil
         }
@@ -97,6 +105,16 @@ extension ContentView {
         upgradePromptContext = nil
       } catch {
         handlePurchaseFlowError(error, operation: .restore)
+      }
+    }
+  }
+
+  func startRefreshReceiptFlow() {
+    Task { @MainActor in
+      do {
+        try await purchaseManager.refreshReceipt()
+      } catch {
+        handlePurchaseFlowError(error, operation: .refreshReceipt)
       }
     }
   }

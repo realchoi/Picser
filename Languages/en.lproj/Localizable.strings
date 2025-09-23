@@ -308,6 +308,7 @@
 
 "purchase_flow_purchase_failed_title" = "Purchase Failed";
 "purchase_flow_restore_failed_title" = "Restore Failed";
+"purchase_flow_refresh_failed_title" = "Receipt Refresh Failed";
 
 "keychain_invalid_data" = "Invalid keychain data";
 "keychain_authentication_failed" = "Keychain authentication failed. Status: %d";
@@ -317,6 +318,7 @@
 "purchase_error_cancelled" = "Purchase cancelled.";
 "purchase_error_pending" = "Purchase is pending. Please try again later.";
 "purchase_error_restore_failed" = "Failed to restore purchases.";
+"purchase_error_receipt_refresh_failed" = "Unable to refresh the receipt. Check your network connection and try again.";
 "purchase_error_unknown_result" = "Unknown purchase result.";
 "purchase_product_name" = "Product: %@";
 "purchase_product_price" = "Price: %@";
@@ -334,6 +336,8 @@
 "purchase_info_legal_privacy" = "Privacy Policy";
 "purchase_info_restore_button" = "Restore Purchases";
 "purchase_info_restore_note" = "If you have already purchased, sign in with the same Apple ID and restore.";
+"purchase_info_refresh_receipt_button" = "Refresh Receipt";
+"purchase_info_refresh_receipt_note" = "Still not unlocked? Make sure you are signed in to the App Store and try refreshing the receipt.";
 "purchase_info_trial_note" = "%d-day free trial included";
 "purchase_info_feature_full_access_title" = "Unlimited access";
 "purchase_info_feature_full_access_desc" = "All premium tools with no feature restrictions across updates.";
