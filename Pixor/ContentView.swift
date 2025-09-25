@@ -46,6 +46,7 @@ struct ContentView: View {
   // 接收设置对象
   @EnvironmentObject var appSettings: AppSettings
   @EnvironmentObject var purchaseManager: PurchaseManager
+  @EnvironmentObject var featureGatekeeper: FeatureGatekeeper
 
   /// 侧边栏宽度限制，防止用户将其放大全屏
   private enum LayoutMetrics {
@@ -375,7 +376,9 @@ struct ContentView: View {
     if selectedImageURL != nil {
       ToolbarItem {
         Button {
-          showExifInfo()
+          featureGatekeeper.perform(.exif, context: .generic, requestUpgrade: requestUpgrade) {
+            showExifInfo()
+          }
         } label: {
           HStack(spacing: 4) {
             if isLoadingExif {
@@ -676,9 +679,11 @@ extension ContentView {
 }
 
 #Preview {
-  ContentView()
+  let purchaseManager = PurchaseManager()
+  return ContentView()
     .environmentObject(AppSettings())
-    .environmentObject(PurchaseManager())
+    .environmentObject(purchaseManager)
+    .environmentObject(FeatureGatekeeper(purchaseManager: purchaseManager))
 }
 
 private final class SecurityScopedAccess {

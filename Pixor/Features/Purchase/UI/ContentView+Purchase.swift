@@ -51,11 +51,13 @@ extension Error {
 extension ContentView {
   /// 根据购买权限执行操作，未授权时弹出升级提示
   func performIfEntitled(_ context: UpgradePromptContext, action: () -> Void) {
-    if purchaseManager.isEntitled {
-      action()
-    } else {
-      requestUpgrade(context)
-    }
+    let feature = context.mappedFeature
+    featureGatekeeper.perform(
+      feature,
+      context: context,
+      requestUpgrade: requestUpgrade,
+      action: action
+    )
   }
 
   /// 异步弹出升级提示
@@ -140,6 +142,19 @@ extension ContentView {
           message: error.purchaseDisplayMessage
         )
       )
+    }
+  }
+}
+
+private extension UpgradePromptContext {
+  var mappedFeature: AppFeature {
+    switch self {
+    case .transform:
+      return .transform
+    case .crop:
+      return .crop
+    case .generic, .purchase:
+      return .generic
     }
   }
 }
