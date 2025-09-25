@@ -15,7 +15,7 @@ final class ImageLoader: @unchecked Sendable {
   private var memoryPressureSource: DispatchSourceMemoryPressure?
   /// 专用高优先级队列，用于执行耗时的下采样避免 QoS 逆转。
   private let downsampleQueue = DispatchQueue(
-    label: "com.soyotube.Pixor.imageloader.downsample",
+    label: "com.soyotube.Picser.imageloader.downsample",
     qos: .userInitiated
   )
 

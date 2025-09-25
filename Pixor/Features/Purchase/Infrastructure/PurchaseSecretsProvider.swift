@@ -11,7 +11,7 @@ import Foundation
 enum PurchaseSecretsProvider {
   private enum KeychainKey {
     static var service: String {
-      let base = Bundle.main.bundleIdentifier ?? "com.soyotube.Pixor"
+      let base = Bundle.main.bundleIdentifier ?? "com.soyotube.Picser"
       return base + ".secrets"
     }
     static let iapSharedSecretAccount = "iap-shared-secret"
@@ -24,8 +24,8 @@ enum PurchaseSecretsProvider {
     static let legacyPrimaryProductIdentifier = "PIXOR_IAP_PRODUCT_ID"
   }
 
-  static let defaultLifetimeIdentifier = "com.soyotube.Pixor.full"
-  static let defaultSubscriptionIdentifier = "com.soyotube.Pixor.pro.yearly"
+  static let defaultLifetimeIdentifier = "com.soyotube.Picser.full"
+  static let defaultSubscriptionIdentifier = "com.soyotube.Picser.pro.yearly"
 
   /// 读取 App Store Connect 中配置的共享密钥。
   /// 加载顺序：钥匙串 → 环境变量 → Info.plist（或自定义配置文件）。

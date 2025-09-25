@@ -300,7 +300,7 @@ final class PurchaseManager: ObservableObject {
       throw PurchaseManagerError.purchasePending
     @unknown default:
       let message = "purchase_error_unknown_result".localized
-      let error = NSError(domain: "com.soyotube.Pixor.purchase", code: -1, userInfo: [NSLocalizedDescriptionKey: message])
+      let error = NSError(domain: "com.soyotube.Picser.purchase", code: -1, userInfo: [NSLocalizedDescriptionKey: message])
       throw PurchaseManagerError.unknown(error)
     }
   }

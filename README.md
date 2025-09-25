@@ -17,7 +17,7 @@ Pixor [`/ˈpɪksɔːr/`] 是一款 macOS 系统上的看图软件，主打简约
 
 在 Xcode 中操作最方便：
 1. 选中 Scheme → Edit Scheme → “Run” → “Arguments” → 在 “Environment Variables” 区域新增上述变量。
-2. 也可以在终端运行前 `export PIXOR_IAP_LIFETIME_ID=com.soyotube.Pixor.full`、`export PIXOR_IAP_SUBSCRIPTION_ID=com.soyotube.Pixor.subscription` 等，然后通过命令行启动 `xcodebuild` 或 `xed`。
+2. 也可以在终端运行前 `export PIXOR_IAP_LIFETIME_ID=com.soyotube.Picser.full`、`export PIXOR_IAP_SUBSCRIPTION_ID=com.soyotube.Picser.pro.yearly` 等，然后通过命令行启动 `xcodebuild` 或 `xed`。
 3. 若要模拟不同场景，可临时在 Info.plist 中添加对应键值（`PIXOR_IAP_LIFETIME_ID` 等），或调用 PurchaseSecretsProvider.storePurchaseSharedSecret 写入钥匙串以便调试。
 
 > 正式发布如何设置
@@ -28,8 +28,8 @@ Pixor [`/ˈpɪksɔːr/`] 是一款 macOS 系统上的看图软件，主打简约
 
 一般做法是在 CI/CD 管线或本地打包脚本中导出这些环境变量，例如：
 ``` bash
-export PIXOR_IAP_LIFETIME_ID="com.soyotube.Pixor.full"
-export PIXOR_IAP_SUBSCRIPTION_ID="com.soyotube.Pixor.subscription"
+export PIXOR_IAP_LIFETIME_ID="com.soyotube.Picser.full"
+export PIXOR_IAP_SUBSCRIPTION_ID="com.soyotube.Picser.pro.yearly"
 export PIXOR_IAP_SHARED_SECRET="$APP_SPECIFIC_SECRET"
 export PIXOR_ENABLE_RECEIPT_VALIDATION=1   # 若暂不启用就省略
 xcodebuild -scheme Pixor -configuration Release …

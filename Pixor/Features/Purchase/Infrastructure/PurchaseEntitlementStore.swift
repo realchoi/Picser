@@ -15,7 +15,7 @@ final class PurchaseEntitlementStore {
 
   private enum KeychainKey {
     static func service(bundle: Bundle) -> String {
-      let base = bundle.bundleIdentifier ?? "com.soyotube.Pixor"
+      let base = bundle.bundleIdentifier ?? "com.soyotube.Picser"
       return base + ".purchase"
     }
 

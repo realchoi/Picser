@@ -19,7 +19,7 @@ EXPORT_PATH=${5:-"$(pwd)/build/Export"}
 EXPORT_OPTIONS_PLIST=${6:-"Build/exportOptions.plist"}
 
 # 内购相关变量，可视需要覆盖
-export PIXOR_IAP_PRODUCT_ID=${PIXOR_IAP_PRODUCT_ID:-"com.soyotube.Pixor.full"}
+export PIXOR_IAP_PRODUCT_ID=${PIXOR_IAP_PRODUCT_ID:-"com.soyotube.Picser.full"}
 export PIXOR_IAP_SHARED_SECRET=${PIXOR_IAP_SHARED_SECRET:-""}
 export PIXOR_ENABLE_RECEIPT_VALIDATION=${PIXOR_ENABLE_RECEIPT_VALIDATION:-0}
 
