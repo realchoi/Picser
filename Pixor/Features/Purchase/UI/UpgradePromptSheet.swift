@@ -4,6 +4,7 @@ import Foundation
 enum UpgradePromptContext: String, Identifiable {
   case transform
   case crop
+  case exif
   case generic
   case purchase
 

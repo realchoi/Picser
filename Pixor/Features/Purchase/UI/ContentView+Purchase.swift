@@ -153,6 +153,8 @@ private extension UpgradePromptContext {
       return .transform
     case .crop:
       return .crop
+    case .exif:
+      return .exif
     case .generic, .purchase:
       return .generic
     }
