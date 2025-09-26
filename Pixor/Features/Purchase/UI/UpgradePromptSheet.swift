@@ -10,15 +10,6 @@ enum UpgradePromptContext: String, Identifiable {
   var id: String { rawValue }
 
   var message: String {
-    switch self {
-    case .transform:
-      return "unlock_alert_body_transform".localized
-    case .crop:
-      return "unlock_alert_body_crop".localized
-    case .generic:
-      return "unlock_alert_body_generic".localized
-    case .purchase:
-      return "unlock_alert_body_manual_purchase".localized
-    }
+    "unlock_alert_body_generic".localized
   }
 }

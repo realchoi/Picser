@@ -287,8 +287,6 @@
 "trial_expired_subtitle" = "One-time purchase unlocks Pixor forever. Already bought? Restore your access without paying again.";
 "trial_expired_dismiss" = "Hide upgrade reminder";
 "unlock_alert_title" = "Unlock Full Version";
-"unlock_alert_body_transform" = "Your trial has ended. Purchase the full version to continue using rotate and flip tools.";
-"unlock_alert_body_crop" = "Your trial has ended. Purchase the full version to keep using crop.";
 "unlock_alert_body_generic" = "Your trial has ended. Purchase the full version to keep using advanced features.";
 "unlock_alert_cancel" = "Maybe later";
 
@@ -303,8 +301,6 @@
 "purchase_section_restore" = "Restore Purchase";
 "purchase_prompt_confirm" = "Confirm Purchase";
 "purchase_prompt_confirm_note" = "App Store will charge your current Apple ID; verify the account and amount before confirming.";
-"unlock_alert_body_manual_purchase" = "Unlock the full version with a one-time purchase to keep all features permanently.";
-"unlock_alert_body_manual_restore" = "If you already bought the full version, restore your receipt to regain access.";
 
 "purchase_flow_purchase_failed_title" = "Purchase Failed";
 "purchase_flow_restore_failed_title" = "Restore Failed";

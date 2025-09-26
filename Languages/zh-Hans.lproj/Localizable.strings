@@ -287,8 +287,6 @@
 "trial_expired_subtitle" = "一次性购买即可永久解锁 Pixor。之前买过？点击“恢复购买”即可无须再次付费。";
 "trial_expired_dismiss" = "暂时隐藏解锁提示";
 "unlock_alert_title" = "解锁完整版";
-"unlock_alert_body_transform" = "试用期已结束，请购买完整版以继续使用旋转、翻转等编辑功能。";
-"unlock_alert_body_crop" = "试用期已结束，请购买完整版以继续使用裁剪功能。";
 "unlock_alert_body_generic" = "试用期已结束，请购买完整版以继续使用高级功能。";
 "unlock_alert_cancel" = "稍后再说";
 
@@ -303,8 +301,6 @@
 "purchase_section_restore" = "恢复购买";
 "purchase_prompt_confirm" = "确定购买";
 "purchase_prompt_confirm_note" = "App Store 将通过您的 Apple ID 完成支付，请确认账户信息与金额无误。";
-"unlock_alert_body_manual_purchase" = "一次性买断可解锁全部功能并移除试用限制。";
-"unlock_alert_body_manual_restore" = "如果您已购买完整版，可在此恢复凭证以继续使用全部功能。";
 
 "purchase_flow_purchase_failed_title" = "购买失败";
 "purchase_flow_restore_failed_title" = "恢复失败";
