@@ -1,6 +1,6 @@
 /*
   Localizable.strings (English)
-  Pixor
+  Picser
 
   Created by Eric Cai on 2025/08/19.
   
@@ -284,14 +284,14 @@
 "trial_banner_dismiss" = "Hide trial banner temporarily";
 
 "trial_expired_title" = "Trial ended";
-"trial_expired_subtitle" = "One-time purchase unlocks Pixor forever. Already bought? Restore your access without paying again.";
+"trial_expired_subtitle" = "One-time purchase unlocks Picser forever. Already bought? Restore your access without paying again.";
 "trial_expired_dismiss" = "Hide upgrade reminder";
 "unlock_alert_title" = "Unlock Full Version";
 "unlock_alert_body_generic" = "Your trial has ended. Purchase the full version to keep using advanced features.";
 "unlock_alert_cancel" = "Maybe later";
 
 "purchase_section_title" = "License & Purchase";
-"purchase_section_description" = "Manage your trial status, unlock the full version, or restore a previous purchase. If you already bought Pixor on another device, tap Restore to enable it again without paying.";
+"purchase_section_description" = "Manage your trial status, unlock the full version, or restore a previous purchase. If you already bought Picser on another device, tap Restore to enable it again without paying.";
 "purchase_status_trial_prefix" = "Current status: Trial";
 "purchase_status_expired" = "Current status: Trial ended";
 "purchase_status_purchased" = "Current status: Full version unlocked";
@@ -323,7 +323,7 @@
 
 /* Purchase Info Page */
 "purchase_info_title" = "Upgrade Options";
-"purchase_info_headline" = "Unlock the full Pixor experience";
+"purchase_info_headline" = "Unlock the full Picser experience";
 "purchase_info_description" = "Choose the plan that fits you best. You can subscribe with a free trial or unlock everything forever with a one-time purchase.";
 "purchase_info_features_title" = "What's included";
 "purchase_info_offerings_title" = "Available plans";

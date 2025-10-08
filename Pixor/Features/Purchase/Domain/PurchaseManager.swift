@@ -241,6 +241,11 @@ final class PurchaseManager: ObservableObject {
 
     do {
       let products = try await Product.products(for: productIDs)
+      if products.isEmpty {
+        #if DEBUG
+        print("StoreKit 未返回任何商品，请求 ID: \(productIDs)")
+        #endif
+      }
       let mapped = products.compactMap { product -> PurchaseOffering? in
         guard let config = configuration.configuration(for: product.id) else { return nil }
         return PurchaseOffering(configuration: config, product: product)
@@ -260,7 +265,7 @@ final class PurchaseManager: ObservableObject {
       }
     } catch {
       #if DEBUG
-      print("Product fetch error: \(error)")
+      print("StoreKit 商品请求失败: \(error.localizedDescription)，请求 ID: \(productIDs)")
       #endif
       offerings = []
     }

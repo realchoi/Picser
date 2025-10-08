@@ -1,9 +1,9 @@
-# Pixor Terms of Use
+# Picser Terms of Use
 
 - Last Updated: September 20, 2025
 - Effective Date: September 20, 2025
 
-Thank you for choosing Pixor. These Terms of Use (the "Terms") are designed to protect your rights and clarify our mutual obligations. Please read them carefully before downloading, installing, or using the Software (collectively, the "Service"). By accessing or using the Service, you acknowledge that you have read, understood, and agree to be bound by these Terms.
+Thank you for choosing Picser. These Terms of Use (the "Terms") are designed to protect your rights and clarify our mutual obligations. Please read them carefully before downloading, installing, or using the Software (collectively, the "Service"). By accessing or using the Service, you acknowledge that you have read, understood, and agree to be bound by these Terms.
 
 ## 1. Acceptance and Applicability
 
@@ -13,7 +13,7 @@ Thank you for choosing Pixor. These Terms of Use (the "Terms") are designed to p
 
 ## 2. Service Overview
 
-1. Pixor is a macOS image viewer offering browsing, zoom, crop, EXIF inspection, customizable shortcuts, and related features.
+1. Picser is a macOS image viewer offering browsing, zoom, crop, EXIF inspection, customizable shortcuts, and related features.
 2. New users receive a one-time seven-day free trial. After the trial expires, a one-time in-app purchase is required to unlock the full feature set. The feature list is based on product documentation and the current release.
 3. We may update, expand, or adjust features periodically, including adding paid upgrades or add-on modules. We will notify you through release notes or in-app messaging when changes occur.
 

@@ -1,9 +1,9 @@
-# Pixor Privacy Policy
+# Picser Privacy Policy
 
 - Last Updated: September 20, 2025
 - Effective Date: September 20, 2025
 
-Welcome to Pixor. This Privacy Policy explains how Soyotube and its affiliates ("we," "our," or "us") collect, use, disclose, and safeguard your personal information when we provide Pixor (the "Software") and related services worldwide. Please read this Policy carefully before using the Software, especially the sections that describe your rights and obligations.
+Welcome to Picser. This Privacy Policy explains how Soyotube and its affiliates ("we," "our," or "us") collect, use, disclose, and safeguard your personal information when we provide Picser (the "Software") and related services worldwide. Please read this Policy carefully before using the Software, especially the sections that describe your rights and obligations.
 
 ## 1. Scope
 
