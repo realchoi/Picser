@@ -15,6 +15,10 @@ struct PixorApp: App {
   @StateObject private var purchaseManager: PurchaseManager
   // 功能权限守卫
   @StateObject private var featureGatekeeper: FeatureGatekeeper
+  // 外部打开协调器
+  @StateObject private var externalOpenCoordinator: ExternalOpenCoordinator
+  // 应用委托
+  @NSApplicationDelegateAdaptor private var appDelegate: PixorAppDelegate
 
   init() {
     let sharedSecret = PurchaseSecretsProvider.purchaseSharedSecret()
@@ -34,6 +38,9 @@ struct PixorApp: App {
         policy: policy
       )
     )
+    let openCoordinator = ExternalOpenCoordinator()
+    _externalOpenCoordinator = StateObject(wrappedValue: openCoordinator)
+    appDelegate.configure(externalOpenCoordinator: openCoordinator)
   }
 
   var body: some Scene {
@@ -42,6 +49,7 @@ struct PixorApp: App {
         .environmentObject(appSettings)
         .environmentObject(purchaseManager)
         .environmentObject(featureGatekeeper)
+        .environmentObject(externalOpenCoordinator)
         // 让试图内容延伸至标题栏区域，实现完全无边框效果
         .ignoresSafeArea(.all, edges: .top)
     }

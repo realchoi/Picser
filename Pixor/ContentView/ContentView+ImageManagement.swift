@@ -81,6 +81,12 @@ extension ContentView {
     }
   }
 
+  /// 处理来自 Finder 或 Dock 的外部打开请求
+  func handleExternalImageBatch(_ batch: ImageBatch) {
+    updateSecurityAccess(using: batch.inputs)
+    applyImageBatch(batch)
+  }
+
   /// 更新沙盒访问权限，保证后续读写能力
   func updateSecurityAccess(using inputs: [URL]) {
     guard let first = inputs.first else {

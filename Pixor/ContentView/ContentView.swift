@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Combine
 import Foundation
 import ImageIO
 import SwiftUI
@@ -47,6 +48,7 @@ struct ContentView: View {
   @EnvironmentObject var appSettings: AppSettings
   @EnvironmentObject var purchaseManager: PurchaseManager
   @EnvironmentObject var featureGatekeeper: FeatureGatekeeper
+  @EnvironmentObject var externalOpenCoordinator: ExternalOpenCoordinator
 
   /// 侧边栏宽度限制，防止用户将其放大全屏
   private enum LayoutMetrics {
@@ -139,6 +141,19 @@ struct ContentView: View {
             }
             showingAddCustomRatio = false
           }
+        }
+    )
+
+    view = AnyView(
+      view
+        .task {
+          if let batch = externalOpenCoordinator.consumeLatestBatch() {
+            handleExternalImageBatch(batch)
+          }
+        }
+        .onReceive(externalOpenCoordinator.latestBatchPublisher) { batch in
+          handleExternalImageBatch(batch)
+          externalOpenCoordinator.clearLatestBatch()
         }
     )
 
