@@ -63,14 +63,13 @@ struct AsyncZoomableImageContainer: View {
         self.viewportSize = geometry.size
       }
       .onChange(of: url) { _, newURL in
-        // 优先立即显示缓存内容（不清空 UI，避免短暂 loading）
-        Task { @MainActor in
-          if let cachedFull = ImageLoader.shared.cachedFullImage(for: newURL) {
-            self.displayImage = cachedFull
-            self.isShowingFull = true
-          } else if let cachedThumb = ImageLoader.shared.cachedThumbnail(for: newURL) {
-            self.displayImage = cachedThumb
-          }
+        // 切换图片时显示 Loading，除非立即有缓存
+        if ImageLoader.shared.cachedFullImage(for: newURL) != nil {
+          // 有完整图缓存，立即显示，不显示 loading
+        } else {
+          // 没有缓存，显示 loading
+          self.displayImage = nil
+          self.isShowingFull = false
         }
       }
       .onChange(of: geometry.size) { _, newSize in
@@ -94,7 +93,7 @@ struct AsyncZoomableImageContainer: View {
       let currentURL = url
       // 在主线程上组织渐进加载，避免跨 actor 传递 NSImage 带来的 Swift 6 Sendable 警告
       let task = Task { @MainActor in
-        // 缓存直读：若命中完整图或缩略图，立即显示
+        // 第1步：缓存直读，立即显示缓存内容（避免闪烁）
         if let cachedFull = ImageLoader.shared.cachedFullImage(for: currentURL) {
           self.displayImage = cachedFull
           self.isShowingFull = true
@@ -102,7 +101,35 @@ struct AsyncZoomableImageContainer: View {
           self.displayImage = cachedThumb
         }
 
-        // 取消并替换上一轮完整图加载任务
+        let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+        // 目标：视口长边 * scale * 2.5，并给出上限
+        let targetLongSidePixels = Int(min(
+          DownsampleRequestConstants.maxLongSidePixels,
+          max(viewportSize.width, viewportSize.height) * scale * 2.5
+        ))
+
+        // 第2步：如果还没有完整图，先加载缩略图
+        if self.displayImage == nil && !self.isShowingFull {
+          if let thumb = await ImageLoader.shared.loadThumbnail(for: currentURL), !Task.isCancelled {
+            withAnimation(Motion.Anim.fast) {
+              self.displayImage = thumb
+            }
+          }
+        }
+
+        // 第3步：加载优化的中等尺寸图片（更好的过渡）
+        if !self.isShowingFull {
+          if let optimized = await ImageLoader.shared.loadOptimizedImage(
+            for: currentURL,
+            targetLongSidePixels: targetLongSidePixels
+          ), !Task.isCancelled, !self.isShowingFull {
+            withAnimation(Motion.Anim.medium) {
+              self.displayImage = optimized
+            }
+          }
+        }
+
+        // 第4步：最终加载完整图片
         fullLoadTask?.cancel()
         fullLoadTask = Task { @MainActor in
           if let full = await ImageLoader.shared.loadFullImage(for: currentURL), !Task.isCancelled {
@@ -113,42 +140,7 @@ struct AsyncZoomableImageContainer: View {
           }
         }
 
-        let scale = NSScreen.main?.backingScaleFactor ?? 2.0
-        // 目标：视口长边 * scale * 2.5，并给出上限
-        let targetLongSidePixels = Int(min(
-          DownsampleRequestConstants.maxLongSidePixels,
-          max(viewportSize.width, viewportSize.height) * scale * 2.5
-        ))
-
-        // 若尚未显示完整图，尝试基于视口像素的下采样图，作为更清晰的过渡
-        if !self.isShowingFull {
-
-          if let ds = await ImageLoader.shared.loadDownsampledImage(
-            for: currentURL,
-            targetLongSidePixels: targetLongSidePixels
-          ), !Task.isCancelled, !self.isShowingFull {
-            withAnimation(Motion.Anim.medium) {
-              self.displayImage = ds
-            }
-          }
-        }
-
-        // 如果仍然没有任何图像，再获取一个快速缩略图占位（使用内部下采样方案）
-        if self.displayImage == nil {
-          if let downsampled = await ImageLoader.shared.loadDownsampledImage(
-            for: currentURL,
-            targetLongSidePixels: targetLongSidePixels
-          ), !Task.isCancelled, !self.isShowingFull {
-            withAnimation(Motion.Anim.medium) {
-              self.displayImage = downsampled
-            }
-          } else if let thumb = await ImageLoader.shared.loadThumbnail(for: currentURL), !Task.isCancelled, !self.isShowingFull {
-            withAnimation(Motion.Anim.medium) {
-              self.displayImage = thumb
-            }
-          }
-        }
-        // 等待完整图加载任务结束（被取消或成功覆盖）以便结构化生命周期
+        // 等待完整图加载任务结束
         _ = await fullLoadTask?.value
       }
 

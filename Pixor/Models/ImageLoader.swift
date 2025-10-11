@@ -5,217 +5,229 @@ import Foundation
 import ImageIO
 import CoreImage
 
-/// 线程安全的图片加载器，负责协调内存缓存、元数据磁盘缓存和高保真图片加载
+/// 优化的图片加载器，使用统一内存缓存和智能加载策略
 @MainActor
 final class ImageLoader {
   static let shared = ImageLoader()
 
-  // 内存缓存：在主线程上安全访问
-  private let thumbnailCache = NSCache<NSString, NSImage>()
-  private let fullImageCache = NSCache<NSURL, NSImage>()
+  // 统一内存缓存：缓存所有尺寸的图片，统一管理
+  private let imageCache = NSCache<NSString, NSImage>()
   private var memoryPressureSource: DispatchSourceMemoryPressure?
 
-  // 专用队列用于后台图片处理
+  // 后台处理队列
   private let processingQueue = DispatchQueue(
-    label: "com.soyotube.Picser.imageloader.processing",
+    label: "com.pixor.imageloader.processing",
     qos: .userInitiated,
     attributes: .concurrent
   )
 
-  // 同步队列用于保护缓存操作的原子性
+  // 缓存同步队列
   private let cacheQueue = DispatchQueue(
-    label: "com.soyotube.Picser.imageloader.cache",
+    label: "com.pixor.imageloader.cache",
     qos: .userInitiated
   )
 
   private init() {
-    // 适度限制内存缓存
-    thumbnailCache.countLimit = 200
-    thumbnailCache.totalCostLimit = 128 * 1024 * 1024  // 128MB
-    fullImageCache.countLimit = 50
-    fullImageCache.totalCostLimit = 256 * 1024 * 1024  // 256MB
+    // 简化内存配置：总共不超过64MB
+    imageCache.countLimit = 100  // 总图片数量限制
+    imageCache.totalCostLimit = 64 * 1024 * 1024  // 64MB总内存限制
 
-    // 监听系统内存压力并清理内存缓存
+    // 设置内存压力监听
     setupMemoryPressureObserver()
   }
 
   // MARK: - 核心加载方法
 
-  // MARK: - 缓存直读（避免闪烁用）
-  /// 同步返回内存中已缓存的完整图（若存在）
-  func cachedFullImage(for url: URL) -> NSImage? {
+  // MARK: - 缓存访问
+
+  /// 生成缓存键
+  private func cacheKey(for url: URL, suffix: String = "") -> NSString {
+    return (url.absoluteString + suffix) as NSString
+  }
+
+  /// 统一的缓存读取方法（线程安全）
+  private func cachedImage(for url: URL, suffix: String = "") -> NSImage? {
     return cacheQueue.sync {
-      return fullImageCache.object(forKey: url as NSURL)
+      self.imageCache.object(forKey: cacheKey(for: url, suffix: suffix))
     }
   }
 
-  /// 同步返回内存中已缓存的缩略图（若存在）
+  /// 统一的缓存设置方法（线程安全）
+  private func setCachedImage(_ image: NSImage, for url: URL, suffix: String = "") async {
+    let cost = estimatedCost(of: image)  // nonisolated 方法可以直接调用
+
+    // 使用 MainActor.run 避免嵌套 Task，统一架构
+    await MainActor.run {
+      self.imageCache.setObject(image, forKey: cacheKey(for: url, suffix: suffix), cost: cost)
+    }
+  }
+
+  /// 公开的缓存访问方法
   func cachedThumbnail(for url: URL) -> NSImage? {
-    return cacheQueue.sync {
-      return thumbnailCache.object(forKey: url.absoluteString as NSString)
-    }
+    return cachedImage(for: url, suffix: "_thumb")
   }
 
-  /// 加载用于UI显示的缩略图 (Thumbnail)
-  /// 这是UI列表的"生命线"，必须极速响应。
+  func cachedFullImage(for url: URL) -> NSImage? {
+    return cachedImage(for: url)
+  }
+
+  /// 加载缩略图：优先内存缓存，其次磁盘缓存，最后重新生成
   func loadThumbnail(for url: URL) async -> NSImage? {
-    // 首先检查缓存
+    // 1. 检查内存缓存
     if let cached = cachedThumbnail(for: url) {
       return cached
     }
 
-    // 尝试从元数据磁盘缓存中获取
-    if let metadata = await DiskCache.shared.retrieve(forKey: url.path) {
-      if let image = NSImage(data: metadata.thumbnailData) {
-        // 安全地缓存到内存
-        await setThumbnail(image, for: url)
-        return image
-      }
+    // 2. 尝试从磁盘缓存快速加载
+    if let metadata = await DiskCache.shared.retrieve(forKey: url.path),
+       let image = NSImage(data: metadata.thumbnailData) {
+      await setCachedImage(image, for: url, suffix: "_thumb")
+      return image
     }
 
-    // 如果磁盘缓存不存在，则在后台创建它
-    await createAndCacheMetadata(for: url)
-
-    // 创建完成后，再次尝试从内存缓存中读取
-    return cachedThumbnail(for: url)
+    // 3. 重新生成缩略图
+    return await generateThumbnail(for: url)
   }
 
-  /// 加载高保真"原始样貌"的完整图片
-  func loadFullImage(for url: URL) async -> NSImage? {
-    // 首先检查缓存
-    if let cached = cachedFullImage(for: url) {
-      return cached
-    }
+  /// 生成缩略图并缓存（优化版本）
+  private func generateThumbnail(for url: URL) async -> NSImage? {
+    // 1. 在后台队列生成缩略图数据
+    let thumbnailData = await Task.detached(priority: .userInitiated) {
+      self.createThumbnailData(from: url, maxPixelSize: 256)
+    }.value
 
-    // 首先获取元数据（若无则回退扩展名判断）
-    let metadata = await DiskCache.shared.retrieve(forKey: url.path)
+    guard let data = thumbnailData else { return nil }
 
-    var image: NSImage?
+    // 2. 创建缩略图
+    guard let image = NSImage(data: data) else { return nil }
 
-    // 根据元数据中的格式，执行差异化加载
-    let isGIF: Bool = {
-      if let fmt = metadata?.originalFormat { return fmt == .gif }
-      return url.pathExtension.lowercased() == "gif"
-    }()
+    // 3. 缓存到内存
+    await setCachedImage(image, for: url, suffix: "_thumb")
 
-    if isGIF {
-      // 将磁盘 IO 放到后台线程
-      if let data = await readFileData(from: url) {
-        image = NSImage(data: data)
-      }
-    } else {
-      // 静态图：后台解码并应用 EXIF 方向
-      if let cgImage = await decodeOrientedCGImage(from: url) {
-        let size = NSSize(width: cgImage.width, height: cgImage.height)
-        image = NSImage(cgImage: cgImage, size: size)
-      }
-    }
-
-    if let finalImage = image {
-      // 安全地缓存到内存
-      await setFullImage(finalImage, for: url)
+    // 4. 异步缓存到磁盘（不阻塞当前操作）
+    Task.detached(priority: .background) {
+      await self.createAndCacheMetadata(for: url)
     }
 
     return image
   }
 
-  /// 基于"视口像素预算"先行下采样的中间质量图（静态图适用；GIF 返回 nil）
-  /// - Parameter targetLongSidePixels: 长边目标像素（例如 视口长边 * 屏幕scale * 2.5，且建议上限 3K~4K）
-  func loadDownsampledImage(for url: URL, targetLongSidePixels: Int) async -> NSImage? {
-    guard targetLongSidePixels > 0 else { return nil }
-
-    // GIF 不做静态下采样，避免丢失动画
-    let meta = await DiskCache.shared.retrieve(forKey: url.path)
-    if meta?.originalFormat == .gif || url.pathExtension.lowercased() == "gif" {
-      return nil
+  /// 加载完整图片：智能加载并缓存
+  func loadFullImage(for url: URL) async -> NSImage? {
+    // 1. 检查内存缓存
+    if let cached = cachedFullImage(for: url) {
+      return cached
     }
 
-    if Task.isCancelled { return nil }
+    // 2. 根据格式智能加载
+    let image = await loadImageByFormat(for: url)
 
-    let maxPixelSize = max(64, targetLongSidePixels)
+    // 3. 缓存结果
+    if let finalImage = image {
+      await setCachedImage(finalImage, for: url)
+    }
 
-    // 后台生成带方向矫正的缩略 CGImage（高质量下采样）
-    let cg: CGImage? = await withCheckedContinuation { continuation in
+    return image
+  }
+
+  /// 根据图片格式进行差异化加载
+  private func loadImageByFormat(for url: URL) async -> NSImage? {
+    // GIF处理
+    if url.pathExtension.lowercased() == "gif" {
+      if let data = await readFileData(from: url) {
+        return NSImage(data: data)
+      }
+    }
+
+    // 静态图处理：EXIF方向矫正
+    if let cgImage = await decodeOrientedCGImage(from: url) {
+      let size = NSSize(width: cgImage.width, height: cgImage.height)
+      return NSImage(cgImage: cgImage, size: size)
+    }
+
+    return nil
+  }
+
+  /// 智能加载适配尺寸的图片
+  /// 自动选择最佳尺寸：缩略图、下采样图或完整图
+  func loadOptimizedImage(for url: URL, targetLongSidePixels: Int) async -> NSImage? {
+    guard targetLongSidePixels > 0 else { return nil }
+
+    // GIF 直接返回完整图
+    if url.pathExtension.lowercased() == "gif" {
+      return await loadFullImage(for: url)
+    }
+
+    // 小尺寸：使用缩略图
+    if targetLongSidePixels <= 256 {
+      return await loadThumbnail(for: url)
+    }
+
+    // 中等尺寸：生成下采样图
+    return await generateDownsampledImage(for: url, targetLongSidePixels: targetLongSidePixels)
+  }
+
+  /// 生成下采样图片
+  private func generateDownsampledImage(for url: URL, targetLongSidePixels: Int) async -> NSImage? {
+    // let cacheKey = url.absoluteString + "_down_\(targetLongSidePixels)"
+
+    // 检查缓存
+    if let cached = cachedImage(for: url, suffix: "_down_\(targetLongSidePixels)") {
+      return cached
+    }
+
+    // 生成下采样图
+    let maxPixelSize = max(256, min(targetLongSidePixels, 2048))  // 限制最大尺寸
+
+    return await withCheckedContinuation { continuation in
       processingQueue.async {
-        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cgImage = CGImageSourceCreateThumbnailAtIndex(src, 0, [
+                kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+              ] as CFDictionary) else {
           continuation.resume(returning: nil)
           return
         }
-        let opts: [CFString: Any] = [
-          kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
-          kCGImageSourceCreateThumbnailWithTransform: true,  // 应用 EXIF 方向
-          kCGImageSourceShouldCacheImmediately: true,
-          kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
-        ]
-        let result = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary)
-        continuation.resume(returning: result)
-      }
-    }
 
-    guard let cgImage = cg else { return nil }
+        let size = NSSize(width: cgImage.width, height: cgImage.height)
+        let nsImage = NSImage(cgImage: cgImage, size: size)
 
-    if Task.isCancelled { return nil }
+        // 缓存结果
+        Task {
+          await self.setCachedImage(nsImage, for: url, suffix: "_down_\(targetLongSidePixels)")
+        }
 
-    let size = NSSize(width: cgImage.width, height: cgImage.height)
-    let nsImage = NSImage(cgImage: cgImage, size: size)
-
-    // 安全地缓存到内存
-    await setFullImage(nsImage, for: url)
-    return nsImage
-  }
-
-  // MARK: - 缓存创建和辅助方法
-
-  /// 线程安全地设置缩略图到缓存
-  private func setThumbnail(_ image: NSImage, for url: URL) async {
-    await MainActor.run {
-      self.cacheQueue.async {
-        let cacheKey = url.absoluteString as NSString
-        self.thumbnailCache.setObject(image, forKey: cacheKey, cost: self.estimatedCost(of: image))
+        continuation.resume(returning: nsImage)
       }
     }
   }
 
-  /// 线程安全地设置完整图片到缓存
-  private func setFullImage(_ image: NSImage, for url: URL) async {
-    await MainActor.run {
-      self.cacheQueue.async {
-        let cacheKey = url as NSURL
-        self.fullImageCache.setObject(image, forKey: cacheKey, cost: self.estimatedCost(of: image))
-      }
-    }
-  }
+  // MARK: - 磁盘缓存管理
 
-  /// 在后台为一张图片创建并存储其元数据缓存
+  /// 创建并存储图片元数据到磁盘缓存
   private func createAndCacheMetadata(for url: URL) async {
-    // 1. 创建一个微缩略图 (例如 256x256)
     let thumbnailData = await withCheckedContinuation { continuation in
       processingQueue.async {
-        let result = self.createThumbnailData(from: url, maxPixelSize: 256)
-        continuation.resume(returning: result)
+        continuation.resume(returning: self.createThumbnailData(from: url, maxPixelSize: 256))
       }
     }
 
-    guard let data = thumbnailData else {
+    guard let data = thumbnailData,
+          let metadata = MetadataCache(fromUrl: url, thumbnailData: data) else {
       return
     }
 
-    // 2. 使用缩略图数据和原始URL创建 MetadataCache 对象
-    guard let metadata = MetadataCache(fromUrl: url, thumbnailData: data) else {
-      return
-    }
-
-    // 3. 将新的元数据对象存入磁盘缓存
-    await DiskCache.shared.store(metadata: metadata, forKey: url.path)
-
-    // 4. 创建 NSImage 并安全地更新缓存
-    if let image = NSImage(data: data) {
-      await setThumbnail(image, for: url)
+    // 异步存储到磁盘，不阻塞当前操作
+    Task {
+      await DiskCache.shared.store(metadata: metadata, forKey: url.path)
     }
   }
 
   /// 从原始图片文件创建一个小尺寸、高压缩率的缩略图二进制数据 (Data)
-  private func createThumbnailData(from url: URL, maxPixelSize: Int) -> Data? {
+  nonisolated private func createThumbnailData(from url: URL, maxPixelSize: Int) -> Data? {
     guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
 
     let options: [CFString: Any] = [
@@ -282,8 +294,8 @@ final class ImageLoader {
     }
   }
 
-  /// 估算 NSImage 的内存开销
-  private func estimatedCost(of image: NSImage) -> Int {
+  /// 估算 NSImage 的内存开销（nonisolated 避免 actor 隔离）
+  nonisolated private func estimatedCost(of image: NSImage) -> Int {
     let pixels = Int(image.size.width * image.size.height)
     return pixels * 4  // 假设每个像素4字节 (RGBA)
   }
@@ -300,25 +312,25 @@ final class ImageLoader {
     }
   }
 
-  // MARK: - 内存压力处理
+  // MARK: - 内存管理
+
+  /// 设置内存压力监听
   private func setupMemoryPressureObserver() {
     let source = DispatchSource.makeMemoryPressureSource(eventMask: .all, queue: .global(qos: .utility))
     source.setEventHandler { [weak self] in
       guard let self else { return }
-      self.cacheQueue.async {
-        self.thumbnailCache.removeAllObjects()
-        self.fullImageCache.removeAllObjects()
+      Task { @MainActor in
+        self.imageCache.removeAllObjects()
       }
     }
     source.resume()
     self.memoryPressureSource = source
   }
 
-  /// 清理所有内存缓存（线程安全）
+  /// 清理所有内存缓存
   func clearAllCaches() {
-    cacheQueue.async {
-      self.thumbnailCache.removeAllObjects()
-      self.fullImageCache.removeAllObjects()
+    Task { @MainActor in
+      self.imageCache.removeAllObjects()
     }
   }
 }
