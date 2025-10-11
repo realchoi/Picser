@@ -64,11 +64,13 @@ struct AsyncZoomableImageContainer: View {
       }
       .onChange(of: url) { _, newURL in
         // 优先立即显示缓存内容（不清空 UI，避免短暂 loading）
-        if let cachedFull = ImageLoader.shared.cachedFullImage(for: newURL) {
-          self.displayImage = cachedFull
-          self.isShowingFull = true
-        } else if let cachedThumb = ImageLoader.shared.cachedThumbnail(for: newURL) {
-          self.displayImage = cachedThumb
+        Task { @MainActor in
+          if let cachedFull = ImageLoader.shared.cachedFullImage(for: newURL) {
+            self.displayImage = cachedFull
+            self.isShowingFull = true
+          } else if let cachedThumb = ImageLoader.shared.cachedThumbnail(for: newURL) {
+            self.displayImage = cachedThumb
+          }
         }
       }
       .onChange(of: geometry.size) { _, newSize in
