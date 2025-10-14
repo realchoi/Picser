@@ -23,7 +23,7 @@ struct TrialStatusBanner: View {
         .foregroundStyle(.blue)
 
       VStack(alignment: .leading, spacing: 4) {
-        Text("trial_banner_title".localized)
+        Text(l10n: "trial_banner_title")
           .font(.headline)
         Text(remainingDescription)
           .font(.subheadline)
@@ -38,8 +38,8 @@ struct TrialStatusBanner: View {
           .foregroundStyle(Color.secondary, Color.secondary.opacity(0.2))
       }
       .buttonStyle(.plain)
-      .help("trial_banner_dismiss".localized)
-      .accessibilityLabel(Text("trial_banner_dismiss".localized))
+      .help(L10n.key("trial_banner_dismiss"))
+      .accessibilityLabel(Text(l10n: "trial_banner_dismiss"))
     }
     .padding(.vertical, 12)
     .padding(.horizontal, 16)

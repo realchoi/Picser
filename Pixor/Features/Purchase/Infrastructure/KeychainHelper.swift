@@ -144,12 +144,12 @@ enum KeychainError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .invalidData:
-      return "keychain_invalid_data".localized
+      return L10n.string("keychain_invalid_data")
     case .authenticationFailed(let status):
-      let format = "keychain_authentication_failed".localized
+      let format = L10n.string("keychain_authentication_failed")
       return String(format: format, status)
     case .unhandledError(let status):
-      let format = "keychain_unhandled_error".localized
+      let format = L10n.string("keychain_unhandled_error")
       return String(format: format, status)
     }
   }

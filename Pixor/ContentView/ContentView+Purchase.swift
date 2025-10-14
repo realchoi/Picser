@@ -16,11 +16,11 @@ enum PurchaseFlowOperation {
   var failureTitle: String {
     switch self {
     case .purchase:
-      return "purchase_flow_purchase_failed_title".localized
+      return L10n.string("purchase_flow_purchase_failed_title")
     case .restore:
-      return "purchase_flow_restore_failed_title".localized
+      return L10n.string("purchase_flow_restore_failed_title")
     case .refreshReceipt:
-      return "purchase_flow_refresh_failed_title".localized
+      return L10n.string("purchase_flow_refresh_failed_title")
     }
   }
 

@@ -18,7 +18,7 @@ struct SettingsView: View {
         GeneralSettingsView(appSettings: appSettings)
           .tabItem {
             Label(
-              "general_tab".localized,
+              L10n.string("general_tab"),
               systemImage: "gearshape")
           }
 
@@ -26,7 +26,7 @@ struct SettingsView: View {
         KeyboardSettingsView(appSettings: appSettings)
           .tabItem {
             Label(
-              "keyboard_tab".localized,
+              L10n.string("keyboard_tab"),
               systemImage: "keyboard")
           }
 
@@ -34,7 +34,7 @@ struct SettingsView: View {
         DisplaySettingsView(appSettings: appSettings)
           .tabItem {
             Label(
-              "display_tab".localized, systemImage: "display"
+              L10n.string("display_tab"), systemImage: "display"
             )
           }
 
@@ -42,7 +42,7 @@ struct SettingsView: View {
         CacheSettingsView()
           .tabItem {
             Label(
-              "cache_tab".localized,
+              L10n.string("cache_tab"),
               systemImage: "externaldrive"
             )
           }

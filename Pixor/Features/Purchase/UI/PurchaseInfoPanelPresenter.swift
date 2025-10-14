@@ -83,7 +83,7 @@ final class PurchaseInfoPanelPresenter: NSObject, NSWindowDelegate {
     alert.alertStyle = .warning
     alert.messageText = title
     alert.informativeText = message
-    alert.addButton(withTitle: "ok_button".localized)
+    alert.addButton(withTitle: L10n.string("ok_button"))
     alert.beginSheetModal(for: panel)
   }
 

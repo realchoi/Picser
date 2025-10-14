@@ -16,7 +16,7 @@ struct CacheSettingsView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        Text("cache_settings_title".localized)
+        Text(l10n: "cache_settings_title")
           .font(.title2)
           .fontWeight(.semibold)
 
@@ -24,11 +24,11 @@ struct CacheSettingsView: View {
 
         // 缓存信息显示
         VStack(alignment: .leading, spacing: 16) {
-          Text("cache_info_group".localized)
+          Text(l10n: "cache_info_group")
             .fontWeight(.medium)
 
           HStack {
-            Text("cache_size_label".localized)
+            Text(l10n: "cache_size_label")
               .frame(width: 120, alignment: .leading)
 
             // 使用固定尺寸的容器来避免布局跳变
@@ -48,10 +48,10 @@ struct CacheSettingsView: View {
                 .font(.caption)
             }
             .buttonStyle(.borderless)
-            .help("refresh_cache_size".localized)
+            .help(L10n.key("refresh_cache_size"))
           }
 
-          Text("cache_size_description".localized)
+          Text(l10n: "cache_size_description")
             .font(.caption)
             .foregroundColor(.secondary)
         }
@@ -60,14 +60,14 @@ struct CacheSettingsView: View {
 
         // 缓存操作
         VStack(alignment: .leading, spacing: 16) {
-          Text("cache_actions_group".localized)
+          Text(l10n: "cache_actions_group")
             .fontWeight(.medium)
 
           HStack(spacing: 12) {
             Button(action: { showingClearConfirmation = true }) {
               HStack(spacing: 6) {
                 Image(systemName: "trash")
-                Text("clear_cache_button".localized)
+                Text(l10n: "clear_cache_button")
               }
             }
             .buttonStyle(.borderedProminent)
@@ -77,13 +77,13 @@ struct CacheSettingsView: View {
             Button(action: openCacheDirectory) {
               HStack(spacing: 6) {
                 Image(systemName: "folder")
-                Text("open_cache_directory".localized)
+                Text(l10n: "open_cache_directory")
               }
             }
             .buttonStyle(.bordered)
           }
 
-          Text("cache_actions_description".localized)
+          Text(l10n: "cache_actions_description")
             .font(.caption)
             .foregroundColor(.secondary)
         }
@@ -98,17 +98,17 @@ struct CacheSettingsView: View {
       refreshCacheSize()
     }
     .alert(
-      "clear_cache_alert_title".localized,
+      L10n.key("clear_cache_alert_title"),
       isPresented: $showingClearConfirmation
     ) {
-      Button("cancel_button".localized, role: .cancel) {}
-      Button("clear_button".localized, role: .destructive) {
+      Button(L10n.key("cancel_button"), role: .cancel) {}
+      Button(L10n.key("clear_button"), role: .destructive) {
         Task {
           await clearCache()
         }
       }
     } message: {
-      Text("clear_cache_alert_message".localized)
+      Text(l10n: "clear_cache_alert_message")
     }
   }
 

@@ -20,10 +20,10 @@ struct DropOverlay: View {
         Image(systemName: "square.and.arrow.down.on.square")
           .font(.system(size: 36, weight: .medium))
           .foregroundStyle(Color.accentColor)
-        Text("drop_overlay_title".localized)
+        Text(l10n: "drop_overlay_title")
           .font(.title3)
           .bold()
-        Text("drop_overlay_subtitle".localized)
+        Text(l10n: "drop_overlay_subtitle")
           .font(.callout)
           .foregroundStyle(.secondary)
       }

@@ -16,7 +16,7 @@ struct GeneralSettingsView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        Text("general_settings_title".localized)
+        Text(l10n: "general_settings_title")
           .font(.title2)
           .fontWeight(.semibold)
 
@@ -24,14 +24,14 @@ struct GeneralSettingsView: View {
 
         // 界面设置组
         VStack(alignment: .leading, spacing: 16) {
-          Text("interface_group".localized)
+          Text(l10n: "interface_group")
             .fontWeight(.medium)
 
           // 语言选择
           VStack(alignment: .leading, spacing: 8) {
-            Text("app_language_label".localized)
+            Text(l10n: "app_language_label")
               .fontWeight(.medium)
-            Text("app_language_description".localized)
+            Text(l10n: "app_language_description")
               .font(.caption)
               .foregroundColor(.secondary)
 
@@ -60,7 +60,7 @@ struct GeneralSettingsView: View {
                   .foregroundColor(.blue)
                   .font(.caption)
 
-                Text("language_restart_note".localized)
+                Text(l10n: "language_restart_note")
                   .font(.caption)
                   .foregroundColor(.secondary)
               }
@@ -78,7 +78,7 @@ struct GeneralSettingsView: View {
         // 重置按钮
         HStack {
           Spacer()
-          Button("reset_defaults_button".localized) {
+          Button(L10n.key("reset_defaults_button")) {
             withAnimation {
               appSettings.resetToDefaults(settingsTab: .general)
             }
@@ -94,17 +94,17 @@ struct GeneralSettingsView: View {
       Alert(
         title: Text(alertData.title),
         message: Text(alertData.message),
-        dismissButton: .default(Text("ok_button".localized))
+        dismissButton: .default(Text(l10n: "ok_button"))
       )
     }
   }
 
   private var purchaseSection: some View {
     VStack(alignment: .leading, spacing: 16) {
-      Text("purchase_section_title".localized)
+      Text(l10n: "purchase_section_title")
         .fontWeight(.medium)
 
-      Text("purchase_section_description".localized)
+      Text(l10n: "purchase_section_description")
         .font(.caption)
         .foregroundColor(.secondary)
 
@@ -120,12 +120,12 @@ struct GeneralSettingsView: View {
           }
 
           HStack(spacing: 12) {
-            Button("purchase_section_restore".localized) {
+            Button(L10n.key("purchase_section_restore")) {
               performRestore()
             }
             .buttonStyle(.bordered)
 
-            Button("purchase_section_purchase".localized) {
+            Button(L10n.key("purchase_section_purchase")) {
               presentPurchasePrompt()
             }
             .buttonStyle(.borderedProminent)
@@ -273,7 +273,7 @@ struct GeneralSettingsView: View {
   }
 
   private func localized(_ key: String, fallback: String) -> String {
-    let value = key.localized
+    let value = L10n.string(key)
     return value == key ? fallback : value
   }
 }

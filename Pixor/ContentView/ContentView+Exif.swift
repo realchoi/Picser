@@ -14,8 +14,8 @@ extension ContentView {
     performIfEntitled(.exif) {
       guard let currentURL = selectedImageURL else {
         alertContent = AlertContent(
-          title: "exif_loading_error_title".localized,
-          message: "exif_no_image_selected".localized
+          title: L10n.string("exif_loading_error_title"),
+          message: L10n.string("exif_no_image_selected")
         )
         return
       }
@@ -35,24 +35,24 @@ extension ContentView {
           await MainActor.run {
             self.isLoadingExif = false
             self.alertContent = AlertContent(
-              title: "exif_loading_error_title".localized,
-              message: "exif_file_read_error".localized
+              title: L10n.string("exif_loading_error_title"),
+              message: L10n.string("exif_file_read_error")
             )
           }
         } catch ExifExtractionError.failedToExtractProperties {
           await MainActor.run {
             self.isLoadingExif = false
             self.alertContent = AlertContent(
-              title: "exif_loading_error_title".localized,
-              message: "exif_metadata_extract_error".localized
+              title: L10n.string("exif_loading_error_title"),
+              message: L10n.string("exif_metadata_extract_error")
             )
           }
         } catch {
           await MainActor.run {
             self.isLoadingExif = false
             self.alertContent = AlertContent(
-              title: "exif_loading_error_title".localized,
-              message: "exif_unexpected_error".localized
+              title: L10n.string("exif_loading_error_title"),
+              message: L10n.string("exif_unexpected_error")
             )
           }
         }

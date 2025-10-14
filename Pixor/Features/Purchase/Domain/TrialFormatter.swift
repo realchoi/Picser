@@ -12,7 +12,7 @@ enum TrialFormatter {
   static func remainingDescription(now: Date = Date(), endDate: Date) -> String {
     let remaining = max(0, endDate.timeIntervalSince(now))
     if remaining < 60 {
-      return "trial_banner_remaining_less_than_minute".localized
+      return L10n.string("trial_banner_remaining_less_than_minute")
     }
 
     let components = Calendar.current.dateComponents([.day, .hour, .minute], from: now, to: endDate)
@@ -21,13 +21,13 @@ enum TrialFormatter {
     let minute = max(0, components.minute ?? 0)
 
     if day > 0 {
-      return String(format: "trial_banner_remaining_day_hour".localized, locale: Locale.current, day, hour)
+      return String(format: L10n.string("trial_banner_remaining_day_hour"), locale: Locale.current, day, hour)
     }
 
     if hour > 0 {
-      return String(format: "trial_banner_remaining_hour_minute".localized, locale: Locale.current, hour, minute)
+      return String(format: L10n.string("trial_banner_remaining_hour_minute"), locale: Locale.current, hour, minute)
     }
 
-    return String(format: "trial_banner_remaining_minute".localized, locale: Locale.current, minute)
+    return String(format: L10n.string("trial_banner_remaining_minute"), locale: Locale.current, minute)
   }
 }

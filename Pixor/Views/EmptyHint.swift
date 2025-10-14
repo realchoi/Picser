@@ -16,10 +16,11 @@ struct EmptyHint: View {
       Button {
         onOpen()
       } label: {
-        Label(
-          "open_file_or_folder_button".localized,
-          systemImage: "folder"
-        )
+        Label {
+          Text(l10n: "open_file_or_folder_button")
+        } icon: {
+          Image(systemName: "folder")
+        }
         .padding(8)
       }
       .buttonStyle(.borderedProminent)
@@ -31,7 +32,7 @@ struct EmptyHint: View {
       HStack(spacing: 8) {
         Image(systemName: "tray.and.arrow.down")
           .foregroundStyle(.secondary)
-        Text("empty_drag_hint".localized)
+        Text(l10n: "empty_drag_hint")
           .foregroundStyle(.secondary)
       }
       .font(.body)

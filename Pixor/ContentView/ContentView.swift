@@ -187,7 +187,7 @@ struct ContentView: View {
           Alert(
             title: Text(alertData.title),
             message: Text(alertData.message),
-            dismissButton: .default(Text("ok_button".localized))
+            dismissButton: .default(Text(l10n: "ok_button"))
           )
         }
     )
@@ -323,7 +323,7 @@ struct ContentView: View {
 // MARK: - Helpers
 extension ContentView {
   func localized(_ key: String, fallback: String) -> String {
-    let value = key.localized
+    let value = L10n.string(key)
     return value == key ? fallback : value
   }
 }

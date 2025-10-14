@@ -30,15 +30,15 @@ enum PurchaseReceiptValidatorError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .missingReceipt:
-      return "receipt_validator_missing_receipt".localized
+      return L10n.string("receipt_validator_missing_receipt")
     case .network(let error):
       return error.localizedDescription
     case .invalidHTTPStatus(let code):
-      return String(format: "receipt_validator_invalid_http".localized, code)
+      return String(format: L10n.string("receipt_validator_invalid_http"), code)
     case .decoding(let error):
-      return String(format: "receipt_validator_decoding".localized, error.localizedDescription)
+      return String(format: L10n.string("receipt_validator_decoding"), error.localizedDescription)
     case .serverStatus(let code):
-      return String(format: "receipt_validator_server_status".localized, code)
+      return String(format: L10n.string("receipt_validator_server_status"), code)
     }
   }
 }

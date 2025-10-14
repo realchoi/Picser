@@ -189,15 +189,15 @@ class AppSettings: ObservableObject {
     var errors: [String] = []
 
     if zoomSensitivity <= 0 || zoomSensitivity > 0.1 {
-      errors.append("zoom_sensitivity_range_error".localized)
+      errors.append(L10n.string("zoom_sensitivity_range_error"))
     }
 
     if minZoomScale <= 0 || minZoomScale >= maxZoomScale {
-      errors.append("min_zoom_scale_invalid_error".localized)
+      errors.append(L10n.string("min_zoom_scale_invalid_error"))
     }
 
     if maxZoomScale <= minZoomScale {
-      errors.append("max_zoom_scale_invalid_error".localized)
+      errors.append(L10n.string("max_zoom_scale_invalid_error"))
     }
 
     return errors
@@ -293,15 +293,15 @@ enum ModifierKey: String, CaseIterable, Identifiable, Hashable, KeySelectable {
   var displayName: String {
     switch self {
     case .none:
-      return "modifier_none".localized
+      return L10n.string("modifier_none")
     case .command:
-      return "modifier_command".localized
+      return L10n.string("modifier_command")
     case .option:
-      return "modifier_option".localized
+      return L10n.string("modifier_option")
     case .control:
-      return "modifier_control".localized
+      return L10n.string("modifier_control")
     case .shift:
-      return "modifier_shift".localized
+      return L10n.string("modifier_shift")
     }
   }
 
@@ -339,15 +339,15 @@ enum AppLanguage: String, CaseIterable, Identifiable, Hashable, KeySelectable {
   var displayName: String {
     switch self {
     case .system:
-      return "language_system".localized
+      return L10n.string("language_system")
     case .chinese:
-      return "language_chinese".localized
+      return L10n.string("language_chinese")
     case .english:
-      return "language_english".localized
+      return L10n.string("language_english")
     }
   }
 
-  /// 语言的 Locale 标识符
+  /// 语言的 Locale 标识符（资源定位）
   var localeIdentifier: String? {
     switch self {
     case .system:
@@ -356,6 +356,18 @@ enum AppLanguage: String, CaseIterable, Identifiable, Hashable, KeySelectable {
       return "zh-Hans"
     case .english:
       return "en"
+    }
+  }
+
+  /// 用于 SwiftUI 环境的 Locale 对象
+  var locale: Locale {
+    switch self {
+    case .system:
+      return .autoupdatingCurrent
+    case .chinese:
+      return Locale(identifier: "zh-Hans")
+    case .english:
+      return Locale(identifier: "en")
     }
   }
 
@@ -377,11 +389,11 @@ enum ImageNavigationKey: String, CaseIterable, Identifiable, Hashable, KeySelect
   var displayName: String {
     switch self {
     case .leftRight:
-      return "navigation_left_right".localized
+      return L10n.string("navigation_left_right")
     case .upDown:
-      return "navigation_up_down".localized
+      return L10n.string("navigation_up_down")
     case .pageUpDown:
-      return "navigation_page_up_down".localized
+      return L10n.string("navigation_page_up_down")
     }
   }
 

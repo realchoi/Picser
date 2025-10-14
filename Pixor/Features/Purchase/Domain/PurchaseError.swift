@@ -13,17 +13,17 @@ enum PurchaseManagerError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .productUnavailable:
-      return "purchase_error_product_unavailable".localized
+      return L10n.string("purchase_error_product_unavailable")
     case .failedVerification:
-      return "purchase_error_failed_verification".localized
+      return L10n.string("purchase_error_failed_verification")
     case .purchaseCancelled:
-      return "purchase_error_cancelled".localized
+      return L10n.string("purchase_error_cancelled")
     case .purchasePending:
-      return "purchase_error_pending".localized
+      return L10n.string("purchase_error_pending")
     case .restoreFailed:
-      return "purchase_error_restore_failed".localized
+      return L10n.string("purchase_error_restore_failed")
     case .receiptRefreshFailed:
-      return "purchase_error_receipt_refresh_failed".localized
+      return L10n.string("purchase_error_receipt_refresh_failed")
     case .unknown(let error):
       return error.localizedDescription
     }

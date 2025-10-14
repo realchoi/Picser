@@ -15,7 +15,7 @@ struct DisplaySettingsView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        Text("display_settings_title".localized)
+        Text(l10n: "display_settings_title")
           .font(.title2)
           .fontWeight(.semibold)
 
@@ -23,12 +23,12 @@ struct DisplaySettingsView: View {
 
         // 缩放设置组
       VStack(alignment: .leading, spacing: 16) {
-        Text("zoom_settings_group".localized)
+        Text(l10n: "zoom_settings_group")
           .fontWeight(.medium)
 
           // 缩放灵敏度
           HStack {
-            Text("zoom_sensitivity".localized)
+            Text(l10n: "zoom_sensitivity")
               .frame(width: 120, alignment: .leading)
             Slider(
               value: $appSettings.zoomSensitivity,
@@ -42,7 +42,7 @@ struct DisplaySettingsView: View {
 
           // 最小缩放比例
           HStack {
-            Text("min_zoom_scale".localized)
+            Text(l10n: "min_zoom_scale")
               .frame(width: 120, alignment: .leading)
             Slider(
               value: $appSettings.minZoomScale,
@@ -56,7 +56,7 @@ struct DisplaySettingsView: View {
 
           // 最大缩放比例
           HStack {
-            Text("max_zoom_scale".localized)
+            Text(l10n: "max_zoom_scale")
               .frame(width: 120, alignment: .leading)
             Slider(
               value: $appSettings.maxZoomScale,
@@ -73,17 +73,17 @@ struct DisplaySettingsView: View {
 
       // 小地图设置组
       VStack(alignment: .leading, spacing: 16) {
-        Text("minimap_group".localized)
+        Text(l10n: "minimap_group")
           .fontWeight(.medium)
 
         // 显示小地图开关
         Toggle(isOn: $appSettings.showMinimap) {
-          Text("show_minimap".localized)
+          Text(l10n: "show_minimap")
         }
 
         // 自动隐藏时间（0 = 关闭）
         HStack {
-          Text("minimap_auto_hide".localized)
+          Text(l10n: "minimap_auto_hide")
             .frame(width: 120, alignment: .leading)
           Slider(
             value: $appSettings.minimapAutoHideSeconds,
@@ -92,8 +92,8 @@ struct DisplaySettingsView: View {
           )
           Text(
             appSettings.minimapAutoHideSeconds <= 0
-              ? "minimap_auto_hide_off".localized
-              : String(format: "minimap_auto_hide_seconds_format".localized, appSettings.minimapAutoHideSeconds)
+              ? L10n.string("minimap_auto_hide_off")
+              : String(format: L10n.string("minimap_auto_hide_seconds_format"), appSettings.minimapAutoHideSeconds)
           )
           .frame(width: 60, alignment: .trailing)
           .monospaced()
@@ -105,7 +105,7 @@ struct DisplaySettingsView: View {
       // 重置按钮
       HStack {
         Spacer()
-        Button("reset_defaults_button".localized) {
+        Button(L10n.key("reset_defaults_button")) {
             withAnimation {
               appSettings.resetToDefaults(settingsTab: .display)
             }

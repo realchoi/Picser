@@ -11,6 +11,6 @@ enum UpgradePromptContext: String, Identifiable {
   var id: String { rawValue }
 
   var message: String {
-    "unlock_alert_body_generic".localized
+    L10n.string("unlock_alert_body_generic")
   }
 }

@@ -73,9 +73,9 @@ struct PurchaseInfoView: View {
   private func primaryActionTitle(for offering: PurchaseOffering) -> String {
     switch offering.kind {
     case .subscription:
-      return isSubscriptionTrialAvailable ? "purchase_primary_trial_button".localized : "purchase_primary_subscribe_button".localized
+      return isSubscriptionTrialAvailable ? L10n.string("purchase_primary_trial_button") : L10n.string("purchase_primary_subscribe_button")
     case .lifetime:
-      return "purchase_primary_lifetime_button".localized
+      return L10n.string("purchase_primary_lifetime_button")
     }
   }
 
@@ -83,12 +83,12 @@ struct PurchaseInfoView: View {
     switch offering.kind {
     case .subscription:
       if isSubscriptionTrialAvailable {
-        return String(format: "purchase_primary_trial_subtitle".localized, offering.product.displayPrice)
+        return String(format: L10n.string("purchase_primary_trial_subtitle"), offering.product.displayPrice)
       } else {
-        return String(format: "purchase_primary_subscribe_subtitle".localized, offering.product.displayPrice)
+        return String(format: L10n.string("purchase_primary_subscribe_subtitle"), offering.product.displayPrice)
       }
     case .lifetime:
-      return String(format: "purchase_primary_lifetime_subtitle".localized, offering.product.displayPrice)
+      return String(format: L10n.string("purchase_primary_lifetime_subtitle"), offering.product.displayPrice)
     }
   }
 
@@ -108,10 +108,10 @@ struct PurchaseInfoView: View {
         .padding(.bottom, 32)
         .padding(.top, 16)
       }
-      .navigationTitle("purchase_info_title".localized)
+      .navigationTitle(L10n.key("purchase_info_title"))
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button("close_button".localized) { onClose() }
+          Button(L10n.key("close_button")) { onClose() }
         }
       }
       .background(Color(nsColor: .windowBackgroundColor))
@@ -149,10 +149,10 @@ struct PurchaseInfoView: View {
 
   private var headerSection: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Text("purchase_info_headline".localized)
+      Text(l10n: "purchase_info_headline")
         .font(.title2)
         .fontWeight(.semibold)
-      Text("purchase_info_description".localized)
+      Text(l10n: "purchase_info_description")
         .font(.body)
         .foregroundStyle(.secondary)
     }
@@ -160,7 +160,7 @@ struct PurchaseInfoView: View {
 
   private var featureSection: some View {
     VStack(alignment: .leading, spacing: 16) {
-      Text("purchase_info_features_title".localized)
+      Text(l10n: "purchase_info_features_title")
         .font(.headline)
       ForEach(featureItems) { item in
         HStack(alignment: .top, spacing: 12) {
@@ -183,13 +183,13 @@ struct PurchaseInfoView: View {
 
   private var offeringSection: some View {
     VStack(alignment: .leading, spacing: 16) {
-      Text("purchase_info_offerings_title".localized)
+      Text(l10n: "purchase_info_offerings_title")
         .font(.headline)
 
       if purchaseManager.offerings.isEmpty {
         HStack(spacing: 12) {
           ProgressView()
-          Text("purchase_product_loading".localized)
+          Text(l10n: "purchase_product_loading")
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
@@ -270,7 +270,7 @@ struct PurchaseInfoView: View {
 
   private var legalSection: some View {
     VStack(alignment: .leading, spacing: 16) {
-      Text("purchase_info_legal_title".localized)
+      Text(l10n: "purchase_info_legal_title")
         .font(.headline)
 
       ForEach(legalItems) { item in
@@ -287,23 +287,23 @@ struct PurchaseInfoView: View {
 
   private var supportActionSection: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Button("purchase_info_restore_button".localized) {
+      Button(L10n.key("purchase_info_restore_button")) {
         onRestore()
       }
       .buttonStyle(.bordered)
       .frame(maxWidth: .infinity)
 
-      Button("purchase_info_refresh_receipt_button".localized) {
+      Button(L10n.key("purchase_info_refresh_receipt_button")) {
         onRefreshReceipt()
       }
       .buttonStyle(.bordered)
       .frame(maxWidth: .infinity)
 
-      Text("purchase_info_restore_note".localized)
+      Text(l10n: "purchase_info_restore_note")
         .font(.footnote)
         .foregroundStyle(.secondary)
 
-      Text("purchase_info_refresh_receipt_note".localized)
+      Text(l10n: "purchase_info_refresh_receipt_note")
         .font(.footnote)
         .foregroundStyle(.secondary)
     }
@@ -317,7 +317,7 @@ struct PurchaseInfoView: View {
 
     let days = max(Int(duration / (24 * 60 * 60)), 0)
     guard days > 0 else { return nil }
-    return String(format: "purchase_info_trial_note".localized, days)
+    return String(format: L10n.string("purchase_info_trial_note"), days)
   }
 
 }
@@ -328,8 +328,8 @@ private struct PurchaseFeatureItem: Identifiable {
   let titleKey: String
   let descriptionKey: String
 
-  var title: String { titleKey.localized }
-  var description: String { descriptionKey.localized }
+  var title: String { L10n.string(titleKey) }
+  var description: String { L10n.string(descriptionKey) }
 }
 
 private struct PurchaseLegalItem: Identifiable {
@@ -337,6 +337,6 @@ private struct PurchaseLegalItem: Identifiable {
   let titleKey: String
   let url: URL
 
-  var title: String { titleKey.localized }
+  var title: String { L10n.string(titleKey) }
 }
 

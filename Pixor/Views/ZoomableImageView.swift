@@ -541,6 +541,6 @@ struct ZoomableImageView: View {
       .environmentObject(AppSettings())
       .frame(width: 400, height: 300)
   } else {
-    Text("preview_image_load_failed".localized)
+    Text(l10n: "preview_image_load_failed")
   }
 }

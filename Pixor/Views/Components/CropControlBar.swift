@@ -28,11 +28,11 @@ struct CropControlBar: View {
       Divider()
         .frame(height: 24)
       Button(action: config.onSave) {
-        Label("crop_save_button".localized, systemImage: "square.and.arrow.down")
+        Label(L10n.key("crop_save_button"), systemImage: "square.and.arrow.down")
       }
       .buttonStyle(.borderedProminent)
       Button(action: config.onCancel) {
-        Label("crop_cancel_button".localized, systemImage: "xmark.circle")
+        Label(L10n.key("crop_cancel_button"), systemImage: "xmark.circle")
       }
       .buttonStyle(.bordered)
     }
@@ -62,9 +62,9 @@ struct CropControlBar: View {
   private func currentSelectionTitle() -> String {
     switch config.currentAspect {
     case .freeform:
-      return "crop_ratio_freeform".localized
+      return L10n.string("crop_ratio_freeform")
     case .original:
-      return "crop_ratio_original".localized
+      return L10n.string("crop_ratio_original")
     case .fixed(let ratio):
       return ratio.displayName
     }
@@ -82,7 +82,7 @@ private struct AspectPickerView: View {
           VStack(alignment: .leading, spacing: 6) {
             ForEach(CropPreset.allCases, id: \.id) { preset in
               AspectOptionRow(
-                title: preset.titleKey.localized,
+                title: L10n.string(preset.titleKey),
                 isSelected: isPresetSelected(preset),
                 onSelect: {
                   config.onSelectPreset(preset)
@@ -95,7 +95,7 @@ private struct AspectPickerView: View {
           if !config.customRatios.isEmpty {
             Divider()
             VStack(alignment: .leading, spacing: 6) {
-              Text("crop_custom_group".localized)
+              Text(l10n: "crop_custom_group")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
@@ -126,7 +126,7 @@ private struct AspectPickerView: View {
         dismiss()
         config.onAddCustomRatio()
       } label: {
-        Label("crop_add_custom".localized, systemImage: "plus")
+        Label(L10n.key("crop_add_custom"), systemImage: "plus")
           .frame(maxWidth: .infinity, alignment: .leading)
       }
       .buttonStyle(.borderless)
@@ -212,7 +212,7 @@ private struct CustomRatioRow: View {
       }
       .buttonStyle(.plain)
       .foregroundColor(.red)
-      .help("crop_custom_delete_help".localized)
+      .help(L10n.key("crop_custom_delete_help"))
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 6)

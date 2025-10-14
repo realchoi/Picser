@@ -23,7 +23,7 @@ struct AddCustomRatioSheet: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Text("crop_add_custom_title".localized)
+      Text(l10n: "crop_add_custom_title")
         .font(.headline)
 
       HStack(spacing: 8) {
@@ -44,8 +44,8 @@ struct AddCustomRatioSheet: View {
 
       HStack {
         Spacer()
-        Button("cancel_button".localized) { dismiss() }
-        Button("save_button".localized) { save() }
+        Button(L10n.key("cancel_button")) { dismiss() }
+        Button(L10n.key("save_button")) { save() }
           .buttonStyle(.borderedProminent)
       }
     }
@@ -57,7 +57,7 @@ struct AddCustomRatioSheet: View {
     let w = Int(widthText.trimmingCharacters(in: .whitespaces)) ?? 0
     let h = Int(heightText.trimmingCharacters(in: .whitespaces)) ?? 0
     guard w > 0, h > 0 else {
-      error = "crop_add_custom_invalid".localized
+      error = L10n.string("crop_add_custom_invalid")
       return
     }
     let r = CropRatio(width: w, height: h)

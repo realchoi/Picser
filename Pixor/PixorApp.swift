@@ -17,6 +17,8 @@ struct PixorApp: App {
   @StateObject private var featureGatekeeper: FeatureGatekeeper
   // 外部打开协调器
   @StateObject private var externalOpenCoordinator: ExternalOpenCoordinator
+  // 本地化管理器（用于驱动 Locale 环境刷新）
+  @ObservedObject private var localizationManager = LocalizationManager.shared
   // 应用委托
   @NSApplicationDelegateAdaptor private var appDelegate: PixorAppDelegate
 
@@ -50,6 +52,7 @@ struct PixorApp: App {
         .environmentObject(purchaseManager)
         .environmentObject(featureGatekeeper)
         .environmentObject(externalOpenCoordinator)
+        .environment(\.locale, localizationManager.currentLocale)
         // 让试图内容延伸至标题栏区域，实现完全无边框效果
         .ignoresSafeArea(.all, edges: .top)
     }
@@ -65,6 +68,7 @@ struct PixorApp: App {
       SettingsView(appSettings: appSettings)
         .environmentObject(purchaseManager)
         .environmentObject(featureGatekeeper)
+        .environment(\.locale, localizationManager.currentLocale)
     }
   }
 

@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		07F0D4DA2EA12A0300CF5188 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 07F0D4D92EA12A0300CF5188 /* Localizable.xcstrings */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		07A3FBFA2E5324E800CF5188 /* Pixor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pixor.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		07F0D4D92EA12A0300CF5188 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -31,6 +36,9 @@
 		};
 		07A3FBFD2E5324E800CF5189 /* Languages */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			children = (
+				07F0D4D92EA12A0300CF5188 /* Localizable.xcstrings */,
+			);
 			path = Languages;
 			sourceTree = "<group>";
 		};
@@ -132,6 +140,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				07F0D4DA2EA12A0300CF5188 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

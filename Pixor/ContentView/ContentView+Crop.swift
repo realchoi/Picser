@@ -16,7 +16,7 @@ extension ContentView {
     let panel = NSSavePanel()
     panel.canCreateDirectories = true
     panel.isExtensionHidden = false
-    panel.title = "crop_save_panel_title".localized
+    panel.title = L10n.string("crop_save_panel_title")
     let ext = srcURL.pathExtension
     let base = srcURL.deletingPathExtension().lastPathComponent
     panel.nameFieldStringValue = base + "_cropped." + ext

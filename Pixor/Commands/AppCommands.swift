@@ -26,22 +26,22 @@ struct AppCommands: Commands {
   var body: some Commands {
     // Add "Open…" under File with ⌘O
     CommandGroup(after: .newItem) {
-      Button("open_file_or_folder_button".localized) {
+      Button(L10n.string("open_file_or_folder_button")) {
         windowCommands?.openFileOrFolder()
       }
       .keyboardShortcut("o", modifiers: [.command])
       .disabled(windowCommands == nil)
 
-      Button("refresh_button".localized) {
+      Button(L10n.string("refresh_button")) {
         windowCommands?.refresh()
       }
       .keyboardShortcut("r", modifiers: [.command])
       .disabled(windowCommands == nil)
 
       // File > Open Recent …
-      Menu("open_recent_menu".localized) {
+      Menu(L10n.string("open_recent_menu")) {
         if recent.items.isEmpty {
-          Button("no_recent_items".localized) {}
+          Button(L10n.string("no_recent_items")) {}
             .disabled(true)
         } else {
           ForEach(recent.items) { item in
@@ -57,7 +57,7 @@ struct AppCommands: Commands {
             .disabled(windowCommands == nil)
           }
           Divider()
-          Button("clear_recent_menu".localized) {
+          Button(L10n.string("clear_recent_menu")) {
             recent.clear()
           }
         }
@@ -66,11 +66,11 @@ struct AppCommands: Commands {
 
     // Note: System provides the standard Settings… (⌘,) via Settings scene
 
-    CommandMenu("image_menu".localized) {
+    CommandMenu(L10n.string("image_menu")) {
       Button {
         windowCommands?.rotateCCW()
       } label: {
-        Label("rotate_ccw_button".localized, systemImage: "rotate.left")
+        Label(L10n.string("rotate_ccw_button"), systemImage: "rotate.left")
       }
       .keyboardShortcut(appSettings.rotateCCWBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.rotateCCWModifierKey))
       .disabled(windowCommands == nil)
@@ -78,7 +78,7 @@ struct AppCommands: Commands {
       Button {
         windowCommands?.rotateCW()
       } label: {
-        Label("rotate_cw_button".localized, systemImage: "rotate.right")
+        Label(L10n.string("rotate_cw_button"), systemImage: "rotate.right")
       }
       .keyboardShortcut(appSettings.rotateCWBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.rotateCWModifierKey))
       .disabled(windowCommands == nil)
@@ -88,7 +88,7 @@ struct AppCommands: Commands {
       Button {
         windowCommands?.mirrorHorizontal()
       } label: {
-        Label("mirror_horizontal_button".localized, systemImage: "arrow.left.and.right")
+        Label(L10n.string("mirror_horizontal_button"), systemImage: "arrow.left.and.right")
       }
       .keyboardShortcut(appSettings.mirrorHBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.mirrorHModifierKey))
       .disabled(windowCommands == nil)
@@ -96,7 +96,7 @@ struct AppCommands: Commands {
       Button {
         windowCommands?.mirrorVertical()
       } label: {
-        Label("mirror_vertical_button".localized, systemImage: "arrow.up.and.down")
+        Label(L10n.string("mirror_vertical_button"), systemImage: "arrow.up.and.down")
       }
       .keyboardShortcut(appSettings.mirrorVBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.mirrorVModifierKey))
       .disabled(windowCommands == nil)
@@ -106,7 +106,7 @@ struct AppCommands: Commands {
       Button {
         windowCommands?.resetTransform()
       } label: {
-        Label("reset_transform_button".localized, systemImage: "arrow.uturn.backward")
+        Label(L10n.string("reset_transform_button"), systemImage: "arrow.uturn.backward")
       }
       .keyboardShortcut(appSettings.resetTransformBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.resetTransformModifierKey))
       .disabled(windowCommands == nil)

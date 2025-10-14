@@ -118,7 +118,7 @@ extension ExifInfo {
   // 已迁移至 FormatUtils.fileFormat(from:)
 
   fileprivate static func formatDate(_ timestamp: TimeInterval?) -> String {
-    guard let timestamp = timestamp else { return "unknown_value".localized }
+    guard let timestamp = timestamp else { return L10n.string("unknown_value") }
     return FormatUtils.dateTimeString(from: timestamp)
   }
 

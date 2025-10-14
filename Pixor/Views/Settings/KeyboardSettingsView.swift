@@ -15,7 +15,7 @@ struct KeyboardSettingsView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        Text("keyboard_settings_title".localized)
+        Text(l10n: "keyboard_settings_title")
           .font(.title2)
           .fontWeight(.semibold)
 
@@ -23,9 +23,9 @@ struct KeyboardSettingsView: View {
 
         // 缩放快捷键设置
         VStack(alignment: .leading, spacing: 8) {
-          Text("zoom_shortcut_label".localized)
+          Text(l10n: "zoom_shortcut_label")
             .fontWeight(.medium)
-          Text("zoom_shortcut_description".localized)
+          Text(l10n: "zoom_shortcut_description")
             .font(.caption)
             .foregroundColor(.secondary)
 
@@ -36,9 +36,9 @@ struct KeyboardSettingsView: View {
 
         // 拖拽快捷键设置
         VStack(alignment: .leading, spacing: 8) {
-          Text("pan_shortcut_label".localized)
+          Text(l10n: "pan_shortcut_label")
             .fontWeight(.medium)
-          Text("pan_shortcut_description".localized)
+          Text(l10n: "pan_shortcut_description")
             .font(.caption)
             .foregroundColor(.secondary)
 
@@ -49,9 +49,9 @@ struct KeyboardSettingsView: View {
 
         // 图片切换按键设置
         VStack(alignment: .leading, spacing: 8) {
-          Text("image_navigation_label".localized)
+          Text(l10n: "image_navigation_label")
             .fontWeight(.medium)
-          Text("image_navigation_description".localized)
+          Text(l10n: "image_navigation_description")
             .font(.caption)
             .foregroundColor(.secondary)
 
@@ -62,12 +62,12 @@ struct KeyboardSettingsView: View {
 
         // 图像变换快捷键设置
         VStack(alignment: .leading, spacing: 12) {
-          Text("transform_shortcuts_title".localized)
+          Text(l10n: "transform_shortcuts_title")
             .fontWeight(.medium)
 
           // 旋转左
           HStack(spacing: 10) {
-            Text("rotate_ccw_shortcut_label".localized)
+            Text(l10n: "rotate_ccw_shortcut_label")
               .frame(width: 180, alignment: .leading)
             KeyPickerView(selectedKey: $appSettings.rotateCCWBaseKey)
             Text("+")
@@ -77,7 +77,7 @@ struct KeyboardSettingsView: View {
 
           // 旋转右
           HStack(spacing: 10) {
-            Text("rotate_cw_shortcut_label".localized)
+            Text(l10n: "rotate_cw_shortcut_label")
               .frame(width: 180, alignment: .leading)
             KeyPickerView(selectedKey: $appSettings.rotateCWBaseKey)
             Text("+")
@@ -87,7 +87,7 @@ struct KeyboardSettingsView: View {
 
           // 水平镜像
           HStack(spacing: 10) {
-            Text("mirror_horizontal_shortcut_label".localized)
+            Text(l10n: "mirror_horizontal_shortcut_label")
               .frame(width: 180, alignment: .leading)
             KeyPickerView(selectedKey: $appSettings.mirrorHBaseKey)
             Text("+")
@@ -97,7 +97,7 @@ struct KeyboardSettingsView: View {
 
           // 垂直镜像
           HStack(spacing: 10) {
-            Text("mirror_vertical_shortcut_label".localized)
+            Text(l10n: "mirror_vertical_shortcut_label")
               .frame(width: 180, alignment: .leading)
             KeyPickerView(selectedKey: $appSettings.mirrorVBaseKey)
             Text("+")
@@ -107,7 +107,7 @@ struct KeyboardSettingsView: View {
 
           // 重置图像变换
           HStack(spacing: 10) {
-            Text("reset_transform_shortcut_label".localized)
+            Text(l10n: "reset_transform_shortcut_label")
               .frame(width: 180, alignment: .leading)
             KeyPickerView(selectedKey: $appSettings.resetTransformBaseKey)
             Text("+")
@@ -121,7 +121,7 @@ struct KeyboardSettingsView: View {
               Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.orange)
               VStack(alignment: .leading, spacing: 4) {
-                Text("transform_shortcut_conflict".localized)
+                Text(l10n: "transform_shortcut_conflict")
                   .foregroundColor(.orange)
                   .font(.callout)
                 // 逐条列出重复冲突
@@ -140,7 +140,7 @@ struct KeyboardSettingsView: View {
               Image(systemName: "exclamationmark.octagon.fill")
                 .foregroundColor(.red)
               VStack(alignment: .leading, spacing: 4) {
-                Text("transform_shortcut_reserved".localized)
+                Text(l10n: "transform_shortcut_reserved")
                   .foregroundColor(.red)
                   .font(.callout)
                 // 逐条列出保留快捷键冲突
@@ -159,7 +159,7 @@ struct KeyboardSettingsView: View {
         // 重置按钮
         HStack {
           Spacer()
-          Button("reset_defaults_button".localized) {
+          Button(L10n.key("reset_defaults_button")) {
             withAnimation {
               appSettings.resetToDefaults(settingsTab: .keyboard)
             }
@@ -215,11 +215,11 @@ extension KeyboardSettingsView {
     struct Combo: Hashable { let base: ShortcutBaseKey; let mod: ModifierKey }
     struct Item { let label: String; let combo: Combo }
     let items: [Item] = [
-      Item(label: "rotate_ccw_shortcut_label".localized, combo: .init(base: appSettings.rotateCCWBaseKey, mod: appSettings.rotateCCWModifierKey)),
-      Item(label: "rotate_cw_shortcut_label".localized, combo: .init(base: appSettings.rotateCWBaseKey, mod: appSettings.rotateCWModifierKey)),
-      Item(label: "mirror_horizontal_shortcut_label".localized, combo: .init(base: appSettings.mirrorHBaseKey, mod: appSettings.mirrorHModifierKey)),
-      Item(label: "mirror_vertical_shortcut_label".localized, combo: .init(base: appSettings.mirrorVBaseKey, mod: appSettings.mirrorVModifierKey)),
-      Item(label: "reset_transform_shortcut_label".localized, combo: .init(base: appSettings.resetTransformBaseKey, mod: appSettings.resetTransformModifierKey)),
+      Item(label: L10n.string("rotate_ccw_shortcut_label"), combo: .init(base: appSettings.rotateCCWBaseKey, mod: appSettings.rotateCCWModifierKey)),
+      Item(label: L10n.string("rotate_cw_shortcut_label"), combo: .init(base: appSettings.rotateCWBaseKey, mod: appSettings.rotateCWModifierKey)),
+      Item(label: L10n.string("mirror_horizontal_shortcut_label"), combo: .init(base: appSettings.mirrorHBaseKey, mod: appSettings.mirrorHModifierKey)),
+      Item(label: L10n.string("mirror_vertical_shortcut_label"), combo: .init(base: appSettings.mirrorVBaseKey, mod: appSettings.mirrorVModifierKey)),
+      Item(label: L10n.string("reset_transform_shortcut_label"), combo: .init(base: appSettings.resetTransformBaseKey, mod: appSettings.resetTransformModifierKey)),
     ]
     var map: [Combo: [Item]] = [:]
     for it in items { map[it.combo, default: []].append(it) }
@@ -229,7 +229,7 @@ extension KeyboardSettingsView {
       let names = list.map { $0.label }
       let joined = names.joined(separator: ", ")
       let comboStr = humanReadableCombo((base: combo.base, mod: combo.mod))
-      let pattern = "transform_conflict_duplicate_item".localized // "%@ and %@ both set to %@" or generic
+      let pattern = L10n.string("transform_conflict_duplicate_item") // "%@ and %@ both set to %@" or generic
       if list.count == 2 {
         let a = names[0], b = names[1]
         lines.append(String(format: pattern, a, b, comboStr))
@@ -245,14 +245,14 @@ extension KeyboardSettingsView {
   private func reservedConflictItems() -> [String] {
     let reservedLetters: Set<ShortcutBaseKey> = [.h, .q, .w, .v, .c, .x, .a, .m]
     let pairs: [(label: String, base: ShortcutBaseKey, mod: ModifierKey)] = [
-      ("rotate_ccw_shortcut_label".localized, appSettings.rotateCCWBaseKey, appSettings.rotateCCWModifierKey),
-      ("rotate_cw_shortcut_label".localized, appSettings.rotateCWBaseKey, appSettings.rotateCWModifierKey),
-      ("mirror_horizontal_shortcut_label".localized, appSettings.mirrorHBaseKey, appSettings.mirrorHModifierKey),
-      ("mirror_vertical_shortcut_label".localized, appSettings.mirrorVBaseKey, appSettings.mirrorVModifierKey),
-      ("reset_transform_shortcut_label".localized, appSettings.resetTransformBaseKey, appSettings.resetTransformModifierKey),
+      (L10n.string("rotate_ccw_shortcut_label"), appSettings.rotateCCWBaseKey, appSettings.rotateCCWModifierKey),
+      (L10n.string("rotate_cw_shortcut_label"), appSettings.rotateCWBaseKey, appSettings.rotateCWModifierKey),
+      (L10n.string("mirror_horizontal_shortcut_label"), appSettings.mirrorHBaseKey, appSettings.mirrorHModifierKey),
+      (L10n.string("mirror_vertical_shortcut_label"), appSettings.mirrorVBaseKey, appSettings.mirrorVModifierKey),
+      (L10n.string("reset_transform_shortcut_label"), appSettings.resetTransformBaseKey, appSettings.resetTransformModifierKey),
     ]
     var lines: [String] = []
-    let pattern = "transform_conflict_reserved_item".localized // "%@ uses macOS-reserved shortcut %@"
+    let pattern = L10n.string("transform_conflict_reserved_item") // "%@ uses macOS-reserved shortcut %@"
     for p in pairs where p.mod == .command && reservedLetters.contains(p.base) {
       lines.append(String(format: pattern, p.label, humanReadableCombo((p.base, p.mod))))
     }

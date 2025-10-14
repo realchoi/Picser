@@ -170,7 +170,7 @@ struct DetailView: View {
             }
           }
         } else {
-          Text("select_image_hint".localized)
+          Text(l10n: "select_image_hint")
             .font(.title)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

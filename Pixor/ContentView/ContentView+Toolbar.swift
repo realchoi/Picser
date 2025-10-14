@@ -17,20 +17,20 @@ extension ContentView {
         openFileOrFolder()
       } label: {
         Label(
-          "open_file_or_folder_button".localized,
+          L10n.string("open_file_or_folder_button"),
           systemImage: "folder")
       }
-      .help("open_file_or_folder_button".localized)
+      .help(L10n.key("open_file_or_folder_button"))
     }
 
     ToolbarItem {
       Button {
         refreshCurrentInputs()
       } label: {
-        Label("refresh_button".localized, systemImage: "arrow.clockwise")
+        Label(L10n.key("refresh_button"), systemImage: "arrow.clockwise")
       }
       .disabled(currentSourceInputs.isEmpty)
-      .help("refresh_button".localized)
+      .help(L10n.key("refresh_button"))
     }
 
     if selectedImageURL != nil {
@@ -50,7 +50,7 @@ extension ContentView {
             }
 
             if isLoadingExif {
-              Text("loading_text".localized)
+              Text(l10n: "loading_text")
                 .font(.caption)
             }
           }
@@ -58,44 +58,44 @@ extension ContentView {
         .disabled(isLoadingExif)
         .help(
           isLoadingExif
-            ? "exif_loading_hint".localized
-            : "exif_info_button".localized)
+            ? L10n.string("exif_loading_hint")
+            : L10n.string("exif_info_button"))
       }
 
       ToolbarItem {
         Button {
           rotateCCW()
         } label: {
-          Label("rotate_ccw_button".localized, systemImage: "rotate.left")
+          Label(L10n.key("rotate_ccw_button"), systemImage: "rotate.left")
         }
-        .help("rotate_ccw_button".localized)
+        .help(L10n.key("rotate_ccw_button"))
       }
 
       ToolbarItem {
         Button {
           rotateCW()
         } label: {
-          Label("rotate_cw_button".localized, systemImage: "rotate.right")
+          Label(L10n.key("rotate_cw_button"), systemImage: "rotate.right")
         }
-        .help("rotate_cw_button".localized)
+        .help(L10n.key("rotate_cw_button"))
       }
 
       ToolbarItem {
         Button {
           mirrorHorizontal()
         } label: {
-          Label("mirror_horizontal_button".localized, systemImage: "arrow.left.and.right")
+          Label(L10n.key("mirror_horizontal_button"), systemImage: "arrow.left.and.right")
         }
-        .help("mirror_horizontal_button".localized)
+        .help(L10n.key("mirror_horizontal_button"))
       }
 
       ToolbarItem {
         Button {
           mirrorVertical()
         } label: {
-          Label("mirror_vertical_button".localized, systemImage: "arrow.up.and.down")
+          Label(L10n.key("mirror_vertical_button"), systemImage: "arrow.up.and.down")
         }
-        .help("mirror_vertical_button".localized)
+        .help(L10n.key("mirror_vertical_button"))
       }
 
       ToolbarItem {
@@ -109,9 +109,9 @@ extension ContentView {
             }
           }
         } label: {
-          Label("crop_button".localized, systemImage: isCropping ? "crop.rotate" : "crop")
+          Label(L10n.key("crop_button"), systemImage: isCropping ? "crop.rotate" : "crop")
         }
-        .help("crop_button".localized)
+        .help(L10n.key("crop_button"))
       }
     }
   }

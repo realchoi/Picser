@@ -38,7 +38,7 @@ enum FormatUtils {
     case "HEIC": return "HEIC"
     case "TIFF": return "TIFF"
     case "WEBP": return "WebP"
-    default: return ext.isEmpty ? "unknown_format".localized : ext
+    default: return ext.isEmpty ? L10n.string("unknown_format") : ext
     }
   }
 
@@ -58,7 +58,7 @@ enum FormatUtils {
 
   static func iso(_ isoArray: [Int]?) -> String? {
     guard let isoArray, let first = isoArray.first else { return nil }
-    return String(format: "iso_value_format".localized, first)
+    return String(format: L10n.string("iso_value_format"), first)
   }
 
   static func focalLength(_ mm: Double?) -> String? {
@@ -68,65 +68,65 @@ enum FormatUtils {
 
   static func focalLength35mm(_ mm: Int?) -> String? {
     guard let mm else { return nil }
-    return String(format: "focal_length_35mm_format".localized, mm)
+    return String(format: L10n.string("focal_length_35mm_format"), mm)
   }
 
   static func exposureProgram(_ program: Int?) -> String? {
     guard let program else { return nil }
     switch program {
-    case 0: return "exposure_program_0".localized
-    case 1: return "exposure_program_1".localized
-    case 2: return "exposure_program_2".localized
-    case 3: return "exposure_program_3".localized
-    case 4: return "exposure_program_4".localized
-    case 5: return "exposure_program_5".localized
-    case 6: return "exposure_program_6".localized
-    case 7: return "exposure_program_7".localized
-    case 8: return "exposure_program_8".localized
-    default: return String(format: "exif_other_format".localized, program)
+    case 0: return L10n.string("exposure_program_0")
+    case 1: return L10n.string("exposure_program_1")
+    case 2: return L10n.string("exposure_program_2")
+    case 3: return L10n.string("exposure_program_3")
+    case 4: return L10n.string("exposure_program_4")
+    case 5: return L10n.string("exposure_program_5")
+    case 6: return L10n.string("exposure_program_6")
+    case 7: return L10n.string("exposure_program_7")
+    case 8: return L10n.string("exposure_program_8")
+    default: return String(format: L10n.string("exif_other_format"), program)
     }
   }
 
   static func meteringMode(_ mode: Int?) -> String? {
     guard let mode else { return nil }
     switch mode {
-    case 0: return "metering_mode_0".localized
-    case 1: return "metering_mode_1".localized
-    case 2: return "metering_mode_2".localized
-    case 3: return "metering_mode_3".localized
-    case 4: return "metering_mode_4".localized
-    case 5: return "metering_mode_5".localized
-    case 6: return "metering_mode_6".localized
-    default: return String(format: "exif_other_format".localized, mode)
+    case 0: return L10n.string("metering_mode_0")
+    case 1: return L10n.string("metering_mode_1")
+    case 2: return L10n.string("metering_mode_2")
+    case 3: return L10n.string("metering_mode_3")
+    case 4: return L10n.string("metering_mode_4")
+    case 5: return L10n.string("metering_mode_5")
+    case 6: return L10n.string("metering_mode_6")
+    default: return String(format: L10n.string("exif_other_format"), mode)
     }
   }
 
   static func flash(_ code: Int?) -> String? {
     guard let code else { return nil }
     switch code {
-    case 0: return "flash_0".localized
-    case 1: return "flash_1".localized
-    case 5: return "flash_5".localized
-    case 7: return "flash_7".localized
-    case 9: return "flash_9".localized
-    case 13: return "flash_13".localized
-    case 15: return "flash_15".localized
-    case 16: return "flash_16".localized
-    case 24: return "flash_24".localized
-    case 25: return "flash_25".localized
-    case 29: return "flash_29".localized
-    case 31: return "flash_31".localized
-    case 32: return "flash_32".localized
-    default: return String(format: "exif_other_format".localized, code)
+    case 0: return L10n.string("flash_0")
+    case 1: return L10n.string("flash_1")
+    case 5: return L10n.string("flash_5")
+    case 7: return L10n.string("flash_7")
+    case 9: return L10n.string("flash_9")
+    case 13: return L10n.string("flash_13")
+    case 15: return L10n.string("flash_15")
+    case 16: return L10n.string("flash_16")
+    case 24: return L10n.string("flash_24")
+    case 25: return L10n.string("flash_25")
+    case 29: return L10n.string("flash_29")
+    case 31: return L10n.string("flash_31")
+    case 32: return L10n.string("flash_32")
+    default: return String(format: L10n.string("exif_other_format"), code)
     }
   }
 
   static func whiteBalance(_ value: Int?) -> String? {
     guard let value else { return nil }
     switch value {
-    case 0: return "white_balance_auto".localized
-    case 1: return "white_balance_manual".localized
-    default: return String(format: "exif_other_format".localized, value)
+    case 0: return L10n.string("white_balance_auto")
+    case 1: return L10n.string("white_balance_manual")
+    default: return String(format: L10n.string("exif_other_format"), value)
     }
   }
 
@@ -142,8 +142,8 @@ enum FormatUtils {
   static func gpsAltitude(_ altitude: Double?, ref: Int?) -> String? {
     guard let altitude else { return nil }
     let refString = (ref == 1)
-      ? "gps_altitude_below_sea_level".localized
-      : "gps_altitude_above_sea_level".localized
+      ? L10n.string("gps_altitude_below_sea_level")
+      : L10n.string("gps_altitude_above_sea_level")
     return String(format: "%.1fm %@", altitude, refString)
   }
 
@@ -157,23 +157,23 @@ enum FormatUtils {
     guard let code else { return nil }
     switch code {
     case 1: return "sRGB"
-    case 65535: return "color_space_uncalibrated".localized
-    default: return String(format: "exif_other_format".localized, code)
+    case 65535: return L10n.string("color_space_uncalibrated")
+    default: return String(format: L10n.string("exif_other_format"), code)
     }
   }
 
   static func orientation(_ value: Int?) -> String? {
     guard let value else { return nil }
     switch value {
-    case 1: return "orientation_1".localized
-    case 2: return "orientation_2".localized
-    case 3: return "orientation_3".localized
-    case 4: return "orientation_4".localized
-    case 5: return "orientation_5".localized
-    case 6: return "orientation_6".localized
-    case 7: return "orientation_7".localized
-    case 8: return "orientation_8".localized
-    default: return String(format: "exif_other_format".localized, value)
+    case 1: return L10n.string("orientation_1")
+    case 2: return L10n.string("orientation_2")
+    case 3: return L10n.string("orientation_3")
+    case 4: return L10n.string("orientation_4")
+    case 5: return L10n.string("orientation_5")
+    case 6: return L10n.string("orientation_6")
+    case 7: return L10n.string("orientation_7")
+    case 8: return L10n.string("orientation_8")
+    default: return String(format: L10n.string("exif_other_format"), value)
     }
   }
 
@@ -185,10 +185,10 @@ enum FormatUtils {
   static func resolutionUnit(_ unit: Int?) -> String? {
     guard let unit else { return nil }
     switch unit {
-    case 1: return "resolution_unit_none".localized
-    case 2: return "resolution_unit_inch".localized
-    case 3: return "resolution_unit_centimeter".localized
-    default: return String(format: "exif_other_format".localized, unit)
+    case 1: return L10n.string("resolution_unit_none")
+    case 2: return L10n.string("resolution_unit_inch")
+    case 3: return L10n.string("resolution_unit_centimeter")
+    default: return String(format: L10n.string("exif_other_format"), unit)
     }
   }
 }

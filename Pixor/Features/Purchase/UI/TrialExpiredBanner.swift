@@ -16,8 +16,8 @@ struct TrialExpiredBanner: View {
   let onDismiss: () -> Void
 
   init(
-    title: String = "trial_expired_title".localized,
-    message: String = "trial_expired_subtitle".localized,
+    title: String = L10n.string("trial_expired_title"),
+    message: String = L10n.string("trial_expired_subtitle"),
     onPurchase: @escaping () -> Void,
     onRestore: @escaping () -> Void,
     onDismiss: @escaping () -> Void
@@ -62,7 +62,7 @@ struct TrialExpiredBanner: View {
           .foregroundStyle(.secondary)
       }
       .buttonStyle(.plain)
-      .help("trial_expired_dismiss".localized)
+      .help(L10n.key("trial_expired_dismiss"))
     }
     .padding(.vertical, 14)
     .padding(.horizontal, 16)
@@ -79,11 +79,11 @@ struct TrialExpiredBanner: View {
 
   @ViewBuilder
   private var actionButtons: some View {
-    Button("purchase_section_restore".localized, action: onRestore)
+    Button(L10n.key("purchase_section_restore"), action: onRestore)
       .buttonStyle(.bordered)
       .layoutPriority(1)
 
-    Button("purchase_section_purchase".localized, action: onPurchase)
+    Button(L10n.key("purchase_section_purchase"), action: onPurchase)
       .buttonStyle(.borderedProminent)
       .layoutPriority(1)
   }
