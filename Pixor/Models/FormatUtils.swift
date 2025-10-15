@@ -16,13 +16,13 @@ enum FormatUtils {
     return formatter.string(fromByteCount: bytes)
   }
 
-  /// 统一的日期时间格式化（.medium 日期 + .medium 时间，跟随系统本地化）
+  /// 统一的日期时间格式化（.medium 日期 + .medium 时间，跟随当前应用语言）
   static func dateTimeString(from timestamp: TimeInterval) -> String {
     let date = Date(timeIntervalSince1970: timestamp)
     let formatter = DateFormatter()
     formatter.dateStyle = .medium
     formatter.timeStyle = .medium
-    formatter.locale = Locale.current
+    formatter.locale = LocalizationManager.shared.currentLocale
     return formatter.string(from: date)
   }
 

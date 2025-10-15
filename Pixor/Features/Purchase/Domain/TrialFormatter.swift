@@ -19,15 +19,30 @@ enum TrialFormatter {
     let day = max(0, components.day ?? 0)
     let hour = max(0, components.hour ?? 0)
     let minute = max(0, components.minute ?? 0)
+    let locale = LocalizationManager.shared.currentLocale
 
     if day > 0 {
-      return String(format: L10n.string("trial_banner_remaining_day_hour"), locale: Locale.current, day, hour)
+      return String(
+        format: L10n.string("trial_banner_remaining_day_hour"),
+        locale: locale,
+        day,
+        hour
+      )
     }
 
     if hour > 0 {
-      return String(format: L10n.string("trial_banner_remaining_hour_minute"), locale: Locale.current, hour, minute)
+      return String(
+        format: L10n.string("trial_banner_remaining_hour_minute"),
+        locale: locale,
+        hour,
+        minute
+      )
     }
 
-    return String(format: L10n.string("trial_banner_remaining_minute"), locale: Locale.current, minute)
+    return String(
+      format: L10n.string("trial_banner_remaining_minute"),
+      locale: locale,
+      minute
+    )
   }
 }
