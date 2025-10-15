@@ -24,7 +24,7 @@ enum FileOpenService {
   /// 弹出打开面板选择文件或文件夹，并返回原始输入与解析出的图片集合。
   /// - Returns: 若用户取消则返回 nil；否则返回包含来源 URL 与排序后图片 URL 的批次。
   @MainActor
-  static func openFileOrFolder() async -> ImageBatch? {
+  static func openFileOrFolder(recursive override: Bool? = nil) async -> ImageBatch? {
     let openPanel = NSOpenPanel()
     openPanel.canChooseFiles = true
     openPanel.canChooseDirectories = true
@@ -35,13 +35,13 @@ enum FileOpenService {
     let urls = openPanel.urls.map { $0.standardizedFileURL }
     guard !urls.isEmpty else { return nil }
 
-    return await loadImageBatch(from: urls, recordRecents: true)
+    return await loadImageBatch(from: urls, recordRecents: true, recursive: override)
   }
 
   /// 处理拖拽提供者，记录最近项目并返回图片集合。
   /// - Parameter providers: 来自 onDrop 的提供者列表。
   /// - Returns: 若成功解析，则返回包含来源 URL 与排序后图片 URL 的批次；否则为 nil。
-  static func processDropProviders(_ providers: [NSItemProvider]) async -> ImageBatch? {
+  static func processDropProviders(_ providers: [NSItemProvider], recursive override: Bool? = nil) async -> ImageBatch? {
     guard !providers.isEmpty else { return nil }
 
     let droppedInputs: [URL] = await withCheckedContinuation { (continuation: CheckedContinuation<[URL], Never>) in
@@ -71,22 +71,33 @@ enum FileOpenService {
 
     let normalized = droppedInputs.map { $0.standardizedFileURL }
     guard !normalized.isEmpty else { return nil }
-    return await loadImageBatch(from: normalized, recordRecents: true)
+    return await loadImageBatch(from: normalized, recordRecents: true, recursive: override)
   }
 
   /// Discover image URLs from given inputs (files or folders) without touching recents.
-  static func discoverImageURLs(from inputs: [URL]) async -> [URL] {
-    let batch = await loadImageBatch(from: inputs, recordRecents: false)
+  static func discoverImageURLs(from inputs: [URL], recursive override: Bool? = nil) async -> [URL] {
+    let batch = await loadImageBatch(from: inputs, recordRecents: false, recursive: override)
     return batch.imageURLs
   }
 
   /// Unified discovery: optionally record recents, then compute stable-sorted image URLs.
-  static func loadImageBatch(from inputs: [URL], recordRecents: Bool) async -> ImageBatch {
+  static func loadImageBatch(from inputs: [URL], recordRecents: Bool, recursive override: Bool? = nil) async -> ImageBatch {
     let accessGroup = SecurityScopedAccessGroup(urls: inputs)
     if recordRecents {
       await RecentOpensManager.shared.add(urls: inputs)
     }
-    let imageURLs = await ImageDiscovery.computeImageURLs(from: inputs)
+    let imageURLs = await ImageDiscovery.computeImageURLs(
+      from: inputs,
+      recursive: resolvedRecursiveFlag(override: override)
+    )
     return ImageBatch(inputs: inputs, imageURLs: imageURLs, accessGroup: accessGroup)
+  }
+
+  private static func resolvedRecursiveFlag(override: Bool?) -> Bool {
+    if let override { return override }
+    if let stored = UserDefaults.standard.object(forKey: "imageScanRecursively") as? Bool {
+      return stored
+    }
+    return true
   }
 }

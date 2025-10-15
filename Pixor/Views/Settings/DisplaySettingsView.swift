@@ -102,6 +102,18 @@ struct DisplaySettingsView: View {
         .opacity(appSettings.showMinimap ? 1 : 0.5)
       }
 
+      Spacer(minLength: 20)
+
+      // 图片扫描设置组
+      VStack(alignment: .leading, spacing: 16) {
+        Text(l10n: "image_scan_group")
+          .fontWeight(.medium)
+
+        Toggle(isOn: $appSettings.imageScanRecursively) {
+          Text(l10n: "image_scan_recursive_toggle")
+        }
+      }
+
       // 重置按钮
       HStack {
         Spacer()

@@ -147,6 +147,11 @@ class AppSettings: ObservableObject {
     }
   }
 
+  // MARK: - 图片枚举设置
+
+  /// 是否递归扫描子目录寻找图片（UserDefaults 存储）
+  @AppStorage("imageScanRecursively") var imageScanRecursively: Bool = true
+
   // MARK: - 裁剪设置
 
   /// 自定义裁剪比例（持久化 JSON）
@@ -243,6 +248,7 @@ class AppSettings: ObservableObject {
       maxZoomScale = 10.0
       showMinimap = true
       minimapAutoHideSeconds = 0.0
+      imageScanRecursively = true
     case .cache:
       break
     }

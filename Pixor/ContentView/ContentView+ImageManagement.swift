@@ -48,7 +48,11 @@ extension ContentView {
     let inputs = currentSourceInputs
 
     Task {
-      let batch = await FileOpenService.loadImageBatch(from: inputs, recordRecents: false)
+      let batch = await FileOpenService.loadImageBatch(
+        from: inputs,
+        recordRecents: false,
+        recursive: appSettings.imageScanRecursively
+      )
       await MainActor.run {
         let currentSelection = selectedImageURL
         let previousIndex = currentSelection.flatMap { imageURLs.firstIndex(of: $0) }
@@ -71,7 +75,11 @@ extension ContentView {
     Task {
       let directory = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
       let normalized = [directory.standardizedFileURL]
-      let batch = await FileOpenService.loadImageBatch(from: normalized, recordRecents: false)
+      let batch = await FileOpenService.loadImageBatch(
+        from: normalized,
+        recordRecents: false,
+        recursive: appSettings.imageScanRecursively
+      )
       await MainActor.run {
         applyImageBatch(batch)
       }

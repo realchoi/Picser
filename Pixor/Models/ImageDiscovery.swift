@@ -12,7 +12,7 @@ import Foundation
 enum ImageDiscovery {
   /// Enumerate image URLs from mixed inputs (files or folders),
   /// de-duplicate by standardized path, and return a stable, Finder-like sorted list.
-  static func computeImageURLs(from inputs: [URL]) async -> [URL] {
+  static func computeImageURLs(from inputs: [URL], recursive: Bool) async -> [URL] {
     let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
     let resourceKeys: Set<URLResourceKey> = [
       .isDirectoryKey, .isRegularFileKey, .isPackageKey, .isHiddenKey, .typeIdentifierKey
@@ -30,48 +30,54 @@ enum ImageDiscovery {
           }
         }
 
+        func appendImages(in directory: URL) {
+          if recursive {
+            if let enumerator = fileManager.enumerator(
+              at: directory,
+              includingPropertiesForKeys: Array(resourceKeys),
+              options: [.skipsHiddenFiles, .skipsPackageDescendants],
+              errorHandler: { _, _ in true }
+            ) {
+              for case let fileURL as URL in enumerator {
+                do {
+                  let values = try fileURL.resourceValues(forKeys: resourceKeys)
+                  guard values.isRegularFile == true else { continue }
+                  appendIfImage(fileURL)
+                } catch {
+                  continue
+                }
+              }
+            }
+          } else if let items = try? fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: Array(resourceKeys),
+            options: [.skipsHiddenFiles]
+          ) {
+            for item in items {
+              do {
+                let values = try item.resourceValues(forKeys: resourceKeys)
+                if values.isDirectory == true || values.isPackage == true { continue }
+                guard values.isRegularFile == true else { continue }
+                appendIfImage(item)
+              } catch {
+                continue
+              }
+            }
+          }
+        }
+
         for original in inputs {
           let normalized = original.standardizedFileURL
           let resourceValues = try? normalized.resourceValues(forKeys: resourceKeys)
 
           if resourceValues?.isDirectory == true {
             if resourceValues?.isPackage == true { continue }
-            if let enumerator = fileManager.enumerator(
-              at: normalized,
-              includingPropertiesForKeys: Array(resourceKeys),
-              options: [.skipsHiddenFiles, .skipsPackageDescendants],
-              errorHandler: { _, _ in true }
-            ) {
-              for case let fileURL as URL in enumerator {
-                do {
-                  let values = try fileURL.resourceValues(forKeys: resourceKeys)
-                  guard values.isRegularFile == true else { continue }
-                  appendIfImage(fileURL)
-                } catch {
-                  continue
-                }
-              }
-            }
+            appendImages(in: normalized)
           } else if resourceValues?.isRegularFile == true || !normalized.hasDirectoryPath {
             appendIfImage(normalized)
           } else if normalized.hasDirectoryPath {
             // fallback when resourceValues not available
-            if let enumerator = fileManager.enumerator(
-              at: normalized,
-              includingPropertiesForKeys: Array(resourceKeys),
-              options: [.skipsHiddenFiles, .skipsPackageDescendants],
-              errorHandler: { _, _ in true }
-            ) {
-              for case let fileURL as URL in enumerator {
-                do {
-                  let values = try fileURL.resourceValues(forKeys: resourceKeys)
-                  guard values.isRegularFile == true else { continue }
-                  appendIfImage(fileURL)
-                } catch {
-                  continue
-                }
-              }
-            }
+            appendImages(in: normalized)
           }
         }
 

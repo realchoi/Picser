@@ -294,7 +294,7 @@ struct ContentView: View {
 
   func openFileOrFolder() {
     Task {
-      guard let batch = await FileOpenService.openFileOrFolder() else { return }
+      guard let batch = await FileOpenService.openFileOrFolder(recursive: appSettings.imageScanRecursively) else { return }
       await MainActor.run {
         applyImageBatch(batch)
       }
@@ -305,7 +305,7 @@ struct ContentView: View {
   private func handleDropProviders(_ providers: [NSItemProvider]) -> Bool {
     guard !providers.isEmpty else { return false }
     Task {
-      if let batch = await FileOpenService.processDropProviders(providers) {
+      if let batch = await FileOpenService.processDropProviders(providers, recursive: appSettings.imageScanRecursively) {
         await MainActor.run {
           applyImageBatch(batch)
         }

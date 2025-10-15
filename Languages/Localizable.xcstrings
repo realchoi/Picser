@@ -2050,6 +2050,38 @@
         }
       }
     },
+    "image_scan_group": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image Scan"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片扫描"
+          }
+        }
+      }
+    },
+    "image_scan_recursive_toggle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan subfolders for images"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "扫描图片时包含子目录"
+          }
+        }
+      }
+    },
     "mirror_horizontal_button": {
       "localizations": {
         "en": {
