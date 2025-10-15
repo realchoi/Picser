@@ -39,7 +39,7 @@ struct ContentView: View {
   @State private var showingAddCustomRatio = false
   @State private var customRatioW: String = "1"
   @State private var customRatioH: String = "1"
-  @State var securityAccess: SecurityScopedAccess?
+  @State var securityAccessGroup: SecurityScopedAccessGroup?
 
   // 购买解锁引导
   @State var upgradePromptContext: UpgradePromptContext?
@@ -296,7 +296,6 @@ struct ContentView: View {
     Task {
       guard let batch = await FileOpenService.openFileOrFolder() else { return }
       await MainActor.run {
-        updateSecurityAccess(using: batch.inputs)
         applyImageBatch(batch)
       }
     }
@@ -308,7 +307,6 @@ struct ContentView: View {
     Task {
       if let batch = await FileOpenService.processDropProviders(providers) {
         await MainActor.run {
-          updateSecurityAccess(using: batch.inputs)
           applyImageBatch(batch)
         }
       }

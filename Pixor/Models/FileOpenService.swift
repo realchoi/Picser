@@ -10,11 +10,13 @@ import Foundation
 import UniformTypeIdentifiers
 
 /// 表示一次图片集合加载的结果，包含原始输入和解析出的图片列表。
-struct ImageBatch: Sendable {
+struct ImageBatch {
   /// 用户选择或拖拽的原始 URL（可能是文件或文件夹）。
   let inputs: [URL]
   /// 通过解析得到的图片 URL 列表，按照 Finder 风格排序。
   let imageURLs: [URL]
+  /// 关联的安全访问令牌集合，确保在使用期间保持目录访问权限
+  let accessGroup: SecurityScopedAccessGroup
 }
 
 /// 文件打开服务，处理打开文件/文件夹和拖拽操作。
@@ -33,8 +35,7 @@ enum FileOpenService {
     let urls = openPanel.urls.map { $0.standardizedFileURL }
     guard !urls.isEmpty else { return nil }
 
-    let imageURLs = await discover(from: urls, recordRecents: true)
-    return ImageBatch(inputs: urls, imageURLs: imageURLs)
+    return await loadImageBatch(from: urls, recordRecents: true)
   }
 
   /// 处理拖拽提供者，记录最近项目并返回图片集合。
@@ -70,20 +71,22 @@ enum FileOpenService {
 
     let normalized = droppedInputs.map { $0.standardizedFileURL }
     guard !normalized.isEmpty else { return nil }
-    let imageURLs = await discover(from: normalized, recordRecents: true)
-    return ImageBatch(inputs: normalized, imageURLs: imageURLs)
+    return await loadImageBatch(from: normalized, recordRecents: true)
   }
 
   /// Discover image URLs from given inputs (files or folders) without touching recents.
   static func discoverImageURLs(from inputs: [URL]) async -> [URL] {
-    return await discover(from: inputs, recordRecents: false)
+    let batch = await loadImageBatch(from: inputs, recordRecents: false)
+    return batch.imageURLs
   }
 
   /// Unified discovery: optionally record recents, then compute stable-sorted image URLs.
-  static func discover(from inputs: [URL], recordRecents: Bool) async -> [URL] {
+  static func loadImageBatch(from inputs: [URL], recordRecents: Bool) async -> ImageBatch {
+    let accessGroup = SecurityScopedAccessGroup(urls: inputs)
     if recordRecents {
       await RecentOpensManager.shared.add(urls: inputs)
     }
-    return await ImageDiscovery.computeImageURLs(from: inputs)
+    let imageURLs = await ImageDiscovery.computeImageURLs(from: inputs)
+    return ImageBatch(inputs: inputs, imageURLs: imageURLs, accessGroup: accessGroup)
   }
 }

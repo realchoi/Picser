@@ -17,6 +17,7 @@ extension ContentView {
 
   /// 应用新的图片批次并根据上下文保持选中状态
   func applyImageBatch(_ batch: ImageBatch, preserveSelection selection: URL? = nil, previouslySelectedIndex: Int? = nil) {
+    securityAccessGroup = batch.accessGroup
     currentSourceInputs = batch.inputs
     imageURLs = batch.imageURLs
 
@@ -47,8 +48,7 @@ extension ContentView {
     let inputs = currentSourceInputs
 
     Task {
-      let refreshed = await FileOpenService.discover(from: inputs, recordRecents: false)
-      let batch = ImageBatch(inputs: inputs, imageURLs: refreshed)
+      let batch = await FileOpenService.loadImageBatch(from: inputs, recordRecents: false)
       await MainActor.run {
         let currentSelection = selectedImageURL
         let previousIndex = currentSelection.flatMap { imageURLs.firstIndex(of: $0) }
@@ -70,12 +70,9 @@ extension ContentView {
   func openResolvedURL(_ url: URL) {
     Task {
       let directory = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
-      let access = SecurityScopedAccess(url: directory)
       let normalized = [directory.standardizedFileURL]
-      let uniqueSorted = await FileOpenService.discover(from: normalized, recordRecents: false)
-      let batch = ImageBatch(inputs: normalized, imageURLs: uniqueSorted)
+      let batch = await FileOpenService.loadImageBatch(from: normalized, recordRecents: false)
       await MainActor.run {
-        securityAccess = access
         applyImageBatch(batch)
       }
     }
@@ -83,18 +80,7 @@ extension ContentView {
 
   /// 处理来自 Finder 或 Dock 的外部打开请求
   func handleExternalImageBatch(_ batch: ImageBatch) {
-    updateSecurityAccess(using: batch.inputs)
     applyImageBatch(batch)
-  }
-
-  /// 更新沙盒访问权限，保证后续读写能力
-  func updateSecurityAccess(using inputs: [URL]) {
-    guard let first = inputs.first else {
-      securityAccess = nil
-      return
-    }
-    let directory = first.hasDirectoryPath ? first : first.deletingLastPathComponent()
-    securityAccess = SecurityScopedAccess(url: directory)
   }
 }
 
@@ -110,6 +96,46 @@ final class SecurityScopedAccess {
   deinit {
     if didStart {
       url.stopAccessingSecurityScopedResource()
+    }
+  }
+}
+
+/// 批量管理多个目录的沙盒访问令牌，确保在读取文件前先启动安全范围
+final class SecurityScopedAccessGroup {
+  private var accessors: [String: SecurityScopedAccess] = [:]
+  private(set) var directories: [URL]
+
+  init(urls: [URL]) {
+    self.directories = SecurityScopedAccessGroup.uniqueDirectories(from: urls)
+    for directory in directories {
+      accessors[directory.path] = SecurityScopedAccess(url: directory)
+    }
+  }
+
+  /// 根据给定 URL 列表去重并规范化出目录列表
+  static func uniqueDirectories(from urls: [URL]) -> [URL] {
+    var seen: Set<String> = []
+    var result: [URL] = []
+    for url in urls {
+      let directory = (url.hasDirectoryPath ? url : url.deletingLastPathComponent()).standardizedFileURL
+      let key = directory.path
+      if !seen.contains(key) {
+        seen.insert(key)
+        result.append(directory)
+      }
+    }
+    return result
+  }
+
+  /// 为额外的 URL 扩展安全访问令牌，避免重复申请
+  func extend(with urls: [URL]) {
+    let newDirectories = SecurityScopedAccessGroup.uniqueDirectories(from: urls)
+    for directory in newDirectories {
+      let key = directory.path
+      if accessors[key] == nil {
+        accessors[key] = SecurityScopedAccess(url: directory)
+        directories.append(directory)
+      }
     }
   }
 }

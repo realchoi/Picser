@@ -23,8 +23,7 @@ final class ExternalOpenCoordinator: ObservableObject {
     let normalized = urls.map { $0.standardizedFileURL }
     Task(priority: .userInitiated) { [weak self, normalized] in
       guard let self else { return }
-      let discovered = await FileOpenService.discover(from: normalized, recordRecents: recordRecents)
-      let batch = ImageBatch(inputs: normalized, imageURLs: discovered)
+      let batch = await FileOpenService.loadImageBatch(from: normalized, recordRecents: recordRecents)
       self.latestBatch = batch
     }
   }
