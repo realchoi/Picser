@@ -18,17 +18,17 @@ struct SplitViewWidthLimiter: NSViewRepresentable {
   }
 
   func makeNSView(context: Context) -> NSView {
-    let view = NSView()
-    view.isHidden = true
-    DispatchQueue.main.async {
-      context.coordinator.attachIfNeeded(hostView: view)
+    let view = ObservingHostView {
+      context.coordinator.attachIfNeeded(hostView: $0)
     }
+    view.isHidden = true
     return view
   }
 
   func updateNSView(_ nsView: NSView, context: Context) {
     context.coordinator.minWidth = minWidth
     context.coordinator.maxWidth = maxWidth
+    context.coordinator.attachIfNeeded(hostView: nsView)
     context.coordinator.enforceCurrentConstraints()
   }
 
@@ -45,13 +45,7 @@ struct SplitViewWidthLimiter: NSViewRepresentable {
 
     func attachIfNeeded(hostView: NSView) {
       guard splitView == nil else { return }
-      guard let found = hostView.findEnclosingSplitView() else {
-        DispatchQueue.main.async { [weak self, weak hostView] in
-          guard let hostView else { return }
-          self?.attachIfNeeded(hostView: hostView)
-        }
-        return
-      }
+      guard let found = hostView.findEnclosingSplitView() else { return }
       splitView = found
       forwardingDelegate = found.delegate
       found.delegate = self
@@ -113,6 +107,43 @@ struct SplitViewWidthLimiter: NSViewRepresentable {
         return nil
       }
       return forwardingDelegate
+    }
+  }
+}
+
+/// 负责在视图层级稳定后触发一次协调器的挂载动作，避免忙等待
+private final class ObservingHostView: NSView {
+  private let onHierarchyReady: (NSView) -> Void
+  private var pendingCallback = false
+
+  init(onHierarchyReady: @escaping (NSView) -> Void) {
+    self.onHierarchyReady = onHierarchyReady
+    super.init(frame: .zero)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    scheduleCallbackIfNeeded()
+  }
+
+  override func viewDidMoveToSuperview() {
+    super.viewDidMoveToSuperview()
+    scheduleCallbackIfNeeded()
+  }
+
+  private func scheduleCallbackIfNeeded() {
+    guard window != nil else { return }
+    guard !pendingCallback else { return }
+    pendingCallback = true
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      self.pendingCallback = false
+      self.onHierarchyReady(self)
     }
   }
 }
