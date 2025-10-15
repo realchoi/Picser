@@ -25,7 +25,13 @@ struct PixorApp: App {
   init() {
     let sharedSecret = PurchaseSecretsProvider.purchaseSharedSecret()
     let configuration = PurchaseConfiguration.loadDefault()
-    let enableReceiptValidation = ProcessInfo.processInfo.environment["PIXOR_ENABLE_RECEIPT_VALIDATION"] == "1"
+    let envReceiptToggle = ProcessInfo.processInfo.environment["PIXOR_ENABLE_RECEIPT_VALIDATION"]
+    // 在发布版本默认开启票据校验；仅当环境变量明确指定为 "0" 才关闭，调试版本仍需显式开启以便灵活测试
+#if DEBUG
+    let enableReceiptValidation = envReceiptToggle == "1"
+#else
+    let enableReceiptValidation = envReceiptToggle != "0"
+#endif
     let manager = PurchaseManager(
       configuration: configuration,
       enableReceiptValidation: enableReceiptValidation,
