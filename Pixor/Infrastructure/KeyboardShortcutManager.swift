@@ -71,6 +71,14 @@ final class KeyboardShortcutManager {
     windows[id] = info
   }
 
+  /// 根据注册 token 返回对应窗口
+  @MainActor
+  func window(for token: UUID) -> NSWindow? {
+    cleanupEntries()
+    guard let id = tokenLookup[token], let info = windows[id] else { return nil }
+    return info.window
+  }
+
   /// 注销此前注册的窗口快捷键回调。
   @MainActor
   func unregister(token: UUID) {

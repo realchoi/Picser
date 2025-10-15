@@ -241,9 +241,14 @@ final class ImageLoader {
       return nil
     }
 
-    // 将缩略图编码为 JPG 格式，因为它是用于快速预览，体积小是关键
     let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
-    return bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.7])  // 70% 压缩率
+
+    // 如果原图带透明通道，则使用 PNG 保留透明度；否则使用压缩率 70% 的 JPEG
+    if bitmapRep.hasAlpha {
+      return bitmapRep.representation(using: .png, properties: [:])
+    } else {
+      return bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.7])
+    }
   }
 
   /// 后台安全地解码并按 EXIF 方向校正为 CGImage

@@ -31,12 +31,14 @@ struct AsyncZoomableImageContainer: View {
   @State private var loadTask: Task<Void, Never>?
   @State private var fullLoadTask: Task<Void, Never>?
   @State private var viewportSize: CGSize = .zero
+  @State private var backingScaleFactor: CGFloat = NSScreen.main?.backingScaleFactor ?? 2.0
 
   // 任务触发键：由 URL 和视口的离散尺寸组成，满足 Equatable
   private var taskKey: String {
     let w = Int(viewportSize.width.rounded())
     let h = Int(viewportSize.height.rounded())
-    return url.absoluteString + "|" + String(w) + "x" + String(h)
+    let scaleKey = Int((backingScaleFactor * 1000).rounded())
+    return url.absoluteString + "|" + String(w) + "x" + String(h) + "|s\(scaleKey)"
   }
 
   var body: some View {
@@ -61,6 +63,9 @@ struct AsyncZoomableImageContainer: View {
       .onAppear {
         // 记录初始视口尺寸
         self.viewportSize = geometry.size
+        Task { @MainActor in
+          updateBackingScaleFactor()
+        }
       }
       .onChange(of: url) { _, newURL in
         // 切换图片时显示 Loading，除非立即有缓存
@@ -93,6 +98,7 @@ struct AsyncZoomableImageContainer: View {
       let currentURL = url
       // 在主线程上组织渐进加载，避免跨 actor 传递 NSImage 带来的 Swift 6 Sendable 警告
       let task = Task { @MainActor in
+        updateBackingScaleFactor()
         // 第1步：缓存直读，立即显示缓存内容（避免闪烁）
         if let cachedFull = ImageLoader.shared.cachedFullImage(for: currentURL) {
           self.displayImage = cachedFull
@@ -101,7 +107,7 @@ struct AsyncZoomableImageContainer: View {
           self.displayImage = cachedThumb
         }
 
-        let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+        let scale = backingScaleFactor
         // 目标：视口长边 * scale * 2.5，并给出上限
         let targetLongSidePixels = Int(min(
           DownsampleRequestConstants.maxLongSidePixels,
@@ -151,11 +157,57 @@ struct AsyncZoomableImageContainer: View {
       loadTask?.cancel()
       fullLoadTask?.cancel()
     }
+    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeBackingPropertiesNotification)) { notif in
+      handleWindowScaleNotification(notif)
+    }
+    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)) { notif in
+      handleWindowScaleNotification(notif)
+    }
   }
 }
 
 // MARK: - Helpers
 extension AsyncZoomableImageContainer {
+  @MainActor
+  private func updateBackingScaleFactor() {
+    let resolved = Self.resolveBackingScaleFactor(for: windowToken)
+    if abs(resolved - backingScaleFactor) > 0.01 {
+      backingScaleFactor = resolved
+    }
+  }
+
+  @MainActor
+  private static func resolveBackingScaleFactor(for token: UUID) -> CGFloat {
+    if let window = KeyboardShortcutManager.shared.window(for: token) {
+      if let screen = window.screen {
+        return screen.backingScaleFactor
+      }
+      return window.backingScaleFactor
+    }
+
+    if let keyWindow = NSApp.keyWindow {
+      return keyWindow.screen?.backingScaleFactor ?? keyWindow.backingScaleFactor
+    }
+
+    if let mainWindow = NSApp.mainWindow {
+      return mainWindow.screen?.backingScaleFactor ?? mainWindow.backingScaleFactor
+    }
+
+    if let screen = NSScreen.main {
+      return screen.backingScaleFactor
+    }
+
+    return 2.0
+  }
+
+  private func handleWindowScaleNotification(_ notif: Notification) {
+    guard let window = notif.object as? NSWindow else { return }
+    Task { @MainActor in
+      guard let tracked = KeyboardShortcutManager.shared.window(for: windowToken), tracked === window else { return }
+      updateBackingScaleFactor()
+    }
+  }
+
   /// 仅解析元数据以获取宽高比（width/height）。失败返回 nil。
   static func readImageAspect(from url: URL) async -> CGFloat? {
     await Task.detached(priority: .utility) {
