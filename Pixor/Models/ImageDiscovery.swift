@@ -13,38 +13,79 @@ enum ImageDiscovery {
   /// Enumerate image URLs from mixed inputs (files or folders),
   /// de-duplicate by standardized path, and return a stable, Finder-like sorted list.
   static func computeImageURLs(from inputs: [URL]) async -> [URL] {
-    // Allowed image extensions (lowercased)
-    let imageExtensions = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
+    let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
+    let resourceKeys: Set<URLResourceKey> = [
+      .isDirectoryKey, .isRegularFileKey, .isPackageKey, .isHiddenKey, .typeIdentifierKey
+    ]
 
     return await withCheckedContinuation { continuation in
       DispatchQueue.global(qos: .userInitiated).async {
         var collected: [URL] = []
-        let fm = FileManager.default
+        let fileManager = FileManager.default
 
-        // 1) Enumerate inputs and collect image URLs
-        for url in inputs {
-          if url.hasDirectoryPath {
-            if let files = try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil) {
-              collected.append(contentsOf: files.filter { imageExtensions.contains($0.pathExtension.lowercased()) })
-            }
-          } else if imageExtensions.contains(url.pathExtension.lowercased()) {
+        func appendIfImage(_ url: URL) {
+          let ext = url.pathExtension.lowercased()
+          if imageExtensions.contains(ext) {
             collected.append(url)
           }
         }
 
-        // 2) De-duplicate while preserving first-seen order
-        var seen: [String: Bool] = [:]
+        for original in inputs {
+          let normalized = original.standardizedFileURL
+          let resourceValues = try? normalized.resourceValues(forKeys: resourceKeys)
+
+          if resourceValues?.isDirectory == true {
+            if resourceValues?.isPackage == true { continue }
+            if let enumerator = fileManager.enumerator(
+              at: normalized,
+              includingPropertiesForKeys: Array(resourceKeys),
+              options: [.skipsHiddenFiles, .skipsPackageDescendants],
+              errorHandler: { _, _ in true }
+            ) {
+              for case let fileURL as URL in enumerator {
+                do {
+                  let values = try fileURL.resourceValues(forKeys: resourceKeys)
+                  guard values.isRegularFile == true else { continue }
+                  appendIfImage(fileURL)
+                } catch {
+                  continue
+                }
+              }
+            }
+          } else if resourceValues?.isRegularFile == true || !normalized.hasDirectoryPath {
+            appendIfImage(normalized)
+          } else if normalized.hasDirectoryPath {
+            // fallback when resourceValues not available
+            if let enumerator = fileManager.enumerator(
+              at: normalized,
+              includingPropertiesForKeys: Array(resourceKeys),
+              options: [.skipsHiddenFiles, .skipsPackageDescendants],
+              errorHandler: { _, _ in true }
+            ) {
+              for case let fileURL as URL in enumerator {
+                do {
+                  let values = try fileURL.resourceValues(forKeys: resourceKeys)
+                  guard values.isRegularFile == true else { continue }
+                  appendIfImage(fileURL)
+                } catch {
+                  continue
+                }
+              }
+            }
+          }
+        }
+
+        var seen: Set<String> = []
         var unique: [URL] = []
         unique.reserveCapacity(collected.count)
         for url in collected {
           let key = url.standardizedFileURL.path
-          if seen[key] == nil {
-            seen[key] = true
+          if !seen.contains(key) {
+            seen.insert(key)
             unique.append(url)
           }
         }
 
-        // 3) Stable sort by directory then filename, Finder-like natural order
         let enumerated = unique.enumerated().map { ($0.offset, $0.element) }
         let sortedStable = enumerated.sorted { lhs, rhs in
           let (li, l) = lhs
@@ -71,4 +112,3 @@ enum ImageDiscovery {
     }
   }
 }
-
