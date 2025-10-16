@@ -125,10 +125,12 @@ struct GeneralSettingsView: View {
             }
             .buttonStyle(.bordered)
 
-            Button(L10n.key("purchase_section_purchase")) {
-              presentPurchasePrompt()
+            if shouldShowPurchaseButton {
+              Button(L10n.key("purchase_section_purchase")) {
+                presentPurchasePrompt()
+              }
+              .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -275,6 +277,10 @@ struct GeneralSettingsView: View {
   private func localized(_ key: String, fallback: String) -> String {
     let value = L10n.string(key)
     return value == key ? fallback : value
+  }
+
+  private var shouldShowPurchaseButton: Bool {
+    !purchaseManager.hasOwnedLicense
   }
 }
 

@@ -83,6 +83,20 @@ final class PurchaseManager: ObservableObject {
     }
   }
 
+  /// 是否已经通过订阅或买断拥有高级权限（不含试用期）
+  var hasOwnedLicense: Bool {
+    switch state {
+    case .lifetime:
+      return true
+    case .subscriber:
+      return true
+    case .subscriberLapsed(let status):
+      return status.isInGracePeriod
+    default:
+      return false
+    }
+  }
+
   /// 是否已过试用期
   var isTrialExpired: Bool {
     if case .trialExpired = state {

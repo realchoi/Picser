@@ -19,9 +19,23 @@ enum FormatUtils {
   /// 统一的日期时间格式化（.medium 日期 + .medium 时间，跟随当前应用语言）
   static func dateTimeString(from timestamp: TimeInterval) -> String {
     let date = Date(timeIntervalSince1970: timestamp)
+    return dateTimeString(from: date)
+  }
+
+  /// 统一的日期时间格式化（.medium 日期 + .medium 时间，跟随当前应用语言）
+  static func dateTimeString(from date: Date) -> String {
     let formatter = DateFormatter()
     formatter.dateStyle = .medium
     formatter.timeStyle = .medium
+    formatter.locale = LocalizationManager.shared.currentLocale
+    return formatter.string(from: date)
+  }
+
+  /// 仅日期格式化方法，默认使用 .medium 风格
+  static func dateString(from date: Date, style: DateFormatter.Style = .medium) -> String {
+    let formatter = DateFormatter()
+    formatter.dateStyle = style
+    formatter.timeStyle = .none
     formatter.locale = LocalizationManager.shared.currentLocale
     return formatter.string(from: date)
   }

@@ -12,7 +12,7 @@ extension ContentView {
   /// 根据订阅状态展示试用提醒条
   @ViewBuilder
   var trialBannerInset: some View {
-    if purchaseManager.isTrialBannerDismissed {
+    if purchaseManager.isTrialBannerDismissed || purchaseManager.hasOwnedLicense {
       EmptyView()
     } else {
       switch purchaseManager.state {

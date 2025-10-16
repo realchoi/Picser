@@ -2946,6 +2946,134 @@
         }
       }
     },
+    "purchase_info_owned_lifetime_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You already own the full version"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "您已拥有完整版"
+          }
+        }
+      }
+    },
+    "purchase_info_owned_lifetime_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purchased on %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "购买日期：%@"
+          }
+        }
+      }
+    },
+    "purchase_info_owned_subscription_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription active"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅已激活"
+          }
+        }
+      }
+    },
+    "purchase_info_owned_subscription_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription valid until %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅有效期至：%@"
+          }
+        }
+      }
+    },
+    "purchase_info_owned_subscription_message_indefinite": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription is currently active with no expiration date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅当前有效，无需再次购买。"
+          }
+        }
+      }
+    },
+    "purchase_info_owned_subscription_grace_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription grace period"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅宽限期内"
+          }
+        }
+      }
+    },
+    "purchase_info_owned_subscription_grace_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your subscription expired but is still within the grace period."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅已到期，但仍在宽限期内，权益暂时有效。"
+          }
+        }
+      }
+    },
+    "purchase_info_owned_subscription_grace_with_date": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription expired on %@ and is currently in the grace period."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅已于 %@ 到期，当前处于宽限期。"
+          }
+        }
+      }
+    },
     "purchase_info_refresh_receipt_button": {
       "localizations": {
         "en": {

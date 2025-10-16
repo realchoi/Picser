@@ -32,6 +32,47 @@ struct PurchaseInfoView: View {
     return purchaseManager.offerings.first(where: { $0.kind == selectedProductKind })
   }
 
+  private var entitlementSummary: EntitlementSummary? {
+    guard purchaseManager.hasOwnedLicense else { return nil }
+
+    switch purchaseManager.state {
+    case .lifetime(let status):
+      let title = L10n.string("purchase_info_owned_lifetime_title")
+      let template = L10n.string("purchase_info_owned_lifetime_message")
+      let message = String(format: template, FormatUtils.dateString(from: status.purchaseDate))
+      return EntitlementSummary(icon: "checkmark.seal", title: title, message: message)
+
+    case .subscriber(let status):
+      let title = L10n.string("purchase_info_owned_subscription_title")
+      let message: String
+      if let expiration = status.expirationDate {
+        let template = L10n.string("purchase_info_owned_subscription_message")
+        message = String(format: template, FormatUtils.dateString(from: expiration))
+      } else {
+        message = L10n.string("purchase_info_owned_subscription_message_indefinite")
+      }
+      return EntitlementSummary(icon: "checkmark.seal", title: title, message: message)
+
+    case .subscriberLapsed(let status):
+      guard status.isInGracePeriod else { return nil }
+      let title = L10n.string("purchase_info_owned_subscription_grace_title")
+      let template = L10n.string("purchase_info_owned_subscription_grace_message")
+      var message = template
+      if let expiration = status.expirationDate {
+        let graceful = L10n.string("purchase_info_owned_subscription_grace_with_date")
+        message = String(format: graceful, FormatUtils.dateString(from: expiration))
+      }
+      return EntitlementSummary(icon: "clock.badge.exclamationmark", title: title, message: message)
+
+    default:
+      return nil
+    }
+  }
+
+  private var shouldShowPurchaseOptions: Bool {
+    !purchaseManager.hasOwnedLicense
+  }
+
   private var isSubscriptionTrialAvailable: Bool {
     guard let subscription = purchaseManager.subscriptionOffering,
           subscription.configuration.introductoryTrialDuration != nil else {
@@ -96,11 +137,20 @@ struct PurchaseInfoView: View {
     NavigationStack {
       ScrollView {
         VStack(alignment: .leading, spacing: 24) {
-          contextSection
+          if let summary = entitlementSummary {
+            entitlementSummarySection(summary)
+          } else {
+            contextSection
+          }
+
           headerSection
           featureSection
-          offeringSection
-          primaryActionSection
+
+          if shouldShowPurchaseOptions {
+            offeringSection
+            primaryActionSection
+          }
+
           legalSection
           supportActionSection
         }
@@ -320,6 +370,28 @@ struct PurchaseInfoView: View {
     return String(format: L10n.string("purchase_info_trial_note"), days)
   }
 
+  @ViewBuilder
+  private func entitlementSummarySection(_ summary: EntitlementSummary) -> some View {
+    GroupBox {
+      VStack(alignment: .leading, spacing: 12) {
+        Label(summary.title, systemImage: summary.icon)
+          .labelStyle(.titleAndIcon)
+
+        if let message = summary.message, !message.isEmpty {
+          Text(message)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+  }
+}
+
+private struct EntitlementSummary {
+  let icon: String
+  let title: String
+  let message: String?
 }
 
 private struct PurchaseFeatureItem: Identifiable {
@@ -339,4 +411,3 @@ private struct PurchaseLegalItem: Identifiable {
 
   var title: String { L10n.string(titleKey) }
 }
-
