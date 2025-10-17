@@ -1074,7 +1074,7 @@
         }
       }
     },
-    "file_path_label": {
+    "full_path_label": {
       "localizations": {
         "en": {
           "stringUnit": {

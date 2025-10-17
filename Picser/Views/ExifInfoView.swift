@@ -94,7 +94,7 @@ struct ExifInfoView: View {
         value: exifInfo.fileName
       ),
       InfoItem(
-        label: L10n.string("file_path_label"),
+        label: L10n.string("full_path_label"),
         value: filePathDisplayValue
       ),
       InfoItem(
