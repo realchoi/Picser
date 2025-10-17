@@ -13,21 +13,21 @@ fi
 
 # 读取参数
 CONFIG=${2:-Release}
-SCHEME=${3:-Pixor}
-ARCHIVE_PATH=${4:-"$(pwd)/build/Pixor.xcarchive"}
+SCHEME=${3:-Picser}
+ARCHIVE_PATH=${4:-"$(pwd)/build/Picser.xcarchive"}
 EXPORT_PATH=${5:-"$(pwd)/build/Export"}
 EXPORT_OPTIONS_PLIST=${6:-"Build/exportOptions.plist"}
 
 # 内购相关变量，可视需要覆盖
-export PIXOR_IAP_PRODUCT_ID=${PIXOR_IAP_PRODUCT_ID:-"com.soyotube.Picser.full"}
-export PIXOR_IAP_SHARED_SECRET=${PIXOR_IAP_SHARED_SECRET:-""}
-export PIXOR_ENABLE_RECEIPT_VALIDATION=${PIXOR_ENABLE_RECEIPT_VALIDATION:-0}
+export PICSER_IAP_PRODUCT_ID=${PICSER_IAP_PRODUCT_ID:-"com.soyotube.Picser.full"}
+export PICSER_IAP_SHARED_SECRET=${PICSER_IAP_SHARED_SECRET:-""}
+export PICSER_ENABLE_RECEIPT_VALIDATION=${PICSER_ENABLE_RECEIPT_VALIDATION:-0}
 
-echo "Using product id: $PIXOR_IAP_PRODUCT_ID"
-echo "Receipt validation enabled: $PIXOR_ENABLE_RECEIPT_VALIDATION"
+echo "Using product id: $PICSER_IAP_PRODUCT_ID"
+echo "Receipt validation enabled: $PICSER_ENABLE_RECEIPT_VALIDATION"
 
 # 你可以在这里导入本地证书，或假设 Xcode 已经配置好签名
-xcodebuild -project Pixor.xcodeproj \
+xcodebuild -project Picser.xcodeproj \
            -scheme "$SCHEME" \
            -configuration "$CONFIG" \
            -archivePath "$ARCHIVE_PATH" \

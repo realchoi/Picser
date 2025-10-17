@@ -2877,7 +2877,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "解锁完整的 Pixor 体验"
+            "value": "解锁完整的 Picser 体验"
           }
         }
       }
@@ -4045,7 +4045,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "一次性购买即可永久解锁 Pixor。之前买过？点击“恢复购买”即可无须再次付费。"
+            "value": "一次性购买即可永久解锁 Picser。之前买过？点击“恢复购买”即可无须再次付费。"
           }
         }
       }
