@@ -11,6 +11,7 @@ import ImageIO
 struct ExifInfo {
   // MARK: - 基本文件信息
   let fileName: String
+  let filePath: String
   let fileSize: String
   let fileFormat: String
   let imageWidth: Int
@@ -51,11 +52,12 @@ struct ExifInfo {
   // MARK: - 创建方法
 
   /// 从 EXIF 字典创建 ExifInfo 结构体
-  static func from(exifDictionary: [String: Any], fileName: String) -> ExifInfo {
+  static func from(exifDictionary: [String: Any], fileURL: URL) -> ExifInfo {
     return ExifInfo(
-      fileName: fileName,
+      fileName: fileURL.lastPathComponent,
+      filePath: FormatUtils.displayFilePath(from: fileURL),
       fileSize: formatFileSize(exifDictionary["FileSize"] as? Int64 ?? 0),
-      fileFormat: FormatUtils.fileFormat(from: fileName),
+      fileFormat: FormatUtils.fileFormat(from: fileURL.lastPathComponent),
       imageWidth: exifDictionary["ImageWidth"] as? Int ?? 0,
       imageHeight: exifDictionary["ImageHeight"] as? Int ?? 0,
       fileModificationDate: formatDate(exifDictionary["FileModificationDate"] as? TimeInterval),

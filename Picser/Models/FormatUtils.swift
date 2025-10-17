@@ -15,6 +15,13 @@ enum FormatUtils {
     return formatter.string(fromByteCount: bytes)
   }
 
+  /// 为用户展示准备的文件路径，自动将用户主目录替换为 ~
+  static func displayFilePath(from url: URL) -> String {
+    let path = url.path
+    guard !path.isEmpty else { return L10n.string("unknown_value") }
+    return NSString(string: path).abbreviatingWithTildeInPath
+  }
+
   /// 统一的日期时间格式化（.medium 日期 + .medium 时间，跟随当前应用语言）
   static func dateTimeString(from timestamp: TimeInterval) -> String {
     let date = Date(timeIntervalSince1970: timestamp)

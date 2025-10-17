@@ -94,6 +94,10 @@ struct ExifInfoView: View {
         value: exifInfo.fileName
       ),
       InfoItem(
+        label: L10n.string("file_path_label"),
+        value: filePathDisplayValue
+      ),
+      InfoItem(
         label: L10n.string("file_size_label"),
         value: exifInfo.fileSize
       ),
@@ -110,6 +114,15 @@ struct ExifInfoView: View {
         value: exifInfo.fileModificationDate
       ),
     ]
+  }
+
+  private var filePathDisplayValue: String {
+    let trimmed = exifInfo.filePath.trimmingCharacters(in: .whitespacesAndNewlines)
+    let placeholder = L10n.string("unknown_value")
+    if trimmed.isEmpty || trimmed == placeholder {
+      return placeholder
+    }
+    return trimmed
   }
 
   private var cameraInfoItems: [InfoItem] {
@@ -401,6 +414,7 @@ private struct InfoRow: View {
   ExifInfoView(
     exifInfo: ExifInfo(
       fileName: "test.jpg",
+      filePath: "~/Pictures/test.jpg",
       fileSize: "2.3 MB",
       fileFormat: "JPEG",
       imageWidth: 1920,

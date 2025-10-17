@@ -22,7 +22,7 @@ enum ExifExtractor {
     if let metadata = await DiskCache.shared.retrieve(forKey: url.path) {
       let exifDict = metadata.getExifDictionary()
       if !exifDict.isEmpty {
-        return ExifInfo.from(exifDictionary: exifDict, fileName: url.lastPathComponent)
+        return ExifInfo.from(exifDictionary: exifDict, fileURL: url)
       }
     }
 
@@ -66,8 +66,7 @@ enum ExifExtractor {
         for (key, value) in gpsProperties { exifDict["GPS_\(key)"] = value }
       }
 
-      return ExifInfo.from(exifDictionary: exifDict, fileName: url.lastPathComponent)
+      return ExifInfo.from(exifDictionary: exifDict, fileURL: url)
     }.value
   }
 }
-
