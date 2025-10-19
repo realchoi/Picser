@@ -26,6 +26,8 @@ struct ContentView: View {
   @State var currentExifInfo: ExifInfo?  // 当前图片的 EXIF 信息
   @State var isLoadingExif = false  // 是否正在加载 EXIF 信息
   @State var alertContent: AlertContent?  // 通用弹窗内容
+  @State var exifLoadTask: Task<Void, Never>? = nil
+  @State var exifLoadRequestID: UUID?
   // 拖放高亮
   @State private var isDropTargeted = false
 
@@ -139,6 +141,12 @@ struct ContentView: View {
               isCropping = false
             }
             showingAddCustomRatio = false
+          }
+        }
+        .onChange(of: showingExifInfo) { _, newValue in
+          if !newValue {
+            cancelOngoingExifLoad()
+            currentExifInfo = nil
           }
         }
     )
@@ -285,10 +293,27 @@ struct ContentView: View {
     sidebarVisibility = newURLs.isEmpty ? .detailOnly : .all
   }
 
+  @MainActor
   private func handleSelectionChange(_ newURL: URL?) {
-    guard let newURL else { return }
+    guard let newURL else {
+      imageTransform = .identity
+      if showingExifInfo {
+        showingExifInfo = false
+      }
+      currentExifInfo = nil
+      cancelOngoingExifLoad()
+      return
+    }
     prefetchNeighbors(around: newURL)
     imageTransform = .identity
+
+    if showingExifInfo {
+      currentExifInfo = nil
+      startExifLoad(for: newURL, shouldPresentPanel: false)
+    } else {
+      cancelOngoingExifLoad()
+      currentExifInfo = nil
+    }
   }
 
   func openFileOrFolder() {
