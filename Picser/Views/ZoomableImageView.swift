@@ -44,6 +44,7 @@ struct ZoomableImageView: View {
   // MARK: - 小地图显示控制（自动隐藏）
   @State private var minimapUserVisible: Bool = true
   @State private var minimapHideTask: Task<Void, Never>?
+  @State private var minimapWasVisibleBeforeCropping: Bool = false
 
   // MARK: - 裁剪状态
   @State var cropRect: CGRect?
@@ -222,6 +223,7 @@ struct ZoomableImageView: View {
           baseFitScale: baseFitScale,
           scale: scale
         )
+          && !isCropping
           && appSettings.showMinimap
           && (appSettings.minimapAutoHideSeconds <= 0 || minimapUserVisible)
         {
@@ -261,12 +263,25 @@ struct ZoomableImageView: View {
       }
       .onChange(of: isCropping) { _, newValue in
         if newValue {
+          minimapWasVisibleBeforeCropping = minimapUserVisible
+          minimapHideTask?.cancel()
+          minimapHideTask = nil
+          minimapUserVisible = false
           // 进入裁剪模式时，重置平移并初始化裁剪框，确保选区位于可见区域内
           resetPan()
           setupCropRect(in: geometry)
           activeCropHandle = nil
           isCropHandleDragging = false
         } else {
+          minimapHideTask?.cancel()
+          minimapHideTask = nil
+          if appSettings.minimapAutoHideSeconds <= 0 {
+            minimapUserVisible = true
+          } else if minimapWasVisibleBeforeCropping {
+            triggerMinimapAutoHide()
+          } else {
+            minimapUserVisible = false
+          }
           cropRect = nil
           cropDragStartRect = nil
           activeCropHandle = nil
