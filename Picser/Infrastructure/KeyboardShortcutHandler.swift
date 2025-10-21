@@ -15,11 +15,17 @@ struct KeyboardShortcutHandler {
   let setSelectedImage: (URL) -> Void
   let showingExifInfo: () -> Bool
   let setShowingExifInfo: (Bool) -> Void
+  let performDelete: () -> Bool
+
+  private let deleteKeyCodes: Set<UInt16> = [51, 117]
 
   func handle(event: NSEvent) -> Bool {
     assert(Thread.isMainThread)
     guard event.type == .keyDown else { return false }
     guard shouldHandle(event) else { return false }
+    if deleteKeyCodes.contains(event.keyCode) {
+      return performDelete()
+    }
     guard let key = keyEquivalent(from: event) else { return false }
     return dispatch(key: key)
   }

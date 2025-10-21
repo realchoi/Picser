@@ -658,6 +658,198 @@
         }
       }
     },
+    "delete_button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除"
+          }
+        }
+      }
+    },
+    "delete_dialog_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose how to delete “%@”."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择如何删除“%@”。"
+          }
+        }
+      }
+    },
+    "delete_dialog_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Image"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除图片"
+          }
+        }
+      }
+    },
+    "delete_failure_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Picser could not delete “%@”. (%@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Picser 无法删除“%@”。（%@）"
+          }
+        }
+      }
+    },
+    "delete_failure_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to Delete"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除失败"
+          }
+        }
+      }
+    },
+    "delete_move_to_trash_button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Trash"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移动到废纸篓"
+          }
+        }
+      }
+    },
+    "delete_permanent_button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Immediately"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接删除"
+          }
+        }
+      }
+    },
+    "delete_permission_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Picser needs Full Disk Access in System Settings > Privacy & Security > Full Disk Access to delete “%@”. Please grant permission and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Picser 无法删除“%@”。请前往“系统设置 > 隐私与安全性 > 完整磁盘访问”授予 Picser 权限后重试。"
+          }
+        }
+      }
+    },
+    "delete_permission_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grant Full Disk Access"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请授予完整磁盘访问权限"
+          }
+        }
+      }
+    },
+    "delete_permission_open_button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开设置"
+          }
+        }
+      }
+    },
+    "delete_confirmation_toggle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask before deleting files"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除前弹窗确认"
+          }
+        }
+      }
+    },
+    "delete_confirmation_description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When disabled, Picser deletes immediately using Move to Trash."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭后将直接移动到废纸篓，不再弹窗确认。"
+          }
+        }
+      }
+    },
     "display_settings_title": {
       "localizations": {
         "en": {
@@ -4318,6 +4510,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "缩放快捷键"
+          }
+        }
+      }
+    },
+    "delete_permission_open_fallback": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to open System Settings automatically. Please open Privacy & Security > Full Disk Access manually."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法自动打开系统设置，请手动进入“系统设置 > 隐私与安全性 > 完整磁盘访问”。"
           }
         }
       }

@@ -46,6 +46,8 @@ class AppSettings: ObservableObject {
   /// 应用语言（UserDefaults 存储）
   @AppStorage("appLanguage") private var appLanguageStorage: String = AppLanguage.system
     .rawValue
+  /// 删除确认开关（UserDefaults 存储）
+  @AppStorage("deleteConfirmationEnabled") private var deleteConfirmationEnabledStorage: Bool = true
 
   /// 缩放快捷键（UI 显示）
   @Published var zoomModifierKey: ModifierKey = .none {
@@ -104,6 +106,10 @@ class AppSettings: ObservableObject {
       // 更新本地化管理器的语言设置
       LocalizationManager.shared.setLanguage(appLanguage.rawValue)
     }
+  }
+  /// 删除操作是否需要弹窗确认（UI 显示）
+  @Published var deleteConfirmationEnabled: Bool = true {
+    didSet { deleteConfirmationEnabledStorage = deleteConfirmationEnabled }
   }
 
   // MARK: - 显示设置
@@ -178,6 +184,7 @@ class AppSettings: ObservableObject {
     self.mirrorHBaseKey = ShortcutBaseKey(rawValue: mirrorHBaseKeyStorage) ?? .h
     self.mirrorVBaseKey = ShortcutBaseKey(rawValue: mirrorVBaseKeyStorage) ?? .v
     self.resetTransformBaseKey = ShortcutBaseKey(rawValue: resetTransformBaseKeyStorage) ?? .d0
+    self.deleteConfirmationEnabled = deleteConfirmationEnabledStorage
 
     // 初始化时同步语言设置到本地化管理器
     LocalizationManager.shared.setLanguage(self.appLanguage.rawValue)
@@ -227,6 +234,7 @@ class AppSettings: ObservableObject {
     switch settingsTab {
     case .general:
       appLanguage = .system
+      deleteConfirmationEnabled = true
     case .keyboard:
       zoomModifierKey = .none
       panModifierKey = .none

@@ -18,12 +18,14 @@ extension ContentView {
   func applyImageBatch(_ batch: ImageBatch, preserveSelection selection: URL? = nil, previouslySelectedIndex: Int? = nil) {
     securityAccessGroup = batch.accessGroup
     currentSourceInputs = batch.inputs
+    currentSecurityScopedInputs = batch.securityScopedInputs
     imageURLs = batch.imageURLs
 
     guard !batch.imageURLs.isEmpty else {
       selectedImageURL = nil
       imageTransform = .identity
       isCropping = false
+      currentSecurityScopedInputs = batch.securityScopedInputs
       return
     }
 
@@ -45,12 +47,14 @@ extension ContentView {
   func refreshCurrentInputs() {
     guard !currentSourceInputs.isEmpty else { return }
     let inputs = currentSourceInputs
+    let scopedInputs = currentSecurityScopedInputs
 
     Task {
       let batch = await FileOpenService.loadImageBatch(
         from: inputs,
         recordRecents: false,
-        recursive: appSettings.imageScanRecursively
+        recursive: appSettings.imageScanRecursively,
+        securityScopedInputs: scopedInputs.isEmpty ? nil : scopedInputs
       )
       await MainActor.run {
         let currentSelection = selectedImageURL
@@ -77,7 +81,8 @@ extension ContentView {
       let batch = await FileOpenService.loadImageBatch(
         from: normalized,
         recordRecents: false,
-        recursive: appSettings.imageScanRecursively
+        recursive: appSettings.imageScanRecursively,
+        securityScopedInputs: securityAccessGroup?.retainedURLs
       )
       await MainActor.run {
         applyImageBatch(batch)
@@ -107,42 +112,62 @@ final class SecurityScopedAccess {
   }
 }
 
-/// 批量管理多个目录的沙盒访问令牌，确保在读取文件前先启动安全范围
+/// 批量管理安全作用域 URL，确保文件操作具备读写权限
 final class SecurityScopedAccessGroup {
   private var accessors: [String: SecurityScopedAccess] = [:]
-  private(set) var directories: [URL]
+  private var scopedLookup: [String: URL] = [:]
 
   init(urls: [URL]) {
-    self.directories = SecurityScopedAccessGroup.uniqueDirectories(from: urls)
-    for directory in directories {
-      accessors[directory.path] = SecurityScopedAccess(url: directory)
-    }
+    extend(with: urls)
   }
 
-  /// 根据给定 URL 列表去重并规范化出目录列表
-  static func uniqueDirectories(from urls: [URL]) -> [URL] {
-    var seen: Set<String> = []
-    var result: [URL] = []
-    for url in urls {
-      let directory = (url.hasDirectoryPath ? url : url.deletingLastPathComponent()).standardizedFileURL
-      let key = directory.path
-      if !seen.contains(key) {
-        seen.insert(key)
-        result.append(directory)
-      }
-    }
-    return result
-  }
-
-  /// 为额外的 URL 扩展安全访问令牌，避免重复申请
   func extend(with urls: [URL]) {
-    let newDirectories = SecurityScopedAccessGroup.uniqueDirectories(from: urls)
-    for directory in newDirectories {
-      let key = directory.path
-      if accessors[key] == nil {
-        accessors[key] = SecurityScopedAccess(url: directory)
-        directories.append(directory)
+    for url in urls {
+      let key = Self.key(for: url)
+      guard accessors[key] == nil else { continue }
+      scopedLookup[key] = url
+      accessors[key] = SecurityScopedAccess(url: url)
+    }
+  }
+
+  func canAccess(_ url: URL) -> Bool {
+    lookup(for: url) != nil
+  }
+
+  func withScopedAccess<T>(to url: URL, perform work: () throws -> T) rethrows -> T {
+    if let secured = lookup(for: url), let token = accessors[Self.key(for: secured)] {
+      return try withExtendedLifetime(token) {
+        try work()
       }
     }
+
+    let fallback = SecurityScopedAccess(url: url)
+    return try withExtendedLifetime(fallback) {
+      try work()
+    }
+  }
+
+  var retainedURLs: [URL] {
+    Array(scopedLookup.values)
+  }
+
+  private func lookup(for url: URL) -> URL? {
+    var current = url.standardizedFileURL
+    while true {
+      let key = Self.key(for: current)
+      if let match = scopedLookup[key] {
+        return match
+      }
+      let parent = current.deletingLastPathComponent()
+      if parent.path == current.path || parent.path.isEmpty {
+        break
+      }
+      current = parent
+    }
+    return nil
+  }
+
+  private static func key(for url: URL) -> String {
+    url.standardizedFileURL.path
   }
 }

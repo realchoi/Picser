@@ -41,6 +41,13 @@ struct ContentView: View {
   @State private var customRatioW: String = "1"
   @State private var customRatioH: String = "1"
   @State var securityAccessGroup: SecurityScopedAccessGroup?
+  @State var currentSecurityScopedInputs: [URL] = []
+  @State var showingFullDiskAccessPrompt = false
+  @State var pendingFullDiskAccessFileName: String?
+  // 删除流程状态：记录弹窗与执行中的信息
+  @State var pendingDeletionURL: URL?
+  @State var showingDeletionOptions = false
+  @State var isPerformingDeletion = false
 
   // 购买解锁引导
   @State var upgradePromptContext: UpgradePromptContext?
@@ -65,7 +72,8 @@ struct ContentView: View {
       selectedImageURL: { selectedImageURL },
       setSelectedImage: { selectedImageURL = $0 },
       showingExifInfo: { showingExifInfo },
-      setShowingExifInfo: { showingExifInfo = $0 }
+      setShowingExifInfo: { showingExifInfo = $0 },
+      performDelete: { handleDeleteShortcut() }
     )
   }
 
@@ -190,6 +198,39 @@ struct ContentView: View {
     view = AnyView(
       view
         .toolbar { toolbarContent }
+        // 删除确认对话框：提示选择移动到废纸篓或直接删除
+        .confirmationDialog(
+          L10n.string("delete_dialog_title"),
+          isPresented: $showingDeletionOptions,
+          presenting: pendingDeletionURL
+        ) { url in
+          Button(L10n.key("delete_move_to_trash_button"), role: .destructive) {
+            confirmDeletion(of: url, mode: .moveToTrash)
+          }
+          Button(L10n.key("delete_permanent_button"), role: .destructive) {
+            confirmDeletion(of: url, mode: .deletePermanently)
+          }
+          Button(L10n.key("cancel_button"), role: .cancel) {
+            cancelDeletionRequest()
+          }
+        } message: { url in
+          Text(String(format: L10n.string("delete_dialog_message"), url.lastPathComponent))
+        }
+        .alert(
+          L10n.string("delete_permission_title"),
+          isPresented: $showingFullDiskAccessPrompt,
+          presenting: pendingFullDiskAccessFileName
+        ) { fileName in
+          Button(L10n.key("delete_permission_open_button")) {
+            FullDiskAccessChecker.openSettings()
+            pendingFullDiskAccessFileName = nil
+          }
+          Button(L10n.key("cancel_button"), role: .cancel) {
+            pendingFullDiskAccessFileName = nil
+          }
+        } message: { fileName in
+          Text(String(format: L10n.string("delete_permission_message"), fileName))
+        }
         .alert(item: $alertContent) { alertData in
           Alert(
             title: Text(alertData.title),
@@ -294,7 +335,19 @@ struct ContentView: View {
   }
 
   @MainActor
+  private func handleDeleteShortcut() -> Bool {
+    guard selectedImageURL != nil, !isPerformingDeletion else { return false }
+    requestDeletion()
+    return true
+  }
+
+  @MainActor
   private func handleSelectionChange(_ newURL: URL?) {
+    // 切换图片时关闭遗留的删除弹窗，避免误操作
+    if showingDeletionOptions {
+      cancelDeletionRequest()
+    }
+
     guard let newURL else {
       imageTransform = .identity
       if showingExifInfo {

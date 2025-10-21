@@ -112,6 +112,17 @@ extension ContentView {
         }
         .help(L10n.key("crop_button"))
       }
+
+      ToolbarItem {
+        Button {
+          requestDeletion()
+        } label: {
+          Label(L10n.key("delete_button"), systemImage: "trash")
+        }
+        // 删除执行期间禁用按钮，避免重复触发
+        .disabled(isPerformingDeletion)
+        .help(L10n.key("delete_button"))
+      }
     }
   }
 }

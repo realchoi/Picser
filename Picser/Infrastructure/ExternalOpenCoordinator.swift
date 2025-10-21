@@ -20,9 +20,13 @@ final class ExternalOpenCoordinator: ObservableObject {
   func handleIncoming(urls: [URL], recordRecents: Bool = true) {
     guard !urls.isEmpty else { return }
     let normalized = urls.map { $0.standardizedFileURL }
-    Task(priority: .userInitiated) { [weak self, normalized] in
+    Task(priority: .userInitiated) { [weak self, normalized, urls] in
       guard let self else { return }
-      let batch = await FileOpenService.loadImageBatch(from: normalized, recordRecents: recordRecents)
+      let batch = await FileOpenService.loadImageBatch(
+        from: normalized,
+        recordRecents: recordRecents,
+        securityScopedInputs: urls
+      )
       self.latestBatch = batch
     }
   }

@@ -12,6 +12,8 @@ import UniformTypeIdentifiers
 struct ImageBatch {
   /// 用户选择或拖拽的原始 URL（可能是文件或文件夹）。
   let inputs: [URL]
+  /// 带安全作用域的原始 URL，用于后续写入/删除。
+  let securityScopedInputs: [URL]
   /// 通过解析得到的图片 URL 列表，按照 Finder 风格排序。
   let imageURLs: [URL]
   /// 关联的安全访问令牌集合，确保在使用期间保持目录访问权限
@@ -31,10 +33,16 @@ enum FileOpenService {
     openPanel.allowedContentTypes = [UTType.image]
 
     guard openPanel.runModal() == .OK else { return nil }
-    let urls = openPanel.urls.map { $0.standardizedFileURL }
-    guard !urls.isEmpty else { return nil }
+    let scopedURLs = openPanel.urls
+    guard !scopedURLs.isEmpty else { return nil }
+    let normalized = scopedURLs.map { $0.standardizedFileURL }
 
-    return await loadImageBatch(from: urls, recordRecents: true, recursive: override)
+    return await loadImageBatch(
+      from: normalized,
+      recordRecents: true,
+      recursive: override,
+      securityScopedInputs: scopedURLs
+    )
   }
 
   /// 处理拖拽提供者，记录最近项目并返回图片集合。
@@ -68,9 +76,15 @@ enum FileOpenService {
       }
     }
 
-    let normalized = droppedInputs.map { $0.standardizedFileURL }
+    let scopedInputs = droppedInputs
+    let normalized = scopedInputs.map { $0.standardizedFileURL }
     guard !normalized.isEmpty else { return nil }
-    return await loadImageBatch(from: normalized, recordRecents: true, recursive: override)
+    return await loadImageBatch(
+      from: normalized,
+      recordRecents: true,
+      recursive: override,
+      securityScopedInputs: scopedInputs
+    )
   }
 
   /// Discover image URLs from given inputs (files or folders) without touching recents.
@@ -80,8 +94,14 @@ enum FileOpenService {
   }
 
   /// Unified discovery: optionally record recents, then compute stable-sorted image URLs.
-  static func loadImageBatch(from inputs: [URL], recordRecents: Bool, recursive override: Bool? = nil) async -> ImageBatch {
-    let accessGroup = SecurityScopedAccessGroup(urls: inputs)
+  static func loadImageBatch(
+    from inputs: [URL],
+    recordRecents: Bool,
+    recursive override: Bool? = nil,
+    securityScopedInputs: [URL]? = nil
+  ) async -> ImageBatch {
+    let scoped = securityScopedInputs ?? inputs
+    let accessGroup = SecurityScopedAccessGroup(urls: scoped)
     if recordRecents {
       await RecentOpensManager.shared.add(urls: inputs)
     }
@@ -89,7 +109,12 @@ enum FileOpenService {
       from: inputs,
       recursive: resolvedRecursiveFlag(override: override)
     )
-    return ImageBatch(inputs: inputs, imageURLs: imageURLs, accessGroup: accessGroup)
+    return ImageBatch(
+      inputs: inputs,
+      securityScopedInputs: accessGroup.retainedURLs,
+      imageURLs: imageURLs,
+      accessGroup: accessGroup
+    )
   }
 
   private static func resolvedRecursiveFlag(override: Bool?) -> Bool {
