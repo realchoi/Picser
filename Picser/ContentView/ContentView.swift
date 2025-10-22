@@ -351,7 +351,9 @@ struct ContentView: View {
     guard let newURL else {
       imageTransform = .identity
       if showingExifInfo {
-        showingExifInfo = false
+        withAnimation(Motion.Anim.drawer) {
+          showingExifInfo = false
+        }
       }
       currentExifInfo = nil
       cancelOngoingExifLoad()

@@ -4,14 +4,20 @@
 //  Created by Eric Cai on 2025/09/06.
 //
 
+import AppKit
 import SwiftUI
+
+private enum InfoTableLayout {
+  static let labelColumnWidth: CGFloat = 150
+  static let rowHorizontalPadding: CGFloat = 14
+  static let rowVerticalPadding: CGFloat = 8
+  static let sectionSpacing: CGFloat = 20
+  static let dividerOpacity: Double = 0.45
+}
 
 /// EXIF 信息展示视图
 struct ExifInfoView: View {
   let exifInfo: ExifInfo
-  // 当作为 overlay 浮动面板展示时由外部关闭；作为 sheet 展示时使用环境 dismiss
-  var onClose: (() -> Void)? = nil
-  @Environment(\.dismiss) private var dismiss
 
   var body: some View {
     VStack(spacing: 0) {
@@ -22,12 +28,6 @@ struct ExifInfoView: View {
           .foregroundColor(.primary)
 
         Spacer()
-
-        Button(L10n.key("close_button")) {
-          if let onClose { onClose() } else { dismiss() }
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
       }
       .padding()
       .background(.regularMaterial)
@@ -36,7 +36,7 @@ struct ExifInfoView: View {
 
       // 内容区域
       ScrollView(.vertical, showsIndicators: true) {
-        LazyVStack(alignment: .leading, spacing: 20, pinnedViews: []) {
+        LazyVStack(alignment: .leading, spacing: InfoTableLayout.sectionSpacing, pinnedViews: []) {
           // 基本信息部分
           InfoSection(
             title: L10n.string("basic_info_section"),
@@ -81,8 +81,7 @@ struct ExifInfoView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    .frame(width: 600, height: 500)
-    .background(.regularMaterial)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
   }
 
   // MARK: - 计算属性
@@ -353,7 +352,8 @@ struct ExifInfoView: View {
 // MARK: - 辅助结构和视图
 
 /// 信息项结构体
-private struct InfoItem {
+private struct InfoItem: Identifiable {
+  var id: String { label }
   let label: String
   let value: String
 }
@@ -371,15 +371,26 @@ private struct InfoSection: View {
           .foregroundColor(.primary)
           .frame(maxWidth: .infinity, alignment: .leading)
 
-        VStack(alignment: .leading, spacing: 8) {
-          ForEach(items, id: \.label) { item in
-            InfoRow(label: item.label, value: item.value)
-          }
-        }
-        .padding(.leading, 8)
+        tableBody
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     }
+  }
+
+  private var tableBody: some View {
+    VStack(spacing: 0) {
+      ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+        InfoRow(label: item.label, value: item.value)
+
+        if index < items.count - 1 {
+          Rectangle()
+            .fill(Color(nsColor: .separatorColor).opacity(InfoTableLayout.dividerOpacity))
+            .frame(height: 0.5)
+            .padding(.leading, InfoTableLayout.labelColumnWidth + InfoTableLayout.rowHorizontalPadding)
+        }
+      }
+    }
+    .padding(.vertical, 2)
   }
 }
 
@@ -389,22 +400,21 @@ private struct InfoRow: View {
   let value: String
 
   var body: some View {
-    HStack(alignment: .top, spacing: 0) {
-      // 标签部分 - 固定宽度
+    HStack(alignment: .firstTextBaseline, spacing: 0) {
       Text(label)
-        .font(.system(.body, design: .default))
+        .font(.system(size: 13, weight: .regular, design: .default))
         .foregroundColor(.secondary)
-        .frame(width: 150, alignment: .leading)
+        .frame(width: InfoTableLayout.labelColumnWidth, alignment: .leading)
 
-      // 值部分 - 使用剩余空间
       Text(value)
-        .font(.system(.body, design: .monospaced))
+        .font(.system(size: 13, weight: .regular, design: .monospaced))
         .foregroundColor(.primary)
         .textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.leading, 12)
     }
-    .padding(.horizontal, 4)
+    .padding(.horizontal, InfoTableLayout.rowHorizontalPadding)
+    .padding(.vertical, InfoTableLayout.rowVerticalPadding)
   }
 }
 
@@ -445,4 +455,6 @@ private struct InfoRow: View {
       resolutionUnit: "英寸"
     )
   )
+  .frame(width: 360, height: 520)
+  .background(.regularMaterial)
 }

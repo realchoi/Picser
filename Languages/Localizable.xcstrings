@@ -354,22 +354,6 @@
         }
       }
     },
-    "close_button": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "关闭"
-          }
-        }
-      }
-    },
     "color_space_label": {
       "localizations": {
         "en": {
@@ -461,7 +445,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "报错截图"
+            "value": "裁剪"
           }
         }
       }

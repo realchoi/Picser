@@ -23,10 +23,10 @@ enum Motion {
     static let fast: Animation = .easeInOut(duration: Duration.fast)
     static let medium: Animation = .easeInOut(duration: Duration.medium)
     static let standard: Animation = .easeInOut(duration: Duration.standard)
+    static let drawer: Animation = .interactiveSpring(response: 0.32, dampingFraction: 0.82, blendDuration: 0.12)
     static let minimap: Animation = .easeInOut(duration: Duration.minimap)
     static let panEnd: Animation = .easeInOut(duration: Duration.panEnd)
     static let slow: Animation = .easeInOut(duration: Duration.slow)
     static let reset: Animation = .easeInOut(duration: Duration.reset)
   }
 }
-

@@ -8,6 +8,18 @@ import SwiftUI
 
 @MainActor
 extension ContentView {
+  /// 切换 EXIF 信息抽屉的打开状态
+  func toggleExifInfoPanel() {
+    if showingExifInfo {
+      withAnimation(Motion.Anim.drawer) {
+        showingExifInfo = false
+      }
+      return
+    }
+
+    showExifInfo()
+  }
+
   /// 加载并展示当前图片的 EXIF 信息
   func showExifInfo() {
     performIfEntitled(.exif) {
@@ -42,7 +54,9 @@ extension ContentView {
     isLoadingExif = true
 
     if shouldPresentPanel {
-      showingExifInfo = true
+      withAnimation(Motion.Anim.drawer) {
+        showingExifInfo = true
+      }
     }
 
     exifLoadTask = Task {
@@ -64,7 +78,9 @@ extension ContentView {
           self.isLoadingExif = false
           self.exifLoadTask = nil
           self.exifLoadRequestID = nil
-          self.showingExifInfo = false
+          withAnimation(Motion.Anim.drawer) {
+            self.showingExifInfo = false
+          }
           self.alertContent = AlertContent(
             title: L10n.string("exif_loading_error_title"),
             message: L10n.string("exif_file_read_error")
@@ -77,7 +93,9 @@ extension ContentView {
           self.isLoadingExif = false
           self.exifLoadTask = nil
           self.exifLoadRequestID = nil
-          self.showingExifInfo = false
+          withAnimation(Motion.Anim.drawer) {
+            self.showingExifInfo = false
+          }
           self.alertContent = AlertContent(
             title: L10n.string("exif_loading_error_title"),
             message: L10n.string("exif_metadata_extract_error")
@@ -90,7 +108,9 @@ extension ContentView {
           self.isLoadingExif = false
           self.exifLoadTask = nil
           self.exifLoadRequestID = nil
-          self.showingExifInfo = false
+          withAnimation(Motion.Anim.drawer) {
+            self.showingExifInfo = false
+          }
           self.alertContent = AlertContent(
             title: L10n.string("exif_loading_error_title"),
             message: L10n.string("exif_unexpected_error")

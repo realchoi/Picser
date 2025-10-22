@@ -161,7 +161,7 @@ struct PurchaseInfoView: View {
       .navigationTitle(L10n.key("purchase_info_title"))
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button(L10n.key("close_button")) { onClose() }
+          Button(L10n.key("cancel_button")) { onClose() }
         }
       }
       .background(Color(nsColor: .windowBackgroundColor))

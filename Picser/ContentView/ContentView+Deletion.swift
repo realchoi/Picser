@@ -3,6 +3,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 @MainActor
 extension ContentView {
@@ -109,7 +110,9 @@ extension ContentView {
     guard !imageURLs.isEmpty else {
       selectedImageURL = nil
       imageTransform = .identity
-      showingExifInfo = false
+      withAnimation(Motion.Anim.drawer) {
+        showingExifInfo = false
+      }
       currentExifInfo = nil
       return
     }

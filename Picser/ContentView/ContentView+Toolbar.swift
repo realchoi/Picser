@@ -35,17 +35,17 @@ extension ContentView {
     if selectedImageURL != nil {
       ToolbarItem {
         Button {
-          featureGatekeeper.perform(.exif, context: .generic, requestUpgrade: requestUpgrade) {
-            showExifInfo()
-          }
+          toggleExifInfoPanel()
         } label: {
+          let isActive = showingExifInfo || isLoadingExif
           HStack(spacing: 4) {
             if isLoadingExif {
               ProgressView()
                 .scaleEffect(0.8)
                 .frame(width: 16, height: 16)
+                .tint(Color.accentColor)
             } else {
-              Image(systemName: "info.circle")
+              Image(systemName: isActive ? "info.circle.fill" : "info.circle")
             }
 
             if isLoadingExif {
@@ -53,6 +53,7 @@ extension ContentView {
                 .font(.caption)
             }
           }
+          .foregroundStyle(isActive ? Color.accentColor : Color.primary)
         }
         .disabled(isLoadingExif)
         .help(
@@ -108,7 +109,11 @@ extension ContentView {
             }
           }
         } label: {
-          Label(L10n.key("crop_button"), systemImage: isCropping ? "crop.rotate" : "crop")
+          let isActive = isCropping
+          HStack(spacing: 6) {
+            Image(systemName: isActive ? "crop.rotate" : "crop")
+          }
+          .foregroundStyle(isActive ? Color.accentColor : Color.primary)
         }
         .help(L10n.key("crop_button"))
       }
