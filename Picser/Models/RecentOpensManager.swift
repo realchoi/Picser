@@ -82,7 +82,7 @@ final class RecentOpensManager: ObservableObject {
 
     do {
       let bookmark = try standardized.bookmarkData(
-        options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+        options: [.withSecurityScope],
         includingResourceValuesForKeys: nil,
         relativeTo: nil
       )
@@ -159,15 +159,13 @@ final class RecentOpensManager: ObservableObject {
         bookmarkDataIsStale: &isStale
       )
 
-      if isStale {
-        // Refresh bookmark
-        let newData = try url.bookmarkData(
-          options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
-          includingResourceValuesForKeys: nil,
-          relativeTo: nil
-        )
+      if let refreshedData = try? url.bookmarkData(
+        options: [.withSecurityScope],
+        includingResourceValuesForKeys: nil,
+        relativeTo: nil
+      ), refreshedData != item.bookmarkData {
         if let idx = items.firstIndex(where: { $0.id == item.id }) {
-          items[idx].bookmarkData = newData
+          items[idx].bookmarkData = refreshedData
           persist()
         }
       }

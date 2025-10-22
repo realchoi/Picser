@@ -121,6 +121,7 @@ final class SecurityScopedAccessGroup {
     extend(with: urls)
   }
 
+  /// 将新的安全作用域 URL 添加到当前集合并保持令牌有效
   func extend(with urls: [URL]) {
     for url in urls {
       let key = Self.key(for: url)
@@ -130,10 +131,19 @@ final class SecurityScopedAccessGroup {
     }
   }
 
+  /// 判断是否已经拥有访问指定 URL 的安全作用域
   func canAccess(_ url: URL) -> Bool {
     lookup(for: url) != nil
   }
 
+  /// 通过开启对应安全作用域，判断是否具备删除目标文件的权限
+  func hasDeletePermission(for url: URL) -> Bool {
+    withScopedAccess(to: url) {
+      FileManager.default.isDeletableFile(atPath: url.path)
+    }
+  }
+
+  /// 在指定 URL 的安全作用域内执行传入任务，保证读写权限有效
   func withScopedAccess<T>(to url: URL, perform work: () throws -> T) rethrows -> T {
     if let secured = lookup(for: url), let token = accessors[Self.key(for: secured)] {
       return try withExtendedLifetime(token) {
@@ -147,10 +157,12 @@ final class SecurityScopedAccessGroup {
     }
   }
 
+  /// 返回当前持有的安全作用域 URL 列表，便于调用方传递或持久化
   var retainedURLs: [URL] {
     Array(scopedLookup.values)
   }
 
+  /// 在缓存中查找能够覆盖目标路径的安全作用域 URL
   private func lookup(for url: URL) -> URL? {
     var current = url.standardizedFileURL
     while true {
@@ -167,6 +179,7 @@ final class SecurityScopedAccessGroup {
     return nil
   }
 
+  /// 对安全作用域 URL 进行标准化，作为查找字典的键
   private static func key(for url: URL) -> String {
     url.standardizedFileURL.path
   }

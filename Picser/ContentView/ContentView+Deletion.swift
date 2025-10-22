@@ -12,12 +12,10 @@ extension ContentView {
     case deletePermanently
   }
 
+  /// 针对当前选中图片触发删除流程，并在缺少权限时直接提示用户
   func requestDeletion() {
-    // 若已有选中图片且未在删除中，弹出确认选项
     guard let url = selectedImageURL, !isPerformingDeletion else { return }
-    let hasFullAccess = FullDiskAccessChecker.hasFullDiskAccess()
-    let hasScopedPermission = securityAccessGroup?.canAccess(url) == true
-    if !hasFullAccess && !hasScopedPermission {
+    if !hasDeletionPrivilege(for: url) {
       presentFullDiskAccessRequirement(for: url)
       return
     }
@@ -29,14 +27,14 @@ extension ContentView {
     }
   }
 
+  /// 用户取消删除时重置弹窗与待处理 URL
   func cancelDeletionRequest() {
-    // 用户主动取消时清理状态
     showingDeletionOptions = false
     pendingDeletionURL = nil
   }
 
+  /// 根据用户选择的模式执行删除操作，期间屏蔽重复点击
   func confirmDeletion(of url: URL, mode: ImageDeletionMode) {
-    // 避免并发删除；关闭弹窗并进入执行状态
     guard !isPerformingDeletion else { return }
     pendingDeletionURL = nil
     showingDeletionOptions = false
@@ -52,8 +50,8 @@ extension ContentView {
     }
   }
 
+  /// 在后台线程执行删除操作，并对移动到废纸篓失败时进行降级重试
   private func executeDeletion(of url: URL, mode: ImageDeletionMode) async throws {
-    // 后台线程执行磁盘操作，避免阻塞主线程
     try await withCheckedThrowingContinuation { continuation in
       DispatchQueue.global(qos: .userInitiated).async {
         do {
@@ -98,8 +96,8 @@ extension ContentView {
     }
   }
 
+  /// 删除成功后恢复状态并更新图片列表及选中项
   private func finalizeDeletion(of url: URL) {
-    // 删除成功后恢复状态，并更新图片列表与选中项
     pendingDeletionURL = nil
     isPerformingDeletion = false
     cancelOngoingExifLoad()
@@ -120,16 +118,14 @@ extension ContentView {
     selectedImageURL = imageURLs[nextIndex]
   }
 
+  /// 统一处理删除失败场景，优先提示权限问题，其次回退到通用错误弹窗
   private func presentDeletionFailure(for url: URL, error: Error) {
-    // 删除失败时反馈错误原因，恢复执行标记
     isPerformingDeletion = false
     pendingDeletionURL = nil
     let nsError = error as NSError
     if nsError.domain == NSCocoaErrorDomain,
        [NSFileWriteNoPermissionError, NSFileReadNoPermissionError].contains(nsError.code) {
-      let hasFullAccess = FullDiskAccessChecker.hasFullDiskAccess()
-      let hasScopedPermission = securityAccessGroup?.canAccess(url) == true
-      if !hasFullAccess && !hasScopedPermission {
+      if !hasDeletionPrivilege(for: url) {
         presentFullDiskAccessRequirement(for: url)
         return
       }
@@ -145,8 +141,20 @@ extension ContentView {
     alertContent = AlertContent(title: title, message: message)
   }
 
+  /// 引导用户为目标文件授予完整磁盘访问权限
   private func presentFullDiskAccessRequirement(for url: URL) {
     pendingFullDiskAccessFileName = url.lastPathComponent
     showingFullDiskAccessPrompt = true
+  }
+
+  /// 综合检测完整磁盘访问与安全作用域，判定当前是否能够删除目标文件
+  private func hasDeletionPrivilege(for url: URL) -> Bool {
+    if FullDiskAccessChecker.hasFullDiskAccess() {
+      return true
+    }
+    if let group = securityAccessGroup, group.hasDeletePermission(for: url) {
+      return true
+    }
+    return FileManager.default.isDeletableFile(atPath: url.path)
   }
 }
