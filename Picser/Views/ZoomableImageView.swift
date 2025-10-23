@@ -52,11 +52,12 @@ struct ZoomableImageView: View {
   @State var activeCropHandle: CropHandle?
   @State var cropControlSize: CGSize = .zero
   @State var isCropHandleDragging: Bool = false // 拖动裁剪手柄时禁止控制栏拦截事件
+  @State var hoveredCropHandle: CropHandle? = nil
   let cropBorderColor = Color.accentColor
-  let cropHandleSize: CGFloat = 14
+  let cropHandleSize: CGFloat = 10
   let cropBorderWidth: CGFloat = 2.0
   let minCropSide: CGFloat = 60
-  let cropEdgeHitThickness: CGFloat = 12
+  let cropEdgeHitThickness: CGFloat = 8
   let cropHandleActivationThreshold: CGFloat = 0.75
   let cropControlSpacing: CGFloat = 16
   let cropControlSafeMargin: CGFloat = 12

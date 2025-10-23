@@ -52,6 +52,10 @@ extension ZoomableImageView {
     }
     .frame(width: geometry.size.width, height: geometry.size.height)
     .onAppear { setupCropRectIfNeeded(in: geometry) }
+    .onDisappear {
+      updateHoveredHandle(nil)
+      NSCursor.arrow.set()
+    }
   }
 
   /// 裁剪控制点类型（保持 `ZoomableImageView` 其他成员可见）
@@ -70,7 +74,13 @@ extension ZoomableImageView {
         .frame(width: rect.width, height: rect.height)
         .position(x: rect.midX, y: rect.midY)
         .onHover { inside in
-          if inside { NSCursor.openHand.set() } else { NSCursor.arrow.set() }
+          if inside {
+            if hoveredCropHandle == nil || hoveredCropHandle == .move {
+              updateHoveredHandle(.move)
+            }
+          } else if hoveredCropHandle == .move {
+            updateHoveredHandle(nil)
+          }
         }
 
       Rectangle()
@@ -82,6 +92,12 @@ extension ZoomableImageView {
     }
     .frame(width: geometry.size.width, height: geometry.size.height)
     .contentShape(Rectangle())
+    .onChange(of: hoveredCropHandle) { _, newValue in applyCursor(for: newValue) }
+    .onHover { inside in
+      if !inside, hoveredCropHandle != nil {
+        updateHoveredHandle(nil)
+      }
+    }
     .highPriorityGesture(
       cropDragGesture(bounds: bounds)
     )
@@ -90,40 +106,44 @@ extension ZoomableImageView {
   /// 绘制所有手柄
   @ViewBuilder
   private func handleViews(for rect: CGRect, bounds: CGRect) -> some View {
-    let handles: [(CGPoint, CropHandle, NSCursor)] = [
-      (CGPoint(x: rect.minX, y: rect.minY), .topLeft, .crosshair),
-      (CGPoint(x: rect.midX, y: rect.minY), .top, .resizeUpDown),
-      (CGPoint(x: rect.maxX, y: rect.minY), .topRight, .crosshair),
-      (CGPoint(x: rect.maxX, y: rect.midY), .right, .resizeLeftRight),
-      (CGPoint(x: rect.maxX, y: rect.maxY), .bottomRight, .crosshair),
-      (CGPoint(x: rect.midX, y: rect.maxY), .bottom, .resizeUpDown),
-      (CGPoint(x: rect.minX, y: rect.maxY), .bottomLeft, .crosshair),
-      (CGPoint(x: rect.minX, y: rect.midY), .left, .resizeLeftRight)
+    let handles: [(CGPoint, CropHandle)] = [
+      (CGPoint(x: rect.minX, y: rect.minY), .topLeft),
+      (CGPoint(x: rect.midX, y: rect.minY), .top),
+      (CGPoint(x: rect.maxX, y: rect.minY), .topRight),
+      (CGPoint(x: rect.maxX, y: rect.midY), .right),
+      (CGPoint(x: rect.maxX, y: rect.maxY), .bottomRight),
+      (CGPoint(x: rect.midX, y: rect.maxY), .bottom),
+      (CGPoint(x: rect.minX, y: rect.maxY), .bottomLeft),
+      (CGPoint(x: rect.minX, y: rect.midY), .left)
     ]
 
     ForEach(0..<handles.count, id: \.self) { index in
       let item = handles[index]
-      Rectangle()
+      Circle()
         .fill(Color.white)
         .frame(width: cropHandleSize, height: cropHandleSize)
-        .contentShape(Rectangle().inset(by: -6))
-        .position(item.0)
         .overlay(
-          Rectangle().stroke(Color.black.opacity(0.75), lineWidth: 1)
+          Circle().stroke(Color.black.opacity(0.75), lineWidth: 1)
         )
+        .contentShape(Circle().inset(by: -4))
+        .position(item.0)
         .onHover { inside in
-          if inside { item.2.set() } else { NSCursor.arrow.set() }
+          if inside {
+            updateHoveredHandle(item.1)
+          } else if hoveredCropHandle == item.1 {
+            updateHoveredHandle(.move)
+          }
         }
     }
 
-    let edgeRects: [(CGRect, CropHandle, NSCursor)] = [
+    let edgeRects: [(CGRect, CropHandle)] = [
       (
         CGRect(
           x: rect.minX + cropHandleSize / 2,
           y: rect.minY - cropEdgeHitThickness / 2,
           width: max(0, rect.width - cropHandleSize),
           height: cropEdgeHitThickness
-        ), .top, .resizeUpDown
+        ), .top
       ),
       (
         CGRect(
@@ -131,7 +151,7 @@ extension ZoomableImageView {
           y: rect.maxY - cropEdgeHitThickness / 2,
           width: max(0, rect.width - cropHandleSize),
           height: cropEdgeHitThickness
-        ), .bottom, .resizeUpDown
+        ), .bottom
       ),
       (
         CGRect(
@@ -139,7 +159,7 @@ extension ZoomableImageView {
           y: rect.minY + cropHandleSize / 2,
           width: cropEdgeHitThickness,
           height: max(0, rect.height - cropHandleSize)
-        ), .left, .resizeLeftRight
+        ), .left
       ),
       (
         CGRect(
@@ -147,7 +167,7 @@ extension ZoomableImageView {
           y: rect.minY + cropHandleSize / 2,
           width: cropEdgeHitThickness,
           height: max(0, rect.height - cropHandleSize)
-        ), .right, .resizeLeftRight
+        ), .right
       )
     ]
 
@@ -159,8 +179,41 @@ extension ZoomableImageView {
         .position(x: edge.0.midX, y: edge.0.midY)
         .contentShape(Rectangle())
         .onHover { inside in
-          if inside { edge.2.set() } else { NSCursor.arrow.set() }
+          if inside {
+            updateHoveredHandle(edge.1)
+          } else if hoveredCropHandle == edge.1 {
+            updateHoveredHandle(.move)
+          }
         }
+    }
+  }
+
+  private func applyCursor(for handle: CropHandle?) {
+    if isCropHandleDragging, activeCropHandle == .move {
+      return
+    }
+    cursor(for: handle).set()
+  }
+
+  private func updateHoveredHandle(_ handle: CropHandle?) {
+    if hoveredCropHandle == handle {
+      return
+    }
+    hoveredCropHandle = handle
+  }
+
+  private func cursor(for handle: CropHandle?) -> NSCursor {
+    switch handle {
+    case .move:
+      return NSCursor.openHand
+    case .top, .bottom:
+      return NSCursor.resizeUpDown
+    case .left, .right:
+      return NSCursor.resizeLeftRight
+    case .topLeft, .topRight, .bottomLeft, .bottomRight:
+      return NSCursor.crosshair
+    case .none:
+      return NSCursor.arrow
     }
   }
 
@@ -174,10 +227,12 @@ extension ZoomableImageView {
           if let handle {
             activeCropHandle = handle
             isCropHandleDragging = true
+            updateHoveredHandle(handle)
           } else {
             cropDragStartRect = nil
             activeCropHandle = nil
             isCropHandleDragging = false
+            updateHoveredHandle(nil)
             return
           }
         }
@@ -195,6 +250,7 @@ extension ZoomableImageView {
           } else {
             updated = clampRect(rect, within: bounds)
           }
+          updateHoveredHandle(.move)
           NSCursor.closedHand.set()
         } else {
           updated = rectForHandle(
@@ -204,10 +260,11 @@ extension ZoomableImageView {
             bounds: bounds,
             aspect: aspect
           )
+          applyCursor(for: handle)
         }
         cropRect = updated
       }
-      .onEnded { _ in
+      .onEnded { value in
         if let rect = cropRect {
           let aspect = currentAspectValue()
           if let aspect {
@@ -225,13 +282,18 @@ extension ZoomableImageView {
         cropDragStartRect = nil
         activeCropHandle = nil
         isCropHandleDragging = false
-        NSCursor.arrow.set()
+        if let rect = cropRect {
+          updateHoveredHandle(detectHandle(at: value.location, in: rect))
+        } else {
+          updateHoveredHandle(nil)
+        }
+        applyCursor(for: hoveredCropHandle)
       }
   }
 
   private func detectHandle(at point: CGPoint, in rect: CGRect) -> CropHandle? {
-    let cornerTolerance = cropHandleSize + 8
-    let edgeTolerance = max(cropEdgeHitThickness, 14)
+    let cornerTolerance = max(cropHandleSize + 6, 16)
+    let edgeTolerance = max(cropEdgeHitThickness + 4, 12)
 
     if !rect.insetBy(dx: -edgeTolerance, dy: -edgeTolerance).contains(point) {
       return nil
@@ -574,6 +636,7 @@ extension ZoomableImageView {
     cropDragStartRect = nil
     activeCropHandle = nil
     isCropHandleDragging = false
+    updateHoveredHandle(nil)
   }
 
   private func defaultCropRect(in frame: CGRect) -> CGRect {
