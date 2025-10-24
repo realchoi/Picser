@@ -75,18 +75,39 @@ extension ContentView {
 
   /// 打开解析后的 URL，并根据所在目录刷新图片批次
   func openResolvedURL(_ url: URL) {
-    Task {
-      let directory = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
-      let normalized = [directory.standardizedFileURL]
+    Task { @MainActor in
+      let directoryURL = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
+      let standardizedDirectory = directoryURL.standardizedFileURL
+
+      var scopedInputs: [URL] = []
+      var seenPaths: Set<String> = []
+      func appendScoped(_ candidate: URL) {
+        let key = candidate.standardizedFileURL.path
+        guard !seenPaths.contains(key) else { return }
+        seenPaths.insert(key)
+        scopedInputs.append(candidate)
+      }
+
+      appendScoped(directoryURL)
+
+      if let retained = securityAccessGroup?.retainedURLs {
+        let directoryPath = standardizedDirectory.path
+        let directoryPrefix = directoryPath.hasSuffix("/") ? directoryPath : directoryPath + "/"
+        for candidate in retained {
+          let candidatePath = candidate.standardizedFileURL.path
+          if candidatePath == directoryPath || candidatePath.hasPrefix(directoryPrefix) {
+            appendScoped(candidate)
+          }
+        }
+      }
+
       let batch = await FileOpenService.loadImageBatch(
-        from: normalized,
+        from: [standardizedDirectory],
         recordRecents: false,
         recursive: appSettings.imageScanRecursively,
-        securityScopedInputs: securityAccessGroup?.retainedURLs
+        securityScopedInputs: scopedInputs
       )
-      await MainActor.run {
-        applyImageBatch(batch)
-      }
+      applyImageBatch(batch)
     }
   }
 
