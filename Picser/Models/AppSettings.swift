@@ -48,10 +48,9 @@ class AppSettings: ObservableObject {
     .rawValue
   /// 删除确认开关（UserDefaults 存储）
   @AppStorage("deleteConfirmationEnabled") private var deleteConfirmationEnabledStorage: Bool = true
-  /// 是否启用 Backspace 删除（UserDefaults 存储）
-  @AppStorage("deleteShortcutBackspaceEnabled") private var deleteShortcutBackspaceEnabledStorage: Bool = true
-  /// 是否启用 Forward Delete 删除（UserDefaults 存储）
-  @AppStorage("deleteShortcutForwardDeleteEnabled") private var deleteShortcutForwardEnabledStorage: Bool = true
+  /// 删除快捷键偏好（UserDefaults 存储）
+  @AppStorage("deleteShortcutPreference") private var deleteShortcutPreferenceStorage: String =
+    DeleteShortcutOption.both.rawValue
 
   /// 缩放快捷键（UI 显示）
   @Published var zoomModifierKey: ModifierKey = .none {
@@ -115,13 +114,9 @@ class AppSettings: ObservableObject {
   @Published var deleteConfirmationEnabled: Bool = true {
     didSet { deleteConfirmationEnabledStorage = deleteConfirmationEnabled }
   }
-  /// 是否启用 Backspace 删除（UI 显示）
-  @Published var deleteShortcutBackspaceEnabled: Bool = true {
-    didSet { deleteShortcutBackspaceEnabledStorage = deleteShortcutBackspaceEnabled }
-  }
-  /// 是否启用 Forward Delete 删除（UI 显示）
-  @Published var deleteShortcutForwardEnabled: Bool = true {
-    didSet { deleteShortcutForwardEnabledStorage = deleteShortcutForwardEnabled }
+  /// 删除快捷键偏好（UI 显示）
+  @Published var deleteShortcutPreference: DeleteShortcutOption = .both {
+    didSet { deleteShortcutPreferenceStorage = deleteShortcutPreference.rawValue }
   }
 
   // MARK: - 显示设置
@@ -197,8 +192,8 @@ class AppSettings: ObservableObject {
     self.mirrorVBaseKey = ShortcutBaseKey(rawValue: mirrorVBaseKeyStorage) ?? .v
     self.resetTransformBaseKey = ShortcutBaseKey(rawValue: resetTransformBaseKeyStorage) ?? .d0
     self.deleteConfirmationEnabled = deleteConfirmationEnabledStorage
-    self.deleteShortcutBackspaceEnabled = deleteShortcutBackspaceEnabledStorage
-    self.deleteShortcutForwardEnabled = deleteShortcutForwardEnabledStorage
+    self.deleteShortcutPreference =
+      DeleteShortcutOption(rawValue: deleteShortcutPreferenceStorage) ?? .both
 
     // 初始化时同步语言设置到本地化管理器
     LocalizationManager.shared.setLanguage(self.appLanguage.rawValue)
@@ -249,8 +244,7 @@ class AppSettings: ObservableObject {
     case .general:
       appLanguage = .system
       deleteConfirmationEnabled = true
-      deleteShortcutBackspaceEnabled = true
-      deleteShortcutForwardEnabled = true
+      deleteShortcutPreference = .both
     case .keyboard:
       zoomModifierKey = .none
       panModifierKey = .none
@@ -265,8 +259,7 @@ class AppSettings: ObservableObject {
       mirrorVBaseKey = .v
       resetTransformModifierKey = .option
       resetTransformBaseKey = .d0
-      deleteShortcutBackspaceEnabled = true
-      deleteShortcutForwardEnabled = true
+      deleteShortcutPreference = .both
     case .display:
       zoomSensitivity = 0.05
       minZoomScale = 0.1
@@ -431,6 +424,42 @@ enum ImageNavigationKey: String, CaseIterable, Identifiable, Hashable, KeySelect
   /// 返回用户可选择的图片切换按键选项
   static func availableKeys() -> [ImageNavigationKey] {
     return [.leftRight, .upDown, .pageUpDown]
+  }
+}
+
+/// 删除快捷键选项，控制支持的删除按键组合
+enum DeleteShortcutOption: String, CaseIterable, Identifiable, Hashable, KeySelectable {
+  case deleteKey = "deleteKey"
+  case backspace = "backspace"
+  case both = "both"
+
+  var id: String { rawValue }
+
+  var displayName: String {
+    switch self {
+    case .deleteKey:
+      return L10n.string("delete_shortcut_option_forward")
+    case .backspace:
+      return L10n.string("delete_shortcut_option_backspace")
+    case .both:
+      return L10n.string("delete_shortcut_option_both")
+    }
+  }
+
+  static func availableKeys() -> [DeleteShortcutOption] {
+    return [.deleteKey, .backspace, .both]
+  }
+
+  /// 返回对应的按键 keyCode 集合
+  var keyCodes: Set<UInt16> {
+    switch self {
+    case .deleteKey:
+      return [UInt16(117)]
+    case .backspace:
+      return [UInt16(51)]
+    case .both:
+      return [UInt16(51), UInt16(117)]
+    }
   }
 }
 

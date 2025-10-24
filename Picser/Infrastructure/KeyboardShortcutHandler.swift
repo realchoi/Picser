@@ -29,14 +29,7 @@ struct KeyboardShortcutHandler {
   }
 
   private var currentDeleteKeyCodes: Set<UInt16> {
-    var codes: Set<UInt16> = []
-    if appSettings.deleteShortcutBackspaceEnabled {
-      codes.insert(51)
-    }
-    if appSettings.deleteShortcutForwardEnabled {
-      codes.insert(117)
-    }
-    return codes
+    appSettings.deleteShortcutPreference.keyCodes
   }
 
   private func shouldHandle(_ event: NSEvent) -> Bool {

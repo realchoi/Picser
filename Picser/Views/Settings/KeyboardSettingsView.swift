@@ -164,23 +164,23 @@ struct KeyboardSettingsView: View {
             .font(.caption)
             .foregroundColor(.secondary)
 
-          VStack(alignment: .leading, spacing: 6) {
-            Toggle(isOn: $appSettings.deleteShortcutForwardEnabled) {
-              Text(l10n: "delete_shortcut_option_forward")
+          HStack(spacing: 12) {
+            Text(l10n: "delete_shortcut_picker_label")
+              .frame(width: 180, alignment: .leading)
+            Picker("", selection: $appSettings.deleteShortcutPreference) {
+              ForEach(DeleteShortcutOption.availableKeys(), id: \.self) { option in
+                Text(option.displayName).tag(option)
+              }
             }
-            .toggleStyle(.checkbox)
-
-            Toggle(isOn: $appSettings.deleteShortcutBackspaceEnabled) {
-              Text(l10n: "delete_shortcut_option_backspace")
-            }
-            .toggleStyle(.checkbox)
+            .pickerStyle(.menu)
+            .frame(minWidth: 200)
           }
 
           Toggle(isOn: $appSettings.deleteConfirmationEnabled) {
             Text(l10n: "delete_confirmation_toggle")
               .fontWeight(.medium)
           }
-          .toggleStyle(.switch)
+          .toggleStyle(.checkbox)
 
           Text(l10n: "delete_confirmation_description")
             .font(.caption)
