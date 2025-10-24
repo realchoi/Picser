@@ -348,6 +348,14 @@ struct ContentView: View {
       cancelDeletionRequest()
     }
 
+    if isCropping {
+      withAnimation(Motion.Anim.standard) {
+        isCropping = false
+        cropAspect = .freeform
+      }
+      showingAddCustomRatio = false
+    }
+
     guard let newURL else {
       imageTransform = .identity
       if showingExifInfo {
