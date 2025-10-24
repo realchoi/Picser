@@ -48,6 +48,10 @@ class AppSettings: ObservableObject {
     .rawValue
   /// 删除确认开关（UserDefaults 存储）
   @AppStorage("deleteConfirmationEnabled") private var deleteConfirmationEnabledStorage: Bool = true
+  /// 是否启用 Backspace 删除（UserDefaults 存储）
+  @AppStorage("deleteShortcutBackspaceEnabled") private var deleteShortcutBackspaceEnabledStorage: Bool = true
+  /// 是否启用 Forward Delete 删除（UserDefaults 存储）
+  @AppStorage("deleteShortcutForwardDeleteEnabled") private var deleteShortcutForwardEnabledStorage: Bool = true
 
   /// 缩放快捷键（UI 显示）
   @Published var zoomModifierKey: ModifierKey = .none {
@@ -110,6 +114,14 @@ class AppSettings: ObservableObject {
   /// 删除操作是否需要弹窗确认（UI 显示）
   @Published var deleteConfirmationEnabled: Bool = true {
     didSet { deleteConfirmationEnabledStorage = deleteConfirmationEnabled }
+  }
+  /// 是否启用 Backspace 删除（UI 显示）
+  @Published var deleteShortcutBackspaceEnabled: Bool = true {
+    didSet { deleteShortcutBackspaceEnabledStorage = deleteShortcutBackspaceEnabled }
+  }
+  /// 是否启用 Forward Delete 删除（UI 显示）
+  @Published var deleteShortcutForwardEnabled: Bool = true {
+    didSet { deleteShortcutForwardEnabledStorage = deleteShortcutForwardEnabled }
   }
 
   // MARK: - 显示设置
@@ -185,6 +197,8 @@ class AppSettings: ObservableObject {
     self.mirrorVBaseKey = ShortcutBaseKey(rawValue: mirrorVBaseKeyStorage) ?? .v
     self.resetTransformBaseKey = ShortcutBaseKey(rawValue: resetTransformBaseKeyStorage) ?? .d0
     self.deleteConfirmationEnabled = deleteConfirmationEnabledStorage
+    self.deleteShortcutBackspaceEnabled = deleteShortcutBackspaceEnabledStorage
+    self.deleteShortcutForwardEnabled = deleteShortcutForwardEnabledStorage
 
     // 初始化时同步语言设置到本地化管理器
     LocalizationManager.shared.setLanguage(self.appLanguage.rawValue)
@@ -235,6 +249,8 @@ class AppSettings: ObservableObject {
     case .general:
       appLanguage = .system
       deleteConfirmationEnabled = true
+      deleteShortcutBackspaceEnabled = true
+      deleteShortcutForwardEnabled = true
     case .keyboard:
       zoomModifierKey = .none
       panModifierKey = .none
@@ -249,6 +265,8 @@ class AppSettings: ObservableObject {
       mirrorVBaseKey = .v
       resetTransformModifierKey = .option
       resetTransformBaseKey = .d0
+      deleteShortcutBackspaceEnabled = true
+      deleteShortcutForwardEnabled = true
     case .display:
       zoomSensitivity = 0.05
       minZoomScale = 0.1

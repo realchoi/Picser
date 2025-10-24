@@ -17,17 +17,26 @@ struct KeyboardShortcutHandler {
   let setShowingExifInfo: (Bool) -> Void
   let performDelete: () -> Bool
 
-  private let deleteKeyCodes: Set<UInt16> = [51, 117]
-
   func handle(event: NSEvent) -> Bool {
     assert(Thread.isMainThread)
     guard event.type == .keyDown else { return false }
     guard shouldHandle(event) else { return false }
-    if deleteKeyCodes.contains(event.keyCode) {
+    if currentDeleteKeyCodes.contains(event.keyCode) {
       return performDelete()
     }
     guard let key = keyEquivalent(from: event) else { return false }
     return dispatch(key: key)
+  }
+
+  private var currentDeleteKeyCodes: Set<UInt16> {
+    var codes: Set<UInt16> = []
+    if appSettings.deleteShortcutBackspaceEnabled {
+      codes.insert(51)
+    }
+    if appSettings.deleteShortcutForwardEnabled {
+      codes.insert(117)
+    }
+    return codes
   }
 
   private func shouldHandle(_ event: NSEvent) -> Bool {

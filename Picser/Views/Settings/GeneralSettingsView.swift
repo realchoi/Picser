@@ -66,15 +66,6 @@ struct GeneralSettingsView: View {
               .transition(.opacity.combined(with: .move(edge: .top)))
             }
           }
-
-          Toggle(isOn: $appSettings.deleteConfirmationEnabled) {
-            Text(l10n: "delete_confirmation_toggle")
-              .fontWeight(.medium)
-          }
-
-          Text(l10n: "delete_confirmation_description")
-            .font(.caption)
-            .foregroundColor(.secondary)
         }
 
         Divider()

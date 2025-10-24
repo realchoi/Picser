@@ -59,7 +59,7 @@ chmod +x scripts/build_release.sh # 给脚本执行权限（只需运行一次�
 - [x] 刷新文件夹展示最新图片的功能
 - [ ] 图片文字 OCR 功能
 - [ ] 图片播放功能
-- [ ] 删除图片功能，并支持自定义快捷键，支持设置是否删除前确认
+- [x] 删除图片功能，并支持自定义快捷键，支持设置是否删除前确认
 - [ ] 增加 HDR 支持
 - [ ] 增加格式支持，如 AVIF、JXL、TIFF、ICNS、svg、NEF（尼康）、cr3（佳能）、RAW 等等
 - [ ] 区分免费版（JPEG、PNG、WebP、HEIC、GIF）和收费版（AVIF、JXL、TIFF、ICNS）的格式支持

@@ -153,6 +153,40 @@ struct KeyboardSettingsView: View {
           }
         }
 
+        Divider()
+
+        // 删除操作快捷键设置
+        VStack(alignment: .leading, spacing: 8) {
+          Text(l10n: "delete_shortcut_section_title")
+            .fontWeight(.medium)
+
+          Text(l10n: "delete_shortcut_section_description")
+            .font(.caption)
+            .foregroundColor(.secondary)
+
+          VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: $appSettings.deleteShortcutForwardEnabled) {
+              Text(l10n: "delete_shortcut_option_forward")
+            }
+            .toggleStyle(.checkbox)
+
+            Toggle(isOn: $appSettings.deleteShortcutBackspaceEnabled) {
+              Text(l10n: "delete_shortcut_option_backspace")
+            }
+            .toggleStyle(.checkbox)
+          }
+
+          Toggle(isOn: $appSettings.deleteConfirmationEnabled) {
+            Text(l10n: "delete_confirmation_toggle")
+              .fontWeight(.medium)
+          }
+          .toggleStyle(.switch)
+
+          Text(l10n: "delete_confirmation_description")
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+
         Spacer(minLength: 20)
 
         // 重置按钮
