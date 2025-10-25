@@ -429,6 +429,7 @@ enum ImageNavigationKey: String, CaseIterable, Identifiable, Hashable, KeySelect
 
 /// 删除快捷键选项，控制支持的删除按键组合
 enum DeleteShortcutOption: String, CaseIterable, Identifiable, Hashable, KeySelectable {
+  case none = "none"
   case deleteKey = "deleteKey"
   case backspace = "backspace"
   case both = "both"
@@ -437,6 +438,8 @@ enum DeleteShortcutOption: String, CaseIterable, Identifiable, Hashable, KeySele
 
   var displayName: String {
     switch self {
+    case .none:
+      return L10n.string("delete_shortcut_option_none")
     case .deleteKey:
       return L10n.string("delete_shortcut_option_forward")
     case .backspace:
@@ -447,12 +450,14 @@ enum DeleteShortcutOption: String, CaseIterable, Identifiable, Hashable, KeySele
   }
 
   static func availableKeys() -> [DeleteShortcutOption] {
-    return [.deleteKey, .backspace, .both]
+    return [.none, .deleteKey, .backspace, .both]
   }
 
   /// 返回对应的按键 keyCode 集合
   var keyCodes: Set<UInt16> {
     switch self {
+    case .none:
+      return []
     case .deleteKey:
       return [UInt16(117)]
     case .backspace:

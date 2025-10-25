@@ -855,13 +855,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose how deletion is triggered. Pick Delete, Backspace, or both from the menu."
+            "value": "Choose how deletion is triggered. Pick Delete, Backspace, both, or disable the shortcut entirely."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "选择删除操作使用的按键，可在下拉菜单中指定 Delete 键、Backspace 键或两者兼用。"
+            "value": "选择删除操作使用的按键，可在下拉菜单中指定 Delete 键、Backspace 键、两者兼用或禁用快捷键。"
           }
         }
       }
@@ -926,6 +926,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete 或 Backspace 键"
+          }
+        }
+      }
+    },
+    "delete_shortcut_option_none": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无"
           }
         }
       }
