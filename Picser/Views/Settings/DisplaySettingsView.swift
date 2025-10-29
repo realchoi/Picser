@@ -4,13 +4,11 @@
 //  Created by Eric Cai on 2025/8/23.
 //
 
-import AppKit
 import SwiftUI
 
 // 显示设置页面
 struct DisplaySettingsView: View {
   @ObservedObject var appSettings: AppSettings
-  @Environment(\.isSettingsMeasurement) private var isMeasurement
 
   var body: some View {
     contentView

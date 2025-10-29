@@ -4,180 +4,174 @@
 //  Created by Eric Cai on 2025/8/23.
 //
 
-import AppKit
 import SwiftUI
 
 // 快捷键设置页面
 struct KeyboardSettingsView: View {
   @ObservedObject var appSettings: AppSettings
-  @Environment(\.isSettingsMeasurement) private var isMeasurement
   /// 标签列固定宽度，保证主控件对齐且不触发复杂的自适应测量
   private let labelColumnWidth: CGFloat = 180
 
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
-        Text(l10n: "keyboard_settings_title")
-          .font(.title2)
-          .fontWeight(.semibold)
+      Text(l10n: "keyboard_settings_title")
+        .font(.title2)
+        .fontWeight(.semibold)
 
-        Divider()
+      Divider()
 
-        // 缩放快捷键设置
-        VStack(alignment: .leading, spacing: 8) {
-          Text(l10n: "zoom_shortcut_label")
-            .fontWeight(.medium)
-          Text(l10n: "zoom_shortcut_description")
-            .font(.caption)
-            .foregroundColor(.secondary)
+      // 缩放快捷键设置
+      VStack(alignment: .leading, spacing: 8) {
+        Text(l10n: "zoom_shortcut_label")
+          .fontWeight(.medium)
+        Text(l10n: "zoom_shortcut_description")
+          .font(.caption)
+          .foregroundColor(.secondary)
 
-          KeyPickerView(selectedKey: $appSettings.zoomModifierKey)
-        }
+        KeyPickerView(selectedKey: $appSettings.zoomModifierKey)
+      }
 
-        Divider()
+      Divider()
 
-        // 拖拽快捷键设置
-        VStack(alignment: .leading, spacing: 8) {
-          Text(l10n: "pan_shortcut_label")
-            .fontWeight(.medium)
-          Text(l10n: "pan_shortcut_description")
-            .font(.caption)
-            .foregroundColor(.secondary)
+      // 拖拽快捷键设置
+      VStack(alignment: .leading, spacing: 8) {
+        Text(l10n: "pan_shortcut_label")
+          .fontWeight(.medium)
+        Text(l10n: "pan_shortcut_description")
+          .font(.caption)
+          .foregroundColor(.secondary)
 
-          KeyPickerView(selectedKey: $appSettings.panModifierKey)
-        }
+        KeyPickerView(selectedKey: $appSettings.panModifierKey)
+      }
 
-        Divider()
+      Divider()
 
-        // 图片切换按键设置
-        VStack(alignment: .leading, spacing: 8) {
-          Text(l10n: "image_navigation_label")
-            .fontWeight(.medium)
-          Text(l10n: "image_navigation_description")
-            .font(.caption)
-            .foregroundColor(.secondary)
+      // 图片切换按键设置
+      VStack(alignment: .leading, spacing: 8) {
+        Text(l10n: "image_navigation_label")
+          .fontWeight(.medium)
+        Text(l10n: "image_navigation_description")
+          .font(.caption)
+          .foregroundColor(.secondary)
 
         KeyPickerView(selectedKey: $appSettings.imageNavigationKey)
-        }
-
-        Divider()
-
-        // 图像变换快捷键设置
-        VStack(alignment: .leading, spacing: 12) {
-          Text(l10n: "transform_shortcuts_title")
-            .fontWeight(.medium)
-
-          shortcutRow(
-            label: L10n.string("rotate_ccw_shortcut_label"),
-            base: $appSettings.rotateCCWBaseKey,
-            modifier: $appSettings.rotateCCWModifierKey
-          )
-          shortcutRow(
-            label: L10n.string("rotate_cw_shortcut_label"),
-            base: $appSettings.rotateCWBaseKey,
-            modifier: $appSettings.rotateCWModifierKey
-          )
-          shortcutRow(
-            label: L10n.string("mirror_horizontal_shortcut_label"),
-            base: $appSettings.mirrorHBaseKey,
-            modifier: $appSettings.mirrorHModifierKey
-          )
-          shortcutRow(
-            label: L10n.string("mirror_vertical_shortcut_label"),
-            base: $appSettings.mirrorVBaseKey,
-            modifier: $appSettings.mirrorVModifierKey
-          )
-          shortcutRow(
-            label: L10n.string("reset_transform_shortcut_label"),
-            base: $appSettings.resetTransformBaseKey,
-            modifier: $appSettings.resetTransformModifierKey
-          )
-
-          // 冲突提示
-          if hasTransformShortcutConflict {
-            HStack(alignment: .top, spacing: 8) {
-              Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.orange)
-              VStack(alignment: .leading, spacing: 4) {
-                Text(l10n: "transform_shortcut_conflict")
-                  .foregroundColor(.orange)
-                  .font(.callout)
-                // 逐条列出重复冲突
-                ForEach(duplicateConflictItems(), id: \.self) { line in
-                  Text("• \(line)")
-                    .foregroundColor(.orange)
-                    .font(.caption)
-                }
-              }
-            }
-            .padding(.top, 6)
-          }
-
-          if hasReservedShortcutUsage {
-            HStack(alignment: .top, spacing: 8) {
-              Image(systemName: "exclamationmark.octagon.fill")
-                .foregroundColor(.red)
-              VStack(alignment: .leading, spacing: 4) {
-                Text(l10n: "transform_shortcut_reserved")
-                  .foregroundColor(.red)
-                  .font(.callout)
-                // 逐条列出保留快捷键冲突
-                ForEach(reservedConflictItems(), id: \.self) { line in
-                  Text("• \(line)")
-                    .foregroundColor(.red)
-                    .font(.caption)
-                }
-              }
-            }
-          }
-        }
-
-        Divider()
-
-        // 删除操作快捷键设置
-        VStack(alignment: .leading, spacing: 8) {
-          Text(l10n: "delete_shortcut_section_title")
-            .fontWeight(.medium)
-
-          Text(l10n: "delete_shortcut_section_description")
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-          HStack(spacing: 12) {
-            Text(l10n: "delete_shortcut_picker_label")
-              .frame(width: labelColumnWidth, alignment: .leading)
-            Picker("", selection: $appSettings.deleteShortcutPreference) {
-              ForEach(DeleteShortcutOption.availableKeys(), id: \.self) { option in
-                Text(option.displayName).tag(option)
-              }
-            }
-            .pickerStyle(.menu)
-            .frame(minWidth: 200)
-          }
-
-          Toggle(isOn: $appSettings.deleteConfirmationEnabled) {
-            Text(l10n: "delete_confirmation_toggle")
-              .fontWeight(.medium)
-          }
-          .toggleStyle(.checkbox)
-
-          Text(l10n: "delete_confirmation_description")
-            .font(.caption)
-            .foregroundColor(.secondary)
-        }
-
-        Spacer().frame(height: 20)
-
-        // 重置按钮
-        HStack {
-        Spacer()
-          Button(L10n.key("reset_defaults_button")) {
-            withAnimation {
-              appSettings.resetToDefaults(settingsTab: .keyboard)
-            }
-          }
-          .buttonStyle(.bordered)
       }
-      // 移除额外的底部间距，与显示页面保持一致
+
+      Divider()
+
+      // 图像变换快捷键设置
+      VStack(alignment: .leading, spacing: 12) {
+        Text(l10n: "transform_shortcuts_title")
+          .fontWeight(.medium)
+
+        shortcutRow(
+          label: L10n.string("rotate_ccw_shortcut_label"),
+          base: $appSettings.rotateCCWBaseKey,
+          modifier: $appSettings.rotateCCWModifierKey
+        )
+        shortcutRow(
+          label: L10n.string("rotate_cw_shortcut_label"),
+          base: $appSettings.rotateCWBaseKey,
+          modifier: $appSettings.rotateCWModifierKey
+        )
+        shortcutRow(
+          label: L10n.string("mirror_horizontal_shortcut_label"),
+          base: $appSettings.mirrorHBaseKey,
+          modifier: $appSettings.mirrorHModifierKey
+        )
+        shortcutRow(
+          label: L10n.string("mirror_vertical_shortcut_label"),
+          base: $appSettings.mirrorVBaseKey,
+          modifier: $appSettings.mirrorVModifierKey
+        )
+        shortcutRow(
+          label: L10n.string("reset_transform_shortcut_label"),
+          base: $appSettings.resetTransformBaseKey,
+          modifier: $appSettings.resetTransformModifierKey
+        )
+
+        if hasTransformShortcutConflict {
+          HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+              .foregroundColor(.orange)
+            VStack(alignment: .leading, spacing: 4) {
+              Text(l10n: "transform_shortcut_conflict")
+                .foregroundColor(.orange)
+                .font(.callout)
+              ForEach(duplicateConflictItems(), id: \.self) { line in
+                Text("• \(line)")
+                  .foregroundColor(.orange)
+                  .font(.caption)
+              }
+            }
+          }
+          .padding(.top, 6)
+        }
+
+        if hasReservedShortcutUsage {
+          HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.octagon.fill")
+              .foregroundColor(.red)
+            VStack(alignment: .leading, spacing: 4) {
+              Text(l10n: "transform_shortcut_reserved")
+                .foregroundColor(.red)
+                .font(.callout)
+              ForEach(reservedConflictItems(), id: \.self) { line in
+                Text("• \(line)")
+                  .foregroundColor(.red)
+                  .font(.caption)
+              }
+            }
+          }
+        }
+      }
+
+      Divider()
+
+      // 删除操作快捷键设置
+      VStack(alignment: .leading, spacing: 8) {
+        Text(l10n: "delete_shortcut_section_title")
+          .fontWeight(.medium)
+
+        Text(l10n: "delete_shortcut_section_description")
+          .font(.caption)
+          .foregroundColor(.secondary)
+
+        HStack(spacing: 12) {
+          Text(l10n: "delete_shortcut_picker_label")
+            .frame(width: labelColumnWidth, alignment: .leading)
+          Picker("", selection: $appSettings.deleteShortcutPreference) {
+            ForEach(DeleteShortcutOption.availableKeys(), id: \.self) { option in
+              Text(option.displayName).tag(option)
+            }
+          }
+          .pickerStyle(.menu)
+          .frame(minWidth: 200)
+        }
+
+        Toggle(isOn: $appSettings.deleteConfirmationEnabled) {
+          Text(l10n: "delete_confirmation_toggle")
+            .fontWeight(.medium)
+        }
+        .toggleStyle(.checkbox)
+
+        Text(l10n: "delete_confirmation_description")
+          .font(.caption)
+          .foregroundColor(.secondary)
+      }
+
+      Spacer().frame(height: 20)
+
+      // 重置按钮
+      HStack {
+        Spacer()
+        Button(L10n.key("reset_defaults_button")) {
+          withAnimation {
+            appSettings.resetToDefaults(settingsTab: .keyboard)
+          }
+        }
+        .buttonStyle(.bordered)
+      }
     }
     .frame(maxWidth: .infinity, alignment: .topLeading)
     .settingsContentContainer()
