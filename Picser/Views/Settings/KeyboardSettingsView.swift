@@ -10,10 +10,12 @@ import SwiftUI
 // 快捷键设置页面
 struct KeyboardSettingsView: View {
   @ObservedObject var appSettings: AppSettings
+  @Environment(\.isSettingsMeasurement) private var isMeasurement
+  /// 标签列固定宽度，保证主控件对齐且不触发复杂的自适应测量
+  private let labelColumnWidth: CGFloat = 180
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
+    VStack(alignment: .leading, spacing: 20) {
         Text(l10n: "keyboard_settings_title")
           .font(.title2)
           .fontWeight(.semibold)
@@ -64,55 +66,31 @@ struct KeyboardSettingsView: View {
           Text(l10n: "transform_shortcuts_title")
             .fontWeight(.medium)
 
-          // 旋转左
-          HStack(spacing: 10) {
-            Text(l10n: "rotate_ccw_shortcut_label")
-              .frame(width: 180, alignment: .leading)
-            KeyPickerView(selectedKey: $appSettings.rotateCCWBaseKey)
-            Text("+")
-              .foregroundColor(.secondary)
-            KeyPickerView(selectedKey: $appSettings.rotateCCWModifierKey)
-          }
-
-          // 旋转右
-          HStack(spacing: 10) {
-            Text(l10n: "rotate_cw_shortcut_label")
-              .frame(width: 180, alignment: .leading)
-            KeyPickerView(selectedKey: $appSettings.rotateCWBaseKey)
-            Text("+")
-              .foregroundColor(.secondary)
-            KeyPickerView(selectedKey: $appSettings.rotateCWModifierKey)
-          }
-
-          // 水平镜像
-          HStack(spacing: 10) {
-            Text(l10n: "mirror_horizontal_shortcut_label")
-              .frame(width: 180, alignment: .leading)
-            KeyPickerView(selectedKey: $appSettings.mirrorHBaseKey)
-            Text("+")
-              .foregroundColor(.secondary)
-            KeyPickerView(selectedKey: $appSettings.mirrorHModifierKey)
-          }
-
-          // 垂直镜像
-          HStack(spacing: 10) {
-            Text(l10n: "mirror_vertical_shortcut_label")
-              .frame(width: 180, alignment: .leading)
-            KeyPickerView(selectedKey: $appSettings.mirrorVBaseKey)
-            Text("+")
-              .foregroundColor(.secondary)
-            KeyPickerView(selectedKey: $appSettings.mirrorVModifierKey)
-          }
-
-          // 重置图像变换
-          HStack(spacing: 10) {
-            Text(l10n: "reset_transform_shortcut_label")
-              .frame(width: 180, alignment: .leading)
-            KeyPickerView(selectedKey: $appSettings.resetTransformBaseKey)
-            Text("+")
-              .foregroundColor(.secondary)
-            KeyPickerView(selectedKey: $appSettings.resetTransformModifierKey)
-          }
+          shortcutRow(
+            label: L10n.string("rotate_ccw_shortcut_label"),
+            base: $appSettings.rotateCCWBaseKey,
+            modifier: $appSettings.rotateCCWModifierKey
+          )
+          shortcutRow(
+            label: L10n.string("rotate_cw_shortcut_label"),
+            base: $appSettings.rotateCWBaseKey,
+            modifier: $appSettings.rotateCWModifierKey
+          )
+          shortcutRow(
+            label: L10n.string("mirror_horizontal_shortcut_label"),
+            base: $appSettings.mirrorHBaseKey,
+            modifier: $appSettings.mirrorHModifierKey
+          )
+          shortcutRow(
+            label: L10n.string("mirror_vertical_shortcut_label"),
+            base: $appSettings.mirrorVBaseKey,
+            modifier: $appSettings.mirrorVModifierKey
+          )
+          shortcutRow(
+            label: L10n.string("reset_transform_shortcut_label"),
+            base: $appSettings.resetTransformBaseKey,
+            modifier: $appSettings.resetTransformModifierKey
+          )
 
           // 冲突提示
           if hasTransformShortcutConflict {
@@ -166,7 +144,7 @@ struct KeyboardSettingsView: View {
 
           HStack(spacing: 12) {
             Text(l10n: "delete_shortcut_picker_label")
-              .frame(width: 180, alignment: .leading)
+              .frame(width: labelColumnWidth, alignment: .leading)
             Picker("", selection: $appSettings.deleteShortcutPreference) {
               ForEach(DeleteShortcutOption.availableKeys(), id: \.self) { option in
                 Text(option.displayName).tag(option)
@@ -187,29 +165,45 @@ struct KeyboardSettingsView: View {
             .foregroundColor(.secondary)
         }
 
-        Spacer(minLength: 20)
+        Spacer().frame(height: 20)
 
         // 重置按钮
         HStack {
-          Spacer()
+        Spacer()
           Button(L10n.key("reset_defaults_button")) {
             withAnimation {
               appSettings.resetToDefaults(settingsTab: .keyboard)
             }
           }
           .buttonStyle(.bordered)
-        }
-        // 移除额外的底部间距，与显示页面保持一致
       }
-      .padding()
-      .frame(maxWidth: .infinity, minHeight: 350, alignment: .topLeading)
+      // 移除额外的底部间距，与显示页面保持一致
     }
-    .scrollIndicators(.visible)
+    .frame(maxWidth: .infinity, alignment: .topLeading)
+    .settingsContentContainer()
   }
 }
 
 // MARK: - Helpers (conflict detection)
 extension KeyboardSettingsView {
+  /// 构建单行快捷键设置（标签 + 基础键 + 修饰键）
+  @ViewBuilder
+  private func shortcutRow(
+    label: String,
+    base: Binding<ShortcutBaseKey>,
+    modifier: Binding<ModifierKey>
+  ) -> some View {
+    HStack(spacing: 8) {
+      Text(label)
+        .frame(width: labelColumnWidth, alignment: .leading)
+      KeyPickerView(selectedKey: base)
+      Text("+")
+        .foregroundColor(.secondary)
+      KeyPickerView(selectedKey: modifier)
+      Spacer(minLength: 0)
+    }
+  }
+
   private var hasTransformShortcutConflict: Bool {
     struct Combo: Hashable { let base: ShortcutBaseKey; let mod: ModifierKey }
     let combos: [Combo] = [

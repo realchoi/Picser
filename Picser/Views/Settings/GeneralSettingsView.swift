@@ -11,90 +11,25 @@ struct GeneralSettingsView: View {
   @State private var showLanguageChangeNote = false
   @State private var alertContent: AlertContent?
   @EnvironmentObject private var purchaseManager: PurchaseManager
+  @Environment(\.isSettingsMeasurement) private var isMeasurement
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
-        Text(l10n: "general_settings_title")
-          .font(.title2)
-          .fontWeight(.semibold)
+    let container = contentView
+      .settingsContentContainer()
 
-        Divider()
-
-        // 界面设置组
-        VStack(alignment: .leading, spacing: 16) {
-          Text(l10n: "interface_group")
-            .fontWeight(.medium)
-
-          // 语言选择
-          VStack(alignment: .leading, spacing: 8) {
-            Text(l10n: "app_language_label")
-              .fontWeight(.medium)
-            Text(l10n: "app_language_description")
-              .font(.caption)
-              .foregroundColor(.secondary)
-
-            HStack {
-              Picker("", selection: $appSettings.appLanguage) {
-                ForEach(AppLanguage.availableKeys(), id: \.self) { language in
-                  Text(language.displayName).tag(language)
-                }
-              }
-              .pickerStyle(.menu)
-              .frame(minWidth: 120)
-              .onChange(of: appSettings.appLanguage) {
-                showLanguageChangeNote = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                  showLanguageChangeNote = false
-                }
-              }
-
-              Spacer()
-            }
-
-            // 语言变更提示
-            if showLanguageChangeNote {
-              HStack {
-                Image(systemName: "info.circle.fill")
-                  .foregroundColor(.blue)
-                  .font(.caption)
-
-                Text(l10n: "language_restart_note")
-                  .font(.caption)
-                  .foregroundColor(.secondary)
-              }
-              .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+    return Group {
+      if isMeasurement {
+        container
+      } else {
+        container
+          .alert(item: $alertContent) { alertData in
+            Alert(
+              title: Text(alertData.title),
+              message: Text(alertData.message),
+              dismissButton: .default(Text(l10n: "ok_button"))
+            )
           }
-        }
-
-        Divider()
-
-        purchaseSection
-
-        Spacer(minLength: 20)
-
-        // 重置按钮
-        HStack {
-          Spacer()
-          Button(L10n.key("reset_defaults_button")) {
-            withAnimation {
-              appSettings.resetToDefaults(settingsTab: .general)
-            }
-          }
-          .buttonStyle(.bordered)
-        }
       }
-      .padding()
-      .frame(maxWidth: .infinity, minHeight: 350, alignment: .topLeading)
-    }
-    .scrollIndicators(.visible)
-    .alert(item: $alertContent) { alertData in
-      Alert(
-        title: Text(alertData.title),
-        message: Text(alertData.message),
-        dismissButton: .default(Text(l10n: "ok_button"))
-      )
     }
   }
 
@@ -280,6 +215,81 @@ struct GeneralSettingsView: View {
 
   private var shouldShowPurchaseButton: Bool {
     !purchaseManager.hasOwnedLicense
+  }
+
+  @ViewBuilder
+  private var contentView: some View {
+    VStack(alignment: .leading, spacing: 20) {
+      Text(l10n: "general_settings_title")
+        .font(.title2)
+        .fontWeight(.semibold)
+
+      Divider()
+
+      // 界面设置组
+      VStack(alignment: .leading, spacing: 16) {
+        Text(l10n: "interface_group")
+          .fontWeight(.medium)
+
+        // 语言选择
+        VStack(alignment: .leading, spacing: 8) {
+          Text(l10n: "app_language_label")
+            .fontWeight(.medium)
+          Text(l10n: "app_language_description")
+            .font(.caption)
+            .foregroundColor(.secondary)
+
+          HStack {
+            Picker("", selection: $appSettings.appLanguage) {
+              ForEach(AppLanguage.availableKeys(), id: \.self) { language in
+                Text(language.displayName).tag(language)
+              }
+            }
+            .pickerStyle(.menu)
+            .frame(minWidth: 120)
+            .onChange(of: appSettings.appLanguage) {
+              showLanguageChangeNote = true
+              DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                showLanguageChangeNote = false
+              }
+            }
+
+            Spacer()
+          }
+
+          // 语言变更提示
+          if showLanguageChangeNote {
+            HStack {
+              Image(systemName: "info.circle.fill")
+                .foregroundColor(.blue)
+                .font(.caption)
+
+              Text(l10n: "language_restart_note")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+            .transition(.opacity.combined(with: .move(edge: .top)))
+          }
+        }
+      }
+
+      Divider()
+
+      purchaseSection
+
+      Spacer().frame(height: 20)
+
+      // 重置按钮
+      HStack {
+        Spacer()
+        Button(L10n.key("reset_defaults_button")) {
+          withAnimation {
+            appSettings.resetToDefaults(settingsTab: .general)
+          }
+        }
+        .buttonStyle(.bordered)
+      }
+    }
   }
 }
 
