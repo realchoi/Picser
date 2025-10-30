@@ -48,6 +48,7 @@ struct AsyncZoomableImageContainer: View {
             image: image,
             transform: transform,
             windowToken: windowToken,
+            sourceURL: url,
             isCropping: isCropping,
             cropAspect: cropAspect,
             cropControls: cropControls

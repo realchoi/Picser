@@ -5,6 +5,7 @@
 //
 
 import AppKit
+import Foundation
 import SwiftUI
 
 /// 纯SwiftUI实现的缩放图片视图
@@ -12,6 +13,8 @@ struct ZoomableImageView: View {
   let image: NSImage
   let transform: ImageTransform
   let windowToken: UUID
+  /// 图片来源 URL，用于识别是否切换为另一张图片
+  let sourceURL: URL
   // 裁剪开关与比例（默认关闭）
   var isCropping: Bool = false
   var cropAspect: CropAspectOption = .freeform
@@ -42,9 +45,10 @@ struct ZoomableImageView: View {
   @State private var cachedScale: CGFloat = 1.0
 
   // MARK: - 小地图显示控制（自动隐藏）
-  @State private var minimapUserVisible: Bool = true
+  @State private var minimapUserVisible: Bool = false
   @State private var minimapHideTask: Task<Void, Never>?
   @State private var minimapWasVisibleBeforeCropping: Bool = false
+  @State private var isMinimapReady: Bool = false
 
   // MARK: - 裁剪状态
   @State var cropRect: CGRect?
@@ -71,6 +75,12 @@ struct ZoomableImageView: View {
   private var effectiveOffset: CGSize {
     offset
   }
+
+  // MARK: - 图片内容跟踪
+  /// 最近一次重置时记录的图片来源
+  @State private var trackedSourceURL: URL?
+  /// 最近一次记录的有效图片尺寸（考虑旋转后）
+  @State private var lastEffectiveImageSize: CGSize = .zero
 
   var body: some View {
     GeometryReader { geometry in
@@ -218,7 +228,8 @@ struct ZoomableImageView: View {
       }
       // 小地图（缩略图）覆盖层：当图片放大超过预览区域且设置允许时显示
       .overlay(alignment: .bottomTrailing) {
-        if PanZoomMath.shouldShowMinimap(
+        if isMinimapReady &&
+          PanZoomMath.shouldShowMinimap(
           viewSize: geometry.size,
           imageSize: effectiveImageSize(),
           baseFitScale: baseFitScale,
@@ -244,19 +255,22 @@ struct ZoomableImageView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .onAppear {
+        isMinimapReady = false
         setupInitialState(geometry: geometry)
         // 初始可见性：若开启自动隐藏，则等待用户交互再显示
         minimapUserVisible = appSettings.minimapAutoHideSeconds <= 0
+        // 记录当前图片身份及尺寸，避免后续误触发重置
+        trackedSourceURL = sourceURL
+        lastEffectiveImageSize = effectiveImageSize()
+      }
+      .onChange(of: sourceURL) { _, newURL in
+        guard trackedSourceURL != newURL else { return }
+        // 真正切换到另一张图片时，执行完整重置
+        resetForNewSource(geometry: geometry)
       }
       .onChange(of: image) { _, _ in
-        // 图片切换时，重新按视口适配并重置缩放/偏移，避免使用上一张图的 baseFitScale
-        fitImageToView(geometry: geometry)
-        minimapUserVisible = appSettings.minimapAutoHideSeconds <= 0
-        // 切换图片时清除裁剪框
-        cropRect = nil
-        cropDragStartRect = nil
-        activeCropHandle = nil
-        isCropHandleDragging = false
+        // 同一来源的渐进式替换时，仅根据尺寸变化调整缩放与偏移
+        adaptToContentSizeChangeIfNeeded(geometry: geometry)
       }
       .onChange(of: transform) { _, _ in
         // 旋转/镜像改变时根据新有效尺寸重新适配
@@ -334,6 +348,7 @@ struct ZoomableImageView: View {
       minimapHideTask?.cancel()
       minimapHideTask = nil
       isCropHandleDragging = false
+      isMinimapReady = false
     }
   }
 
@@ -365,11 +380,77 @@ struct ZoomableImageView: View {
     return appSettings.isModifierKeyPressed(event.modifierFlags, for: appSettings.panModifierKey)
   }
 
+  /// 切换到新图片时的统一重置逻辑
+  private func resetForNewSource(geometry: GeometryProxy) {
+    minimapHideTask?.cancel()
+    minimapHideTask = nil
+    isMinimapReady = false
+    fitImageToView(geometry: geometry)
+    trackedSourceURL = sourceURL
+    lastEffectiveImageSize = effectiveImageSize()
+    minimapUserVisible = appSettings.minimapAutoHideSeconds <= 0
+    minimapWasVisibleBeforeCropping = false
+    cropRect = nil
+    cropDragStartRect = nil
+    activeCropHandle = nil
+    cropControlSize = .zero
+    isCropHandleDragging = false
+  }
+
+  /// 渐进式加载导致图片尺寸变化时，保持当前视图状态
+  private func adaptToContentSizeChangeIfNeeded(geometry: GeometryProxy) {
+    let newSize = effectiveImageSize()
+
+    // 新图片的第一次记录直接同步尺寸，避免误判
+    if abs(newSize.width - lastEffectiveImageSize.width) < 0.1 &&
+      abs(newSize.height - lastEffectiveImageSize.height) < 0.1
+    {
+      return
+    }
+    guard trackedSourceURL == sourceURL else {
+      lastEffectiveImageSize = newSize
+      return
+    }
+    guard lastEffectiveImageSize != .zero else {
+      lastEffectiveImageSize = newSize
+      return
+    }
+    guard newSize != lastEffectiveImageSize else { return }
+    guard let newBaseFit = PanZoomMath.computeFitScale(viewSize: geometry.size, imageSize: newSize),
+          newBaseFit > 0
+    else {
+      lastEffectiveImageSize = newSize
+      return
+    }
+
+    isMinimapReady = false
+    let clampedScale = PanZoomMath.ensureScale(scale, min: minScale, max: maxScale)
+    let updatedMaxOffset = PanZoomMath.maxOffset(
+      viewSize: geometry.size,
+      imageSize: newSize,
+      baseFitScale: newBaseFit,
+      scale: clampedScale
+    )
+
+    withAnimation(Motion.Anim.medium) {
+      baseFitScale = newBaseFit
+      scale = clampedScale
+      offset = PanZoomMath.clamp(offset: offset, to: updatedMaxOffset)
+    }
+
+    lastScale = clampedScale
+    lastOffset = PanZoomMath.clamp(offset: lastOffset, to: updatedMaxOffset)
+    invalidateCache()
+    lastEffectiveImageSize = newSize
+    isMinimapReady = true
+  }
+
   /// 设置初始状态
   private func setupInitialState(geometry: GeometryProxy) {
     minScale = appSettings.minZoomScale
     maxScale = appSettings.maxZoomScale
     // 延迟一帧确保视图完全布局
+    isMinimapReady = false
     DispatchQueue.main.async {
       fitImageToView(geometry: geometry)
     }
@@ -431,11 +512,14 @@ struct ZoomableImageView: View {
         lastOffset = resetT.lastOffset
         invalidateCache()
       }
+      lastEffectiveImageSize = effectiveImageSize()
     } else {
       let t = PanZoomMath.defaultTransform()
       scale = t.scale
       lastScale = t.lastScale
+      lastEffectiveImageSize = effectiveImageSize()
     }
+    isMinimapReady = true
   }
 
   /// 根据旋转得到有效的图像尺寸（90/270 度时交换宽高）
@@ -552,7 +636,12 @@ struct ZoomableImageView: View {
 
 #Preview {
   if let testImage = NSImage(systemSymbolName: "photo", accessibilityDescription: nil) {
-    ZoomableImageView(image: testImage, transform: .identity, windowToken: UUID())
+    ZoomableImageView(
+      image: testImage,
+      transform: .identity,
+      windowToken: UUID(),
+      sourceURL: URL(fileURLWithPath: "/tmp/preview.png")
+    )
       .environmentObject(AppSettings())
       .frame(width: 400, height: 300)
   } else {
