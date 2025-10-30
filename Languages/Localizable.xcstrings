@@ -3746,6 +3746,54 @@
         }
       }
     },
+    "purchase_status_revoked": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current status: Access revoked"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前状态：权限已撤销"
+          }
+        }
+      }
+    },
+    "purchase_status_subscribed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current status: Subscription active"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前状态：订阅中"
+          }
+        }
+      }
+    },
+    "purchase_status_subscribed_lapsed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current status: Subscription expired"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前状态：订阅已过期"
+          }
+        }
+      }
+    },
     "purchase_status_purchased": {
       "localizations": {
         "en": {
@@ -3790,6 +3838,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "试用剩余：%@"
+          }
+        }
+      }
+    },
+    "purchase_status_subscription_remaining": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription remaining: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅剩余时间：%@"
           }
         }
       }
@@ -4334,6 +4398,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "暂时隐藏解锁提示"
+          }
+        }
+      }
+    },
+    "purchase_revoked_subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We detected an issue with your account. Please try restoring or contact support."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检测到账户存在异常，请尝试恢复购买或联系支持。"
+          }
+        }
+      }
+    },
+    "purchase_revoked_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Access revoked"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "权限已撤销"
+          }
+        }
+      }
+    },
+    "subscription_lapsed_subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your subscription has expired. Renew or restore to keep using premium features."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅已到期，请续订或恢复购买以继续使用高级功能。"
+          }
+        }
+      }
+    },
+    "subscription_lapsed_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription expired"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅已到期"
           }
         }
       }

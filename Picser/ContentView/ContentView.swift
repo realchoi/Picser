@@ -441,9 +441,8 @@ struct ContentView: View {
 
 // MARK: - Helpers
 extension ContentView {
-  func localized(_ key: String, fallback: String) -> String {
-    let value = L10n.string(key)
-    return value == key ? fallback : value
+  func localized(_ key: String) -> String {
+    L10n.string(key)
   }
 }
 

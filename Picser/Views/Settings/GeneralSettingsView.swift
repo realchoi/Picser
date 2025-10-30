@@ -75,19 +75,19 @@ struct GeneralSettingsView: View {
   private var purchaseStatusText: String {
     switch purchaseManager.state {
     case .trial(_):
-      return localized("purchase_status_trial_prefix", fallback: "当前状态：试用")
+      return localized("purchase_status_trial_prefix")
     case .trialExpired(_):
-      return localized("purchase_status_expired", fallback: "当前状态：试用已结束")
+      return localized("purchase_status_expired")
     case .subscriber(_):
-      return localized("purchase_status_subscribed", fallback: "当前状态：订阅中")
+      return localized("purchase_status_subscribed")
     case .subscriberLapsed(_):
-      return localized("purchase_status_subscribed_lapsed", fallback: "当前状态：订阅已过期")
+      return localized("purchase_status_subscribed_lapsed")
     case .lifetime(_):
-      return localized("purchase_status_purchased", fallback: "当前状态：已买断")
+      return localized("purchase_status_purchased")
     case .revoked(_):
-      return localized("purchase_status_revoked", fallback: "当前状态：权限已撤销")
+      return localized("purchase_status_revoked")
     case .onboarding, .unknown:
-      return localized("purchase_status_unknown", fallback: "当前状态：加载中")
+      return localized("purchase_status_unknown")
     }
   }
 
@@ -114,12 +114,12 @@ struct GeneralSettingsView: View {
     switch purchaseManager.state {
     case let .trial(status):
       let description = TrialFormatter.remainingDescription(endDate: status.endDate)
-      let template = localized("purchase_status_trial_remaining", fallback: "试用剩余时间：%@")
+      let template = localized("purchase_status_trial_remaining")
       return String(format: template, description)
     case let .subscriber(status):
       if let expiry = status.expirationDate, expiry > Date() {
         let description = TrialFormatter.remainingDescription(endDate: expiry)
-        let template = localized("purchase_status_subscription_remaining", fallback: "订阅剩余时间：%@")
+        let template = localized("purchase_status_subscription_remaining")
         return String(format: template, description)
       }
       return nil
@@ -208,9 +208,8 @@ struct GeneralSettingsView: View {
     }
   }
 
-  private func localized(_ key: String, fallback: String) -> String {
-    let value = L10n.string(key)
-    return value == key ? fallback : value
+  private func localized(_ key: String) -> String {
+    L10n.string(key)
   }
 
   private var shouldShowPurchaseButton: Bool {

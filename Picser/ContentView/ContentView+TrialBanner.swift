@@ -24,8 +24,8 @@ extension ContentView {
       case .trialExpired:
         bannerContainer {
           TrialExpiredBanner(
-            title: localized("trial_expired_title", fallback: "试用已结束"),
-            message: localized("trial_expired_subtitle", fallback: "试用已结束，请升级解锁全部功能。"),
+            title: localized("trial_expired_title"),
+            message: localized("trial_expired_subtitle"),
             onPurchase: { requestUpgrade(.purchase) },
             onRestore: { startRestoreFlow() },
             onDismiss: {
@@ -34,12 +34,10 @@ extension ContentView {
           )
         }
       case .subscriberLapsed:
-        let fallbackTitle = "订阅已到期"
-        let fallbackMessage = "订阅已到期，请续订或恢复购买以继续使用高级功能。"
         bannerContainer {
           TrialExpiredBanner(
-            title: localized("subscription_lapsed_title", fallback: fallbackTitle),
-            message: localized("subscription_lapsed_subtitle", fallback: fallbackMessage),
+            title: localized("subscription_lapsed_title"),
+            message: localized("subscription_lapsed_subtitle"),
             onPurchase: { requestUpgrade(.purchase) },
             onRestore: { startRestoreFlow() },
             onDismiss: {
@@ -48,12 +46,10 @@ extension ContentView {
           )
         }
       case .revoked:
-        let fallbackTitle = "权限已撤销"
-        let fallbackMessage = "检测到账户存在异常，已暂时停用高级功能，请尝试恢复购买或联系支持。"
         bannerContainer {
           TrialExpiredBanner(
-            title: localized("purchase_revoked_title", fallback: fallbackTitle),
-            message: localized("purchase_revoked_subtitle", fallback: fallbackMessage),
+            title: localized("purchase_revoked_title"),
+            message: localized("purchase_revoked_subtitle"),
             onPurchase: { requestUpgrade(.purchase) },
             onRestore: { startRestoreFlow() },
             onDismiss: {
