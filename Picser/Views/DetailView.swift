@@ -11,6 +11,8 @@ struct DetailView: View {
   let imageURLs: [URL]
   let selectedImageURL: URL?
   let onOpen: () -> Void
+  let onNavigatePrevious: () -> Void
+  let onNavigateNext: () -> Void
   let windowToken: UUID
   @Binding var showingExifInfo: Bool
   let exifInfo: ExifInfo?
@@ -44,7 +46,7 @@ struct DetailView: View {
                 customRatios: appSettings.customCropRatios,
                 currentAspect: cropAspect,
                 onSelectPreset: { preset in
-                  cropAspect = CropAspectOption.fromPreset(preset)
+          cropAspect = CropAspectOption.fromPreset(preset)
                 },
                 onSelectCustomRatio: { ratio in
                   cropAspect = .fixed(ratio)
@@ -76,6 +78,16 @@ struct DetailView: View {
               )
             )
               .frame(maxWidth: .infinity, maxHeight: .infinity)
+              .overlay {
+                let navigationState = navigationContext
+                EdgeNavigationOverlay(
+                  canNavigatePrevious: navigationState.canNavigatePrevious,
+                  canNavigateNext: navigationState.canNavigateNext,
+                  isCropping: isCropping,
+                  onNavigatePrevious: onNavigatePrevious,
+                  onNavigateNext: onNavigateNext
+                )
+              }
               .overlay(alignment: .trailing) {
                 if showingExifInfo {
                   drawerObscureOverlay
@@ -100,6 +112,18 @@ struct DetailView: View {
 
 // MARK: - EXIF 抽屉视图
 private extension DetailView {
+  /// 计算当前图片在导航上的可用状态，便于控制箭头按钮显隐与可点击性。
+  /// - Returns: 上一张与下一张是否可达的布尔标记。
+  private var navigationContext: (canNavigatePrevious: Bool, canNavigateNext: Bool) {
+    guard let current = selectedImageURL, let index = imageURLs.firstIndex(of: current) else {
+      return (false, false)
+    }
+    let hasMultiple = imageURLs.count > 1
+    let canPrev = hasMultiple && index > 0
+    let canNext = hasMultiple && index < imageURLs.count - 1
+    return (canPrev, canNext)
+  }
+
   private var drawerObscureOverlay: some View {
     LinearGradient(
       colors: [
@@ -173,5 +197,104 @@ private struct ExifDrawerLoadingView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     .padding(24)
+  }
+}
+
+// MARK: - 边缘导航浮层
+private enum EdgeNavigationLayoutMetrics {
+  static let detectionWidth: CGFloat = 120
+  static let buttonSize: CGFloat = 46
+  static let buttonShadowRadius: CGFloat = 10
+  static let animationDuration: Double = 0.2
+  static let buttonEdgeInset: CGFloat = 28
+}
+
+private struct EdgeNavigationOverlay: View {
+  let canNavigatePrevious: Bool
+  let canNavigateNext: Bool
+  let isCropping: Bool
+  let onNavigatePrevious: () -> Void
+  let onNavigateNext: () -> Void
+
+  @State private var isHoveringPrevious = false
+  @State private var isHoveringNext = false
+
+  var body: some View {
+    // 利用 GeometryReader 填满父级空间，以便在左右两侧布置悬浮感应区域。
+    GeometryReader { geometry in
+      HStack(spacing: 0) {
+        edgeButtonArea(
+          side: .previous,
+          isHovering: $isHoveringPrevious,
+          isEnabled: canNavigatePrevious && !isCropping,
+          action: onNavigatePrevious
+        )
+        Spacer(minLength: 0)
+        edgeButtonArea(
+          side: .next,
+          isHovering: $isHoveringNext,
+          isEnabled: canNavigateNext && !isCropping,
+          action: onNavigateNext
+        )
+      }
+      .frame(width: geometry.size.width, height: geometry.size.height)
+    }
+    .allowsHitTesting(!isCropping && (canNavigatePrevious || canNavigateNext))
+  }
+
+  /// 构建单侧的感应区域和按钮呈现。
+  private func edgeButtonArea(
+    side: EdgeSide,
+    isHovering: Binding<Bool>,
+    isEnabled: Bool,
+    action: @escaping () -> Void
+  ) -> some View {
+    ZStack(alignment: side == .previous ? .leading : .trailing) {
+      // 透明覆盖层负责维持完整的悬停区域，即便按钮淡入淡出也不会影响底层缩放/拖拽事件。
+      Color.clear
+      if isHovering.wrappedValue && isEnabled {
+        Button(action: action) {
+          Image(systemName: side == .previous ? "chevron.left.circle.fill" : "chevron.right.circle.fill")
+            .font(.system(size: EdgeNavigationLayoutMetrics.buttonSize))
+            .foregroundStyle(Color.white)
+            .shadow(color: .black.opacity(0.35), radius: EdgeNavigationLayoutMetrics.buttonShadowRadius, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        .animation(.easeInOut(duration: EdgeNavigationLayoutMetrics.animationDuration), value: isHovering.wrappedValue)
+        .padding(side == .previous ? .leading : .trailing, EdgeNavigationLayoutMetrics.buttonEdgeInset)
+      }
+    }
+    .frame(width: EdgeNavigationLayoutMetrics.detectionWidth)
+    .frame(maxHeight: .infinity)
+    .contentShape(Rectangle())
+    .onHover { hovering in
+      guard isEnabled else {
+        if isHovering.wrappedValue {
+          withAnimation(.easeInOut(duration: EdgeNavigationLayoutMetrics.animationDuration)) {
+            isHovering.wrappedValue = false
+          }
+        }
+        return
+      }
+      if isHovering.wrappedValue != hovering {
+        withAnimation(.easeInOut(duration: EdgeNavigationLayoutMetrics.animationDuration)) {
+          isHovering.wrappedValue = hovering
+        }
+      }
+    }
+    .onChange(of: isEnabled) { _, newValue in
+      if !newValue && isHovering.wrappedValue {
+        withAnimation(.easeInOut(duration: EdgeNavigationLayoutMetrics.animationDuration)) {
+          isHovering.wrappedValue = false
+        }
+      }
+    }
+    .allowsHitTesting(isEnabled)
+  }
+
+  private enum EdgeSide {
+    case previous
+    case next
   }
 }

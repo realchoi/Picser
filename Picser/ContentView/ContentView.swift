@@ -310,6 +310,8 @@ struct ContentView: View {
       imageURLs: imageURLs,
       selectedImageURL: selectedImageURL,
       onOpen: openFileOrFolder,
+      onNavigatePrevious: navigateToPreviousImage,
+      onNavigateNext: navigateToNextImage,
       windowToken: activeWindowToken,
       showingExifInfo: $showingExifInfo,
       exifInfo: currentExifInfo,
@@ -332,6 +334,38 @@ struct ContentView: View {
 
   private func updateSidebarVisibility(for newURLs: [URL]) {
     sidebarVisibility = newURLs.isEmpty ? .detailOnly : .all
+  }
+
+  @MainActor
+  private func navigateToPreviousImage() {
+    // 使用统一的导航逻辑计算上一张图片索引，保持与键盘导航一致。
+    guard let current = selectedImageURL, let currentIndex = imageURLs.firstIndex(of: current),
+          let targetIndex = ImageNavigation.nextIndex(
+            for: .leftArrow,
+            mode: .leftRight,
+            currentIndex: currentIndex,
+            totalCount: imageURLs.count
+          ),
+          targetIndex < currentIndex else {
+      return
+    }
+    selectedImageURL = imageURLs[targetIndex]
+  }
+
+  @MainActor
+  private func navigateToNextImage() {
+    // 使用统一的导航逻辑计算下一张图片索引，保持与键盘导航一致。
+    guard let current = selectedImageURL, let currentIndex = imageURLs.firstIndex(of: current),
+          let targetIndex = ImageNavigation.nextIndex(
+            for: .rightArrow,
+            mode: .leftRight,
+            currentIndex: currentIndex,
+            totalCount: imageURLs.count
+          ),
+          targetIndex > currentIndex else {
+      return
+    }
+    selectedImageURL = imageURLs[targetIndex]
   }
 
   @MainActor
