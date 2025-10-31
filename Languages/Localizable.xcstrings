@@ -3933,7 +3933,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "试用剩余：%@"
+            "value": "试用剩余时间：%@"
           }
         }
       }
@@ -3949,7 +3949,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "订阅剩余时间：%@"
+            "value": "订阅有效期：%@"
           }
         }
       }
@@ -4407,13 +4407,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d day(s) and %d hour(s) remaining in trial"
+            "value": "%d day(s) %d hour(s) remaining"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "试用剩余 %d 天 %d 小时"
+            "value": "剩余 %d 天 %d 小时"
           }
         }
       }
@@ -4423,13 +4423,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d hour(s) and %d minute(s) remaining in trial"
+            "value": "%d hour(s) %d minute(s) remaining"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "试用剩余 %d 小时 %d 分钟"
+            "value": "剩余 %d 小时 %d 分钟"
           }
         }
       }
@@ -4439,13 +4439,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The trial is about to end"
+            "value": "Less than a minute remaining"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "试用即将结束"
+            "value": "剩余时间不足 1 分钟"
           }
         }
       }
@@ -4455,13 +4455,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d minute(s) remaining in trial"
+            "value": "%d minute(s) remaining"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "试用剩余 %d 分钟"
+            "value": "剩余 %d 分钟"
           }
         }
       }
