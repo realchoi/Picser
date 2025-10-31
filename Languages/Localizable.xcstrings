@@ -855,29 +855,45 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose how deletion is triggered. Pick Delete, Backspace, both, or disable the shortcut entirely."
+            "value": "Choose which keys to use for deleting images"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "选择删除操作使用的按键，可在下拉菜单中指定 Delete 键、Backspace 键、两者兼用或禁用快捷键。"
+            "value": "选择用于删除图片的按键"
           }
         }
       }
     },
-    "delete_shortcut_picker_label": {
+    "delete_primary_shortcut_label": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Delete key preference:"
+            "value": "Primary Delete Shortcut"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "删除按键偏好："
+            "value": "主要删除快捷键"
+          }
+        }
+      }
+    },
+    "delete_secondary_shortcut_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secondary Delete Shortcut"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "备用删除快捷键"
           }
         }
       }
@@ -1799,13 +1815,93 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Image Navigation Keys"
+            "value": "Image Navigation Shortcuts"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "图片切换按键"
+            "value": "图片切换快捷键"
+          }
+        }
+      }
+    },
+    "navigation_custom_option_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom (active)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义（当前）"
+          }
+        }
+      }
+    },
+    "navigate_previous_action_name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous Image"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上一张图片"
+          }
+        }
+      }
+    },
+    "navigate_next_action_name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Image"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一张图片"
+          }
+        }
+      }
+    },
+    "shortcut_conflict_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcut Already In Use"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快捷键已被占用"
+          }
+        }
+      }
+    },
+    "shortcut_conflict_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" is already assigned to \"%@\". Please choose a different combination."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” 已被“%@”使用，请选择其他组合。"
           }
         }
       }

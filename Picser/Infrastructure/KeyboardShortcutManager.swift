@@ -181,8 +181,11 @@ final class KeyboardShortcutManager {
     if NSApp.modalWindow != nil { return false }
 
     if let responder = window.firstResponder {
-      if responder is NSTextView { return false }
-      if let view = responder as? NSView, view.enclosingMenuItem != nil {
+      if let textView = responder as? NSTextView {
+        if textView.isEditable {
+          return false
+        }
+      } else if let view = responder as? NSView, view.enclosingMenuItem != nil {
         return false
       }
     }

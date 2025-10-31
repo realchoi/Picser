@@ -6,6 +6,7 @@
 
 import AppKit
 import SwiftUI
+import KeyboardShortcuts
 
 /// 负责处理 ContentView 级别的键盘事件，将视图状态读写逻辑和事件解析解耦。
 struct KeyboardShortcutHandler {
@@ -16,57 +17,17 @@ struct KeyboardShortcutHandler {
   let showingExifInfo: () -> Bool
   let setShowingExifInfo: (Bool) -> Void
   let performDelete: () -> Bool
+  let rotateCounterclockwise: () -> Void
+  let rotateClockwise: () -> Void
+  let mirrorHorizontal: () -> Void
+  let mirrorVertical: () -> Void
+  let resetTransform: () -> Void
 
   func handle(event: NSEvent) -> Bool {
     assert(Thread.isMainThread)
     guard event.type == .keyDown else { return false }
-    guard shouldHandle(event) else { return false }
-    if currentDeleteKeyCodes.contains(event.keyCode) {
-      return performDelete()
-    }
-    guard let key = keyEquivalent(from: event) else { return false }
-    return dispatch(key: key)
-  }
 
-  private var currentDeleteKeyCodes: Set<UInt16> {
-    appSettings.deleteShortcutPreference.keyCodes
-  }
-
-  private func shouldHandle(_ event: NSEvent) -> Bool {
-    let disallowedModifiers: NSEvent.ModifierFlags = [.command, .control, .option]
-    return event.modifierFlags.intersection(disallowedModifiers).isEmpty
-  }
-
-  private func keyEquivalent(from event: NSEvent) -> KeyEquivalent? {
-    if let special = event.specialKey {
-      switch special {
-      case .leftArrow: return .leftArrow
-      case .rightArrow: return .rightArrow
-      case .upArrow: return .upArrow
-      case .downArrow: return .downArrow
-      case .pageUp: return .pageUp
-      case .pageDown: return .pageDown
-      case .home: return .home
-      case .end: return .end
-      default:
-        break
-      }
-    }
-
-    if event.keyCode == 53 { // ESC
-      return .escape
-    }
-
-    if let chars = event.charactersIgnoringModifiers, let first = chars.first {
-      return KeyEquivalent(first)
-    }
-
-    return nil
-  }
-
-  private func dispatch(key: KeyEquivalent) -> Bool {
-    assert(Thread.isMainThread)
-    if key == .escape {
+    if event.keyCode == 53 { // Escape
       if showingExifInfo() {
         setShowingExifInfo(false)
         return true
@@ -74,26 +35,70 @@ struct KeyboardShortcutHandler {
       return false
     }
 
+    guard let eventShortcut = KeyboardShortcuts.Shortcut(event: event) else {
+      return false
+    }
+
+    if matches(action: .deletePrimary, eventShortcut) || matches(action: .deleteSecondary, eventShortcut) {
+      return performDelete()
+    }
+
+    if matches(action: .rotateCounterclockwise, eventShortcut) {
+      rotateCounterclockwise()
+      return true
+    }
+
+    if matches(action: .rotateClockwise, eventShortcut) {
+      rotateClockwise()
+      return true
+    }
+
+    if matches(action: .mirrorHorizontal, eventShortcut) {
+      mirrorHorizontal()
+      return true
+    }
+
+    if matches(action: .mirrorVertical, eventShortcut) {
+      mirrorVertical()
+      return true
+    }
+
+    if matches(action: .resetTransform, eventShortcut) {
+      resetTransform()
+      return true
+    }
+
+    if matches(action: .navigatePrevious, eventShortcut) {
+      return navigate(offset: -1)
+    }
+
+    if matches(action: .navigateNext, eventShortcut) {
+      return navigate(offset: 1)
+    }
+
+    return false
+  }
+
+  /// 判断输入事件是否匹配指定动作的快捷键。
+  private func matches(action: ShortcutAction, _ eventShortcut: KeyboardShortcuts.Shortcut) -> Bool {
+    guard let configured = appSettings.shortcut(for: action) else {
+      return false
+    }
+    return configured == eventShortcut
+  }
+
+  /// 根据偏移值进行图片导航，成功时返回 true。
+  private func navigate(offset: Int) -> Bool {
     let urls = imageURLs()
-    guard !urls.isEmpty, let current = selectedImageURL() else {
+    guard let current = selectedImageURL(),
+          let currentIndex = urls.firstIndex(of: current),
+          urls.count > 1 else {
       return false
     }
 
-    guard let currentIndex = urls.firstIndex(of: current) else {
-      return false
-    }
-
-    guard let targetIndex = ImageNavigation.nextIndex(
-      for: key,
-      mode: appSettings.imageNavigationKey,
-      currentIndex: currentIndex,
-      totalCount: urls.count
-    ) else {
-      return false
-    }
-
-    guard urls.indices.contains(targetIndex) else { return false }
-    setSelectedImage(urls[targetIndex])
+    let newIndex = (currentIndex + offset + urls.count) % urls.count
+    guard newIndex != currentIndex else { return false }
+    setSelectedImage(urls[newIndex])
     return true
   }
 }

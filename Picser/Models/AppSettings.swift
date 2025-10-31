@@ -7,6 +7,7 @@
 import AppKit
 import Foundation
 import SwiftUI
+import KeyboardShortcuts
 
 /// 键选择器协议，用于统一不同类型的键选择组件
 protocol KeySelectable: RawRepresentable, CaseIterable, Identifiable, Hashable
@@ -26,23 +27,6 @@ class AppSettings: ObservableObject {
   /// 拖拽快捷键（UserDefaults 存储）
   @AppStorage("panModifierKey") private var panModifierKeyStorage: String = ModifierKey.none
     .rawValue
-  /// 图片切换按键（UserDefaults 存储）
-  @AppStorage("imageNavigationKey") private var imageNavigationKeyStorage: String =
-    ImageNavigationKey.leftRight
-    .rawValue
-  /// 旋转/镜像 快捷键修饰键（UserDefaults 存储）
-  @AppStorage("rotateCCWModifierKey") private var rotateCCWModifierKeyStorage: String = ModifierKey.command.rawValue
-  @AppStorage("rotateCWModifierKey") private var rotateCWModifierKeyStorage: String = ModifierKey.command.rawValue
-  @AppStorage("mirrorHModifierKey") private var mirrorHModifierKeyStorage: String = ModifierKey.control.rawValue
-  @AppStorage("mirrorVModifierKey") private var mirrorVModifierKeyStorage: String = ModifierKey.control.rawValue
-  /// 旋转/镜像 快捷键基础键（UserDefaults 存储）
-  @AppStorage("rotateCCWBaseKey") private var rotateCCWBaseKeyStorage: String = ShortcutBaseKey.leftBracket.rawValue
-  @AppStorage("rotateCWBaseKey") private var rotateCWBaseKeyStorage: String = ShortcutBaseKey.rightBracket.rawValue
-  @AppStorage("mirrorHBaseKey") private var mirrorHBaseKeyStorage: String = ShortcutBaseKey.h.rawValue
-  @AppStorage("mirrorVBaseKey") private var mirrorVBaseKeyStorage: String = ShortcutBaseKey.v.rawValue
-  /// 重置图像变换 快捷键（修饰键 + 基础键）
-  @AppStorage("resetTransformModifierKey") private var resetTransformModifierKeyStorage: String = ModifierKey.option.rawValue
-  @AppStorage("resetTransformBaseKey") private var resetTransformBaseKeyStorage: String = ShortcutBaseKey.d0.rawValue
   /// 应用语言（UserDefaults 存储）
   @AppStorage("appLanguage") private var appLanguageStorage: String = AppLanguage.system
     .rawValue
@@ -50,7 +34,10 @@ class AppSettings: ObservableObject {
   @AppStorage("deleteConfirmationEnabled") private var deleteConfirmationEnabledStorage: Bool = true
   /// 删除快捷键偏好（UserDefaults 存储）
   @AppStorage("deleteShortcutPreference") private var deleteShortcutPreferenceStorage: String =
-    DeleteShortcutOption.both.rawValue
+    DeleteShortcutPreference.both.rawValue
+
+  /// KeyboardShortcuts 动作注册表，集中管理所有可配置快捷键。
+  private let shortcutCatalog = KeyboardShortcutCatalog.shared
 
   /// 缩放快捷键（UI 显示）
   @Published var zoomModifierKey: ModifierKey = .none {
@@ -64,43 +51,20 @@ class AppSettings: ObservableObject {
       panModifierKeyStorage = panModifierKey.rawValue
     }
   }
-  /// 图片切换按键（UI 显示）
-  @Published var imageNavigationKey: ImageNavigationKey = .leftRight {
+  private var isApplyingNavigationOption = false
+  private var isApplyingDeletePreference = false
+
+  /// 图片导航快捷键选项（UI 显示）
+  @Published var imageNavigationOption: NavigationShortcutOption = .leftRight {
     didSet {
-      imageNavigationKeyStorage = imageNavigationKey.rawValue
+      guard oldValue != imageNavigationOption else { return }
+      guard !isApplyingNavigationOption else { return }
+      if !applyNavigationShortcuts(option: imageNavigationOption) {
+        isApplyingNavigationOption = true
+        imageNavigationOption = oldValue
+        isApplyingNavigationOption = false
+      }
     }
-  }
-  /// 旋转/镜像 快捷键修饰键（UI 显示）
-  @Published var rotateCCWModifierKey: ModifierKey = .command {
-    didSet { rotateCCWModifierKeyStorage = rotateCCWModifierKey.rawValue }
-  }
-  @Published var rotateCWModifierKey: ModifierKey = .command {
-    didSet { rotateCWModifierKeyStorage = rotateCWModifierKey.rawValue }
-  }
-  @Published var mirrorHModifierKey: ModifierKey = .control {
-    didSet { mirrorHModifierKeyStorage = mirrorHModifierKey.rawValue }
-  }
-  @Published var mirrorVModifierKey: ModifierKey = .control {
-    didSet { mirrorVModifierKeyStorage = mirrorVModifierKey.rawValue }
-  }
-  @Published var resetTransformModifierKey: ModifierKey = .option {
-    didSet { resetTransformModifierKeyStorage = resetTransformModifierKey.rawValue }
-  }
-  /// 旋转/镜像 快捷键基础键（UI 显示）
-  @Published var rotateCCWBaseKey: ShortcutBaseKey = .leftBracket {
-    didSet { rotateCCWBaseKeyStorage = rotateCCWBaseKey.rawValue }
-  }
-  @Published var rotateCWBaseKey: ShortcutBaseKey = .rightBracket {
-    didSet { rotateCWBaseKeyStorage = rotateCWBaseKey.rawValue }
-  }
-  @Published var mirrorHBaseKey: ShortcutBaseKey = .h {
-    didSet { mirrorHBaseKeyStorage = mirrorHBaseKey.rawValue }
-  }
-  @Published var mirrorVBaseKey: ShortcutBaseKey = .v {
-    didSet { mirrorVBaseKeyStorage = mirrorVBaseKey.rawValue }
-  }
-  @Published var resetTransformBaseKey: ShortcutBaseKey = .d0 {
-    didSet { resetTransformBaseKeyStorage = resetTransformBaseKey.rawValue }
   }
   /// 应用语言（UI 显示）
   @Published var appLanguage: AppLanguage = .system {
@@ -114,9 +78,19 @@ class AppSettings: ObservableObject {
   @Published var deleteConfirmationEnabled: Bool = true {
     didSet { deleteConfirmationEnabledStorage = deleteConfirmationEnabled }
   }
-  /// 删除快捷键偏好（UI 显示）
-  @Published var deleteShortcutPreference: DeleteShortcutOption = .both {
-    didSet { deleteShortcutPreferenceStorage = deleteShortcutPreference.rawValue }
+  /// 删除快捷键偏好设置
+  @Published var deleteShortcutPreference: DeleteShortcutPreference = .both {
+    didSet {
+      guard oldValue != deleteShortcutPreference else { return }
+      guard !isApplyingDeletePreference else { return }
+      if applyDeleteShortcutPreference(deleteShortcutPreference) {
+        deleteShortcutPreferenceStorage = deleteShortcutPreference.rawValue
+      } else {
+        isApplyingDeletePreference = true
+        deleteShortcutPreference = oldValue
+        isApplyingDeletePreference = false
+      }
+    }
   }
 
   // MARK: - 显示设置
@@ -177,29 +151,24 @@ class AppSettings: ObservableObject {
 
   init() {
     // 从 UserDefaults 加载保存的修饰键值
+    AppSettings.migrateLegacyShortcuts()
     self.zoomModifierKey = ModifierKey(rawValue: zoomModifierKeyStorage) ?? .none
     self.panModifierKey = ModifierKey(rawValue: panModifierKeyStorage) ?? .none
-    self.imageNavigationKey = ImageNavigationKey(rawValue: imageNavigationKeyStorage) ?? .leftRight
+    self.imageNavigationOption = NavigationShortcutOption.fromCurrentShortcuts(
+      previous: KeyboardShortcuts.getShortcut(for: .navigatePrevious),
+      next: KeyboardShortcuts.getShortcut(for: .navigateNext)
+    )
     self.appLanguage = AppLanguage(rawValue: appLanguageStorage) ?? .system
-    self.rotateCCWModifierKey = ModifierKey(rawValue: rotateCCWModifierKeyStorage) ?? .command
-    self.rotateCWModifierKey = ModifierKey(rawValue: rotateCWModifierKeyStorage) ?? .command
-    self.mirrorHModifierKey = ModifierKey(rawValue: mirrorHModifierKeyStorage) ?? .control
-    self.mirrorVModifierKey = ModifierKey(rawValue: mirrorVModifierKeyStorage) ?? .control
-    self.resetTransformModifierKey = ModifierKey(rawValue: resetTransformModifierKeyStorage) ?? .option
-    self.rotateCCWBaseKey = ShortcutBaseKey(rawValue: rotateCCWBaseKeyStorage) ?? .leftBracket
-    self.rotateCWBaseKey = ShortcutBaseKey(rawValue: rotateCWBaseKeyStorage) ?? .rightBracket
-    self.mirrorHBaseKey = ShortcutBaseKey(rawValue: mirrorHBaseKeyStorage) ?? .h
-    self.mirrorVBaseKey = ShortcutBaseKey(rawValue: mirrorVBaseKeyStorage) ?? .v
-    self.resetTransformBaseKey = ShortcutBaseKey(rawValue: resetTransformBaseKeyStorage) ?? .d0
     self.deleteConfirmationEnabled = deleteConfirmationEnabledStorage
     self.deleteShortcutPreference =
-      DeleteShortcutOption(rawValue: deleteShortcutPreferenceStorage) ?? .both
+      DeleteShortcutPreference(rawValue: deleteShortcutPreferenceStorage) ?? .both
 
     // 初始化时同步语言设置到本地化管理器
     LocalizationManager.shared.setLanguage(self.appLanguage.rawValue)
 
     // 加载自定义裁剪比例
     loadCustomCropRatios()
+    deactivateAllShortcuts()
   }
 
   // MARK: - 公共方法
@@ -223,6 +192,67 @@ class AppSettings: ObservableObject {
     return errors
   }
 
+  /// 获取指定动作当前生效的快捷键，若用户未自定义则回落到默认值。
+  /// - Parameter action: 业务动作枚举值。
+  /// - Returns: 当前生效的快捷键，若无快捷键则返回 nil。
+  func shortcut(for action: ShortcutAction) -> KeyboardShortcuts.Shortcut? {
+    guard let definition = shortcutCatalog.definition(for: action) else { return nil }
+    return KeyboardShortcuts.getShortcut(for: definition.name)
+  }
+
+  enum ShortcutRecorderHandlingResult {
+    case accepted
+    case conflict(ShortcutAction)
+  }
+
+  /// 录制器回调触发时禁用全局监听并处理应用内冲突。
+  @discardableResult
+  func handleRecorderChange(
+    for action: ShortcutAction,
+    newShortcut: KeyboardShortcuts.Shortcut?,
+    previousShortcut: KeyboardShortcuts.Shortcut?
+  ) -> ShortcutRecorderHandlingResult {
+    guard let definition = shortcutCatalog.definition(for: action) else {
+      return .accepted
+    }
+
+    // 快捷键未变化时直接退出
+    if newShortcut == previousShortcut {
+      deactivateShortcut(for: action)
+      return .accepted
+    }
+
+    if let updatedShortcut = newShortcut,
+       let conflictAction = findAppLevelConflict(for: updatedShortcut, excluding: action)
+    {
+      restoreShortcut(previousShortcut, for: definition.name)
+      deactivateShortcut(for: action)
+      presentConflictAlert(conflictingAction: conflictAction, shortcut: updatedShortcut)
+      return .conflict(conflictAction)
+    }
+
+    deactivateShortcut(for: action)
+    if action == .navigatePrevious || action == .navigateNext {
+      imageNavigationOption = NavigationShortcutOption.fromCurrentShortcuts(
+        previous: KeyboardShortcuts.getShortcut(for: .navigatePrevious),
+        next: KeyboardShortcuts.getShortcut(for: .navigateNext)
+      )
+    }
+    return .accepted
+  }
+
+  /// 将所有可配置快捷键恢复到默认状态。
+  func resetKeyboardShortcutsToDefaults() {
+    objectWillChange.send()
+    for action in ShortcutAction.allCases {
+      guard let definition = shortcutCatalog.definition(for: action) else { continue }
+      KeyboardShortcuts.reset(definition.name)
+    }
+    imageNavigationOption = .leftRight
+    deleteShortcutPreference = .both
+    deactivateAllShortcuts()
+  }
+
   /// 检查快捷键是否匹配指定的修饰键
   func isModifierKeyPressed(_ modifierFlags: NSEvent.ModifierFlags, for keyType: ModifierKey)
     -> Bool
@@ -244,22 +274,10 @@ class AppSettings: ObservableObject {
     case .general:
       appLanguage = .system
       deleteConfirmationEnabled = true
-      deleteShortcutPreference = .both
     case .keyboard:
       zoomModifierKey = .none
       panModifierKey = .none
-      imageNavigationKey = .leftRight
-      rotateCCWModifierKey = .command
-      rotateCWModifierKey = .command
-      mirrorHModifierKey = .control
-      mirrorVModifierKey = .control
-      rotateCCWBaseKey = .leftBracket
-      rotateCWBaseKey = .rightBracket
-      mirrorHBaseKey = .h
-      mirrorVBaseKey = .v
-      resetTransformModifierKey = .option
-      resetTransformBaseKey = .d0
-      deleteShortcutPreference = .both
+      resetKeyboardShortcutsToDefaults()
     case .display:
       zoomSensitivity = 0.05
       minZoomScale = 0.1
@@ -301,6 +319,73 @@ enum SettingsTab: String, CaseIterable, Identifiable {
   case cache = "Cache"
 
   var id: String { rawValue }
+}
+
+/// 导航快捷键选项，覆盖应用支持的固定组合。
+enum NavigationShortcutOption: String, CaseIterable, Identifiable {
+  case leftRight
+  case upDown
+  case pageUpDown
+  case custom
+
+  var id: String { rawValue }
+
+  /// 对应本地化 key。
+  var localizedTitleKey: String {
+    switch self {
+    case .leftRight:
+      return "navigation_left_right"
+    case .upDown:
+      return "navigation_up_down"
+    case .pageUpDown:
+      return "navigation_page_up_down"
+    case .custom:
+      return "navigation_custom_option_label"
+    }
+  }
+
+  static func fromCurrentShortcuts(
+    previous: KeyboardShortcuts.Shortcut?,
+    next: KeyboardShortcuts.Shortcut?
+  ) -> NavigationShortcutOption {
+    if previous?.matches(key: .leftArrow, modifiers: []) == true,
+       next?.matches(key: .rightArrow, modifiers: []) == true {
+      return .leftRight
+    }
+    if previous?.matches(key: .upArrow, modifiers: []) == true,
+       next?.matches(key: .downArrow, modifiers: []) == true {
+      return .upDown
+    }
+    if previous?.matches(key: .pageUp, modifiers: []) == true,
+       next?.matches(key: .pageDown, modifiers: []) == true {
+      return .pageUpDown
+    }
+    return .custom
+  }
+}
+
+/// 删除快捷键选择项，提供预设组合
+enum DeleteShortcutPreference: String, CaseIterable, Identifiable {
+  case both
+  case backspace
+  case forwardDelete
+  case none
+
+  var id: String { rawValue }
+
+  /// Picker 文案对应的本地化 key
+  var localizedTitleKey: String {
+    switch self {
+    case .both:
+      return "delete_shortcut_option_both"
+    case .backspace:
+      return "delete_shortcut_option_backspace"
+    case .forwardDelete:
+      return "delete_shortcut_option_forward"
+    case .none:
+      return "delete_shortcut_option_none"
+    }
+  }
 }
 
 /// 定义修饰键枚举，用于快捷键设置
@@ -401,148 +486,217 @@ enum AppLanguage: String, CaseIterable, Identifiable, Hashable, KeySelectable {
   }
 }
 
-/// 定义图片切换按键枚举，用于图片导航设置
-enum ImageNavigationKey: String, CaseIterable, Identifiable, Hashable, KeySelectable {
-  case leftRight = "leftRight"  // 左右方向键（默认）
-  case upDown = "upDown"  // 上下方向键
-  case pageUpDown = "pageUpDown"  // PageUp/PageDown
+extension AppSettings {
+  /// 根据业务选项应用固定的导航快捷键组合。
+  func applyNavigationShortcuts(option: NavigationShortcutOption) -> Bool {
+    guard option != .custom else { return true }
 
-  var id: String { rawValue }
+    let assignments: [(ShortcutAction, KeyboardShortcuts.Shortcut?)] = {
+      switch option {
+      case .leftRight:
+        return [
+          (.navigatePrevious, KeyboardShortcuts.Shortcut(.leftArrow)),
+          (.navigateNext, KeyboardShortcuts.Shortcut(.rightArrow)),
+        ]
+      case .upDown:
+        return [
+          (.navigatePrevious, KeyboardShortcuts.Shortcut(.upArrow)),
+          (.navigateNext, KeyboardShortcuts.Shortcut(.downArrow)),
+        ]
+      case .pageUpDown:
+        return [
+          (.navigatePrevious, KeyboardShortcuts.Shortcut(.pageUp)),
+          (.navigateNext, KeyboardShortcuts.Shortcut(.pageDown)),
+        ]
+      case .custom:
+        return []
+      }
+    }()
 
-  /// 图片切换按键显示名称
-  var displayName: String {
-    switch self {
-    case .leftRight:
-      return L10n.string("navigation_left_right")
-    case .upDown:
-      return L10n.string("navigation_up_down")
-    case .pageUpDown:
-      return L10n.string("navigation_page_up_down")
-    }
+    return applyShortcutAssignments(assignments)
   }
 
-  /// 返回用户可选择的图片切换按键选项
-  static func availableKeys() -> [ImageNavigationKey] {
-    return [.leftRight, .upDown, .pageUpDown]
+  /// 根据用户偏好应用删除快捷键组合。
+  private func applyDeleteShortcutPreference(_ preference: DeleteShortcutPreference) -> Bool {
+    let assignments: [(ShortcutAction, KeyboardShortcuts.Shortcut?)] = {
+      switch preference {
+      case .both:
+        return [
+          (.deletePrimary, KeyboardShortcuts.Shortcut(.delete)),
+          (.deleteSecondary, KeyboardShortcuts.Shortcut(.deleteForward)),
+        ]
+      case .backspace:
+        return [
+          (.deletePrimary, KeyboardShortcuts.Shortcut(.delete)),
+          (.deleteSecondary, nil),
+        ]
+      case .forwardDelete:
+        return [
+          (.deletePrimary, KeyboardShortcuts.Shortcut(.deleteForward)),
+          (.deleteSecondary, nil),
+        ]
+      case .none:
+        return [
+          (.deletePrimary, nil),
+          (.deleteSecondary, nil),
+        ]
+      }
+    }()
+
+    return applyShortcutAssignments(assignments)
+  }
+
+  /// 提供快捷键的展示文本，供菜单或提示使用。
+  func formattedShortcutDescription(for action: ShortcutAction) -> String? {
+    guard let shortcut = shortcut(for: action) else { return nil }
+    if Thread.isMainThread {
+      return MainActor.assumeIsolated {
+        shortcut.description
+      }
+    } else {
+      return DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
+          shortcut.description
+        }
+      }
+    }
   }
 }
 
-/// 删除快捷键选项，控制支持的删除按键组合
-enum DeleteShortcutOption: String, CaseIterable, Identifiable, Hashable, KeySelectable {
-  case none = "none"
-  case deleteKey = "deleteKey"
-  case backspace = "backspace"
-  case both = "both"
-
-  var id: String { rawValue }
-
-  var displayName: String {
-    switch self {
-    case .none:
-      return L10n.string("delete_shortcut_option_none")
-    case .deleteKey:
-      return L10n.string("delete_shortcut_option_forward")
-    case .backspace:
-      return L10n.string("delete_shortcut_option_backspace")
-    case .both:
-      return L10n.string("delete_shortcut_option_both")
-    }
-  }
-
-  static func availableKeys() -> [DeleteShortcutOption] {
-    return [.none, .deleteKey, .backspace, .both]
-  }
-
-  /// 返回对应的按键 keyCode 集合
-  var keyCodes: Set<UInt16> {
-    switch self {
-    case .none:
-      return []
-    case .deleteKey:
-      return [UInt16(117)]
-    case .backspace:
-      return [UInt16(51)]
-    case .both:
-      return [UInt16(51), UInt16(117)]
-    }
+private extension KeyboardShortcuts.Shortcut {
+  /// 判断快捷键是否匹配指定按键与修饰键组合。
+  func matches(key: KeyboardShortcuts.Key, modifiers: NSEvent.ModifierFlags) -> Bool {
+    self.key == key && self.modifiers == modifiers
   }
 }
 
-/// 变换动作的基础键选择（字母/数字/常用符号）
-enum ShortcutBaseKey: String, CaseIterable, Identifiable, Hashable, KeySelectable {
-  // 常用符号
-  case leftBracket = "["
-  case rightBracket = "]"
-  case minus = "-"
-  case equal = "="
-  case semicolon = ";"
-  case quote = "'"
-  case comma = ","
-  case period = "."
-  case slash = "/"
+private extension AppSettings {
+  /// 禁用指定动作在 KeyboardShortcuts 中的全局注册，避免后台劫持按键。
+  func deactivateShortcut(for action: ShortcutAction) {
+    guard let definition = shortcutCatalog.definition(for: action) else { return }
+    KeyboardShortcuts.disable([definition.name])
+  }
 
-  // 字母（仅列出常用 + 备选）
-  case h = "h"
-  case v = "v"
-  case r = "r"
-  case l = "l"
-  case f = "f"
-  case m = "m"
-  case a = "a"
-  case b = "b"
-  case c = "c"
-  case d = "d"
-  case e = "e"
-  case g = "g"
-  case i = "i"
-  case j = "j"
-  case k = "k"
-  case n = "n"
-  case o = "o"
-  case p = "p"
-  case q = "q"
-  case s = "s"
-  case t = "t"
-  case u = "u"
-  case w = "w"
-  case x = "x"
-  case y = "y"
-  case z = "z"
+  /// 禁用所有自定义快捷键的全局注册。
+  func deactivateAllShortcuts() {
+    let names = shortcutCatalog.definitions.values.map(\.name)
+    KeyboardShortcuts.disable(names)
+  }
 
-  // 数字
-  case d0 = "0"
-  case d1 = "1"
-  case d2 = "2"
-  case d3 = "3"
-  case d4 = "4"
-  case d5 = "5"
-  case d6 = "6"
-  case d7 = "7"
-  case d8 = "8"
-  case d9 = "9"
-
-  var id: String { rawValue }
-
-  var displayName: String {
-    // 直接显示字符；字母转大写增强辨识度
-    if let ch = rawValue.first, ch.isLetter {
-      return String(ch).uppercased()
+  /// 查找与目标快捷键冲突的内部动作。
+  func findAppLevelConflict(
+    for targetShortcut: KeyboardShortcuts.Shortcut,
+    excluding action: ShortcutAction,
+    additionalIgnored: Set<ShortcutAction> = []
+  ) -> ShortcutAction? {
+    let ignored = additionalIgnored.union([action])
+    for candidate in ShortcutAction.allCases where !ignored.contains(candidate) {
+      guard let otherShortcut = shortcut(for: candidate) else { continue }
+      if otherShortcut == targetShortcut {
+        return candidate
+      }
     }
-    return rawValue
+    return nil
   }
 
-  static func availableKeys() -> [ShortcutBaseKey] {
-    // 合理排序：符号 -> 字母 -> 数字
-    return [
-      .leftBracket, .rightBracket, .minus, .equal, .semicolon, .quote, .comma, .period, .slash,
-      .h, .v, .r, .l, .f, .m, .a, .b, .c, .d, .e, .g, .i, .j, .k, .n, .o, .p, .q, .s, .t, .u, .w, .x, .y, .z,
-      .d0, .d1, .d2, .d3, .d4, .d5, .d6, .d7, .d8, .d9,
-    ]
+  /// 恢复录制器到原有值（或清空）。
+  func restoreShortcut(
+    _ shortcut: KeyboardShortcuts.Shortcut?,
+    for name: KeyboardShortcuts.Name
+  ) {
+    KeyboardShortcuts.setShortcut(shortcut, for: name)
   }
 
-  /// 对应 SwiftUI 的 KeyEquivalent
-  var keyEquivalent: KeyEquivalent {
-    let ch = Character(rawValue)
-    return KeyEquivalent(ch)
+  /// 弹窗提示应用内快捷键冲突。
+  func presentConflictAlert(conflictingAction: ShortcutAction, shortcut: KeyboardShortcuts.Shortcut)
+  {
+    let title = L10n.string("shortcut_conflict_title")
+    let message = String(
+      format: L10n.string("shortcut_conflict_message"),
+      shortcutDisplayText(shortcut),
+      conflictingAction.localizedDisplayName
+    )
+    let window = NSApp.keyWindow ?? NSApp.mainWindow
+    presentAlert(title: title, message: message, window: window)
+  }
+
+  /// 统一创建并展示警告对话框。
+  func presentAlert(title: String, message: String, window: NSWindow?) {
+    let presentBlock = {
+      let alert = NSAlert()
+      alert.alertStyle = .warning
+      alert.messageText = title
+      alert.informativeText = message
+      alert.addButton(withTitle: L10n.string("ok_button"))
+      if let window {
+        alert.beginSheetModal(for: window, completionHandler: nil)
+      } else {
+        alert.runModal()
+      }
+    }
+
+    if Thread.isMainThread {
+      presentBlock()
+    } else {
+      DispatchQueue.main.async(execute: presentBlock)
+    }
+  }
+
+  /// 线程安全地获取快捷键描述文本。
+  func shortcutDisplayText(_ shortcut: KeyboardShortcuts.Shortcut) -> String {
+    if Thread.isMainThread {
+      return MainActor.assumeIsolated { shortcut.description }
+    } else {
+      return DispatchQueue.main.sync {
+        MainActor.assumeIsolated { shortcut.description }
+      }
+    }
+  }
+
+  /// 迁移旧版本中使用 Control 组合的镜像快捷键，避免冲突系统默认行为。
+  static func migrateLegacyShortcuts() {
+    let legacyHorizontal = KeyboardShortcuts.Shortcut(.h, modifiers: [.control])
+    let legacyVertical = KeyboardShortcuts.Shortcut(.v, modifiers: [.control])
+    let newHorizontal = KeyboardShortcuts.Shortcut(.h, modifiers: [.command, .shift])
+    let newVertical = KeyboardShortcuts.Shortcut(.v, modifiers: [.command, .shift])
+
+    if KeyboardShortcuts.getShortcut(for: .mirrorHorizontal) == legacyHorizontal {
+      KeyboardShortcuts.setShortcut(newHorizontal, for: .mirrorHorizontal)
+      KeyboardShortcuts.disable([.mirrorHorizontal])
+    }
+    if KeyboardShortcuts.getShortcut(for: .mirrorVertical) == legacyVertical {
+      KeyboardShortcuts.setShortcut(newVertical, for: .mirrorVertical)
+      KeyboardShortcuts.disable([.mirrorVertical])
+    }
+  }
+  /// 批量检测冲突并写入快捷键，若成功返回 true，否则提示并返回 false。
+  func applyShortcutAssignments(
+    _ assignments: [(ShortcutAction, KeyboardShortcuts.Shortcut?)],
+    conflictMessageOverride: ((KeyboardShortcuts.Shortcut, ShortcutAction) -> Void)? = nil
+  ) -> Bool {
+    let actionsToUpdate = Set(assignments.map(\.0))
+    for (action, maybeShortcut) in assignments {
+      guard let combo = maybeShortcut else { continue }
+      if let conflict = findAppLevelConflict(
+        for: combo,
+        excluding: action,
+        additionalIgnored: actionsToUpdate.subtracting([action])
+      ) {
+        if let customHandler = conflictMessageOverride {
+          customHandler(combo, conflict)
+        } else {
+          presentConflictAlert(conflictingAction: conflict, shortcut: combo)
+        }
+        return false
+      }
+    }
+
+    objectWillChange.send()
+    for (action, maybeShortcut) in assignments {
+      guard let definition = shortcutCatalog.definition(for: action) else { continue }
+      KeyboardShortcuts.setShortcut(maybeShortcut, for: definition.name)
+      deactivateShortcut(for: action)
+    }
+    return true
   }
 }

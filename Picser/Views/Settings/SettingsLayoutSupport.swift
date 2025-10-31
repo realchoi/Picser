@@ -44,7 +44,7 @@ private struct SettingsScrollContainer: ViewModifier {
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding()
         }
-        .scrollIndicators(.visible)
+        .scrollIndicators(.automatic)
       } else {
         content
           .frame(maxWidth: .infinity, alignment: .topLeading)

@@ -66,61 +66,75 @@ struct AppCommands: Commands {
     // Note: System provides the standard Settings… (⌘,) via Settings scene
 
     CommandMenu(L10n.string("image_menu")) {
-      Button {
+      commandMenuButton(
+        title: L10n.string("rotate_ccw_button"),
+        systemImage: "rotate.left",
+        shortcut: appSettings.formattedShortcutDescription(for: .rotateCounterclockwise)
+      ) {
         windowCommands?.rotateCCW()
-      } label: {
-        Label(L10n.string("rotate_ccw_button"), systemImage: "rotate.left")
       }
-      .keyboardShortcut(appSettings.rotateCCWBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.rotateCCWModifierKey))
       .disabled(windowCommands == nil)
 
-      Button {
+      commandMenuButton(
+        title: L10n.string("rotate_cw_button"),
+        systemImage: "rotate.right",
+        shortcut: appSettings.formattedShortcutDescription(for: .rotateClockwise)
+      ) {
         windowCommands?.rotateCW()
-      } label: {
-        Label(L10n.string("rotate_cw_button"), systemImage: "rotate.right")
       }
-      .keyboardShortcut(appSettings.rotateCWBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.rotateCWModifierKey))
       .disabled(windowCommands == nil)
 
       Divider()
 
-      Button {
+      commandMenuButton(
+        title: L10n.string("mirror_horizontal_button"),
+        systemImage: "arrow.left.and.right",
+        shortcut: appSettings.formattedShortcutDescription(for: .mirrorHorizontal)
+      ) {
         windowCommands?.mirrorHorizontal()
-      } label: {
-        Label(L10n.string("mirror_horizontal_button"), systemImage: "arrow.left.and.right")
       }
-      .keyboardShortcut(appSettings.mirrorHBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.mirrorHModifierKey))
       .disabled(windowCommands == nil)
 
-      Button {
+      commandMenuButton(
+        title: L10n.string("mirror_vertical_button"),
+        systemImage: "arrow.up.and.down",
+        shortcut: appSettings.formattedShortcutDescription(for: .mirrorVertical)
+      ) {
         windowCommands?.mirrorVertical()
-      } label: {
-        Label(L10n.string("mirror_vertical_button"), systemImage: "arrow.up.and.down")
       }
-      .keyboardShortcut(appSettings.mirrorVBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.mirrorVModifierKey))
       .disabled(windowCommands == nil)
 
       Divider()
 
-      Button {
+      commandMenuButton(
+        title: L10n.string("reset_transform_button"),
+        systemImage: "arrow.uturn.backward",
+        shortcut: appSettings.formattedShortcutDescription(for: .resetTransform)
+      ) {
         windowCommands?.resetTransform()
-      } label: {
-        Label(L10n.string("reset_transform_button"), systemImage: "arrow.uturn.backward")
       }
-      .keyboardShortcut(appSettings.resetTransformBaseKey.keyEquivalent, modifiers: modifiers(for: appSettings.resetTransformModifierKey))
       .disabled(windowCommands == nil)
     }
 
   }
 
-  // Convert our ModifierKey to SwiftUI EventModifiers
-  private func modifiers(for key: ModifierKey) -> EventModifiers {
-    switch key {
-    case .none: return []
-    case .command: return [.command]
-    case .option: return [.option]
-    case .control: return [.control]
-    case .shift: return [.shift]
+  /// 构建带有快捷键信息的菜单按钮。
+  private func commandMenuButton(
+    title: String,
+    systemImage: String,
+    shortcut: String?,
+    action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      HStack {
+        Label(title, systemImage: systemImage)
+        if let shortcut {
+          Spacer(minLength: 12)
+          Text(shortcut)
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+      }
     }
   }
 }

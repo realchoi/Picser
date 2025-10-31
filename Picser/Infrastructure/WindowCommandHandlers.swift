@@ -15,6 +15,9 @@ struct WindowCommandHandlers {
   let mirrorHorizontal: () -> Void
   let mirrorVertical: () -> Void
   let resetTransform: () -> Void
+  let navigatePrevious: () -> Void
+  let navigateNext: () -> Void
+  let deleteSelection: () -> Void
   let openResolvedURL: (URL) -> Void
 }
 

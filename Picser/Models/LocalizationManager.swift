@@ -4,6 +4,7 @@
 //  Created by Eric Cai on 2025/09/06.
 //
 
+import CoreFoundation
 import Foundation
 import SwiftUI
 
@@ -56,6 +57,9 @@ class LocalizationManager: ObservableObject {
     } else {
       currentBundle = Bundle.main
     }
+
+    // 同步 AppleLanguages，确保依赖 NSLocalizableString 的第三方库使用相同语言
+    synchronizeAppleLanguages(with: localeIdentifier)
   }
 
   /// 根据当前语言标识解析 Locale 信息（兼容跟随系统的场景）
@@ -82,6 +86,44 @@ class LocalizationManager: ObservableObject {
   /// 获取本地化字符串
   func localizedString(_ key: String, table: String? = nil, comment: String = "") -> String {
     return currentBundle.localizedString(forKey: key, value: nil, table: table)
+  }
+
+  /// 将当前应用语言同步到 `AppleLanguages`，便于第三方库读取一致语言。
+  func synchronizeAppleLanguages(with identifier: String?) {
+    var languages = Locale.preferredLanguages
+
+    if let identifier {
+      languages.removeAll(where: { $0.caseInsensitiveCompare(identifier) == .orderedSame })
+      languages.insert(identifier, at: 0)
+    }
+
+    if languages.isEmpty {
+      languages = [Locale.current.identifier]
+    }
+
+    func apply(to defaults: UserDefaults?) {
+      guard let defaults else { return }
+      let existingLanguages = defaults.array(forKey: "AppleLanguages") as? [String]
+      if existingLanguages != languages {
+        defaults.set(languages, forKey: "AppleLanguages")
+      }
+      if let identifier {
+        if defaults.string(forKey: "AppleLocale") != identifier {
+          defaults.set(identifier, forKey: "AppleLocale")
+        }
+      } else if defaults.object(forKey: "AppleLocale") != nil {
+        defaults.removeObject(forKey: "AppleLocale")
+      }
+      defaults.synchronize()
+    }
+
+    apply(to: .standard)
+
+    CFNotificationCenterPostNotification(CFNotificationCenterGetDistributedCenter(),
+      CFNotificationName("AppleLanguagePreferencesChanged" as CFString),
+      nil,
+      nil,
+      true)
   }
 }
 

@@ -73,7 +73,12 @@ struct ContentView: View {
       setSelectedImage: { selectedImageURL = $0 },
       showingExifInfo: { showingExifInfo },
       setShowingExifInfo: { showingExifInfo = $0 },
-      performDelete: { handleDeleteShortcut() }
+      performDelete: { handleDeleteShortcut() },
+      rotateCounterclockwise: { rotateCCW() },
+      rotateClockwise: { rotateCW() },
+      mirrorHorizontal: { mirrorHorizontal() },
+      mirrorVertical: { mirrorVertical() },
+      resetTransform: { resetTransform() }
     )
   }
 
@@ -86,6 +91,9 @@ struct ContentView: View {
       mirrorHorizontal: { mirrorHorizontal() },
       mirrorVertical: { mirrorVertical() },
       resetTransform: { resetTransform() },
+      navigatePrevious: { navigateToPreviousImage() },
+      navigateNext: { navigateToNextImage() },
+      deleteSelection: { _ = handleDeleteShortcut() },
       openResolvedURL: { url in openResolvedURL(url) }
     )
   }
@@ -338,34 +346,22 @@ struct ContentView: View {
 
   @MainActor
   private func navigateToPreviousImage() {
-    // 使用统一的导航逻辑计算上一张图片索引，保持与键盘导航一致。
-    guard let current = selectedImageURL, let currentIndex = imageURLs.firstIndex(of: current),
-          let targetIndex = ImageNavigation.nextIndex(
-            for: .leftArrow,
-            mode: .leftRight,
-            currentIndex: currentIndex,
-            totalCount: imageURLs.count
-          ),
-          targetIndex < currentIndex else {
+    guard let current = selectedImageURL,
+          let currentIndex = imageURLs.firstIndex(of: current),
+          currentIndex > 0 else {
       return
     }
-    selectedImageURL = imageURLs[targetIndex]
+    selectedImageURL = imageURLs[currentIndex - 1]
   }
 
   @MainActor
   private func navigateToNextImage() {
-    // 使用统一的导航逻辑计算下一张图片索引，保持与键盘导航一致。
-    guard let current = selectedImageURL, let currentIndex = imageURLs.firstIndex(of: current),
-          let targetIndex = ImageNavigation.nextIndex(
-            for: .rightArrow,
-            mode: .leftRight,
-            currentIndex: currentIndex,
-            totalCount: imageURLs.count
-          ),
-          targetIndex > currentIndex else {
+    guard let current = selectedImageURL,
+          let currentIndex = imageURLs.firstIndex(of: current),
+          currentIndex < imageURLs.count - 1 else {
       return
     }
-    selectedImageURL = imageURLs[targetIndex]
+    selectedImageURL = imageURLs[currentIndex + 1]
   }
 
   @MainActor

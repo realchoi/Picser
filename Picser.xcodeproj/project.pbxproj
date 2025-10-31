@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		079B0BA72EB48431004682FD /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 079B0BA62EB48431004682FD /* KeyboardShortcuts */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		07A3FBFA2E5324E800CF5188 /* Picser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Picser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -41,6 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				079B0BA72EB48431004682FD /* KeyboardShortcuts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,6 +90,7 @@
 			);
 			name = Picser;
 			packageProductDependencies = (
+				079B0BA62EB48431004682FD /* KeyboardShortcuts */,
 			);
 			productName = Picser;
 			productReference = 07A3FBFA2E5324E800CF5188 /* Picser.app */;
@@ -116,6 +122,7 @@
 			mainGroup = 07A3FBF12E5324E800CF5188;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				079B0BA52EB48431004682FD /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 07A3FBFB2E5324E800CF5188 /* Products */;
@@ -386,6 +393,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		079B0BA52EB48431004682FD /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		079B0BA62EB48431004682FD /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 079B0BA52EB48431004682FD /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 07A3FBF22E5324E800CF5188 /* Project object */;
 }

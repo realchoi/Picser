@@ -5,301 +5,224 @@
 //
 
 import SwiftUI
+import KeyboardShortcuts
 
 // 快捷键设置页面
 struct KeyboardSettingsView: View {
   @ObservedObject var appSettings: AppSettings
+  @ObservedObject private var localizationManager = LocalizationManager.shared
   /// 标签列固定宽度，保证主控件对齐且不触发复杂的自适应测量
   private let labelColumnWidth: CGFloat = 180
-
+  /// KeyboardShortcuts 录制器在界面上的最小宽度，确保按钮内容不被裁剪
+  private let recorderMinWidth: CGFloat = 220
+  /// 统一的快捷键定义表，便于在 View 内获取 Name 等信息
+  private let shortcutCatalog = KeyboardShortcutCatalog.shared
+  /// 缓存各动作的当前快捷键，支持冲突时恢复
+  @State private var cachedShortcuts: [ShortcutAction: KeyboardShortcuts.Shortcut?] = [:]
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
-      Text(l10n: "keyboard_settings_title")
-        .font(.title2)
-        .fontWeight(.semibold)
-
+      headerSection
       Divider()
-
-      // 缩放快捷键设置
-      VStack(alignment: .leading, spacing: 8) {
-        Text(l10n: "zoom_shortcut_label")
-          .fontWeight(.medium)
-        Text(l10n: "zoom_shortcut_description")
-          .font(.caption)
-          .foregroundColor(.secondary)
-
-        KeyPickerView(selectedKey: $appSettings.zoomModifierKey)
-      }
-
+      zoomSection
       Divider()
-
-      // 拖拽快捷键设置
-      VStack(alignment: .leading, spacing: 8) {
-        Text(l10n: "pan_shortcut_label")
-          .fontWeight(.medium)
-        Text(l10n: "pan_shortcut_description")
-          .font(.caption)
-          .foregroundColor(.secondary)
-
-        KeyPickerView(selectedKey: $appSettings.panModifierKey)
-      }
-
+      panSection
       Divider()
-
-      // 图片切换按键设置
-      VStack(alignment: .leading, spacing: 8) {
-        Text(l10n: "image_navigation_label")
-          .fontWeight(.medium)
-        Text(l10n: "image_navigation_description")
-          .font(.caption)
-          .foregroundColor(.secondary)
-
-        KeyPickerView(selectedKey: $appSettings.imageNavigationKey)
-      }
-
+      navigationSection
       Divider()
-
-      // 图像变换快捷键设置
-      VStack(alignment: .leading, spacing: 12) {
-        Text(l10n: "transform_shortcuts_title")
-          .fontWeight(.medium)
-
-        shortcutRow(
-          label: L10n.string("rotate_ccw_shortcut_label"),
-          base: $appSettings.rotateCCWBaseKey,
-          modifier: $appSettings.rotateCCWModifierKey
-        )
-        shortcutRow(
-          label: L10n.string("rotate_cw_shortcut_label"),
-          base: $appSettings.rotateCWBaseKey,
-          modifier: $appSettings.rotateCWModifierKey
-        )
-        shortcutRow(
-          label: L10n.string("mirror_horizontal_shortcut_label"),
-          base: $appSettings.mirrorHBaseKey,
-          modifier: $appSettings.mirrorHModifierKey
-        )
-        shortcutRow(
-          label: L10n.string("mirror_vertical_shortcut_label"),
-          base: $appSettings.mirrorVBaseKey,
-          modifier: $appSettings.mirrorVModifierKey
-        )
-        shortcutRow(
-          label: L10n.string("reset_transform_shortcut_label"),
-          base: $appSettings.resetTransformBaseKey,
-          modifier: $appSettings.resetTransformModifierKey
-        )
-
-        if hasTransformShortcutConflict {
-          HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-              .foregroundColor(.orange)
-            VStack(alignment: .leading, spacing: 4) {
-              Text(l10n: "transform_shortcut_conflict")
-                .foregroundColor(.orange)
-                .font(.callout)
-              ForEach(duplicateConflictItems(), id: \.self) { line in
-                Text("• \(line)")
-                  .foregroundColor(.orange)
-                  .font(.caption)
-              }
-            }
-          }
-          .padding(.top, 6)
-        }
-
-        if hasReservedShortcutUsage {
-          HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.octagon.fill")
-              .foregroundColor(.red)
-            VStack(alignment: .leading, spacing: 4) {
-              Text(l10n: "transform_shortcut_reserved")
-                .foregroundColor(.red)
-                .font(.callout)
-              ForEach(reservedConflictItems(), id: \.self) { line in
-                Text("• \(line)")
-                  .foregroundColor(.red)
-                  .font(.caption)
-              }
-            }
-          }
-        }
-      }
-
+      transformSection
       Divider()
-
-      // 删除操作快捷键设置
-      VStack(alignment: .leading, spacing: 8) {
-        Text(l10n: "delete_shortcut_section_title")
-          .fontWeight(.medium)
-
-        Text(l10n: "delete_shortcut_section_description")
-          .font(.caption)
-          .foregroundColor(.secondary)
-
-        HStack(spacing: 12) {
-          Text(l10n: "delete_shortcut_picker_label")
-            .frame(width: labelColumnWidth, alignment: .leading)
-          Picker("", selection: $appSettings.deleteShortcutPreference) {
-            ForEach(DeleteShortcutOption.availableKeys(), id: \.self) { option in
-              Text(option.displayName).tag(option)
-            }
-          }
-          .pickerStyle(.menu)
-          .frame(minWidth: 200)
-        }
-
-        Toggle(isOn: $appSettings.deleteConfirmationEnabled) {
-          Text(l10n: "delete_confirmation_toggle")
-            .fontWeight(.medium)
-        }
-        .toggleStyle(.checkbox)
-
-        Text(l10n: "delete_confirmation_description")
-          .font(.caption)
-          .foregroundColor(.secondary)
-      }
-
+      deleteSection
       Spacer().frame(height: 20)
-
-      // 重置按钮
-      HStack {
-        Spacer()
-        Button(L10n.key("reset_defaults_button")) {
-          withAnimation {
-            appSettings.resetToDefaults(settingsTab: .keyboard)
-          }
-        }
-        .buttonStyle(.bordered)
-      }
+      resetSection
     }
     .frame(maxWidth: .infinity, alignment: .topLeading)
     .settingsContentContainer()
+    .onAppear {
+      populateShortcutCache()
+    }
+    .onChange(of: appSettings.deleteShortcutPreference) { _, _ in
+      populateShortcutCache(for: [.deletePrimary, .deleteSecondary])
+    }
+    .onChange(of: appSettings.imageNavigationOption) { _, _ in
+      populateShortcutCache(for: [.navigatePrevious, .navigateNext])
+    }
   }
-}
 
-// MARK: - Helpers (conflict detection)
-extension KeyboardSettingsView {
-  /// 构建单行快捷键设置（标签 + 基础键 + 修饰键）
-  @ViewBuilder
-  private func shortcutRow(
-    label: String,
-    base: Binding<ShortcutBaseKey>,
-    modifier: Binding<ModifierKey>
-  ) -> some View {
-    HStack(spacing: 8) {
-      Text(label)
-        .frame(width: labelColumnWidth, alignment: .leading)
-      KeyPickerView(selectedKey: base)
-      Text("+")
+  /// 页面标题
+  private var headerSection: some View {
+    Text(l10n: "keyboard_settings_title")
+      .font(.title2)
+      .fontWeight(.semibold)
+  }
+
+  /// 缩放手势修饰键配置
+  private var zoomSection: some View {
+    labelledPickerRow(
+      labelKey: "zoom_shortcut_label",
+      descriptionKey: "zoom_shortcut_description"
+    ) {
+      KeyPickerView(selectedKey: $appSettings.zoomModifierKey)
+    }
+  }
+
+  /// 拖拽手势修饰键配置
+  private var panSection: some View {
+    labelledPickerRow(
+      labelKey: "pan_shortcut_label",
+      descriptionKey: "pan_shortcut_description"
+    ) {
+      KeyPickerView(selectedKey: $appSettings.panModifierKey)
+    }
+  }
+
+  /// 图片导航快捷键配置
+  private var navigationSection: some View {
+    labelledPickerRow(
+      labelKey: "image_navigation_label",
+      descriptionKey: "image_navigation_description"
+    ) {
+      Picker("", selection: $appSettings.imageNavigationOption) {
+        ForEach(
+          [NavigationShortcutOption.leftRight, .upDown, .pageUpDown],
+          id: \.self
+        ) { option in
+          Text(l10n: option.localizedTitleKey).tag(option)
+        }
+        if appSettings.imageNavigationOption == .custom {
+          Text(l10n: NavigationShortcutOption.custom.localizedTitleKey)
+            .tag(NavigationShortcutOption.custom)
+            .disabled(true)
+        }
+      }
+      .pickerStyle(.menu)
+    }
+  }
+
+  /// 图像变换相关快捷键配置
+  private var transformSection: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text(l10n: "transform_shortcuts_title")
+        .fontWeight(.medium)
+
+      recorderRow(labelKey: "rotate_ccw_shortcut_label", action: .rotateCounterclockwise)
+      recorderRow(labelKey: "rotate_cw_shortcut_label", action: .rotateClockwise)
+      recorderRow(labelKey: "mirror_horizontal_shortcut_label", action: .mirrorHorizontal)
+      recorderRow(labelKey: "mirror_vertical_shortcut_label", action: .mirrorVertical)
+      recorderRow(labelKey: "reset_transform_shortcut_label", action: .resetTransform)
+    }
+  }
+
+  /// 删除操作快捷键配置
+  private var deleteSection: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      labelledPickerRow(
+        labelKey: "delete_shortcut_section_title",
+        descriptionKey: "delete_shortcut_section_description"
+      ) {
+        Picker("", selection: $appSettings.deleteShortcutPreference) {
+          ForEach(DeleteShortcutPreference.allCases, id: \.self) { option in
+            Text(l10n: option.localizedTitleKey).tag(option)
+          }
+        }
+        .pickerStyle(.menu)
+      }
+
+      Toggle(isOn: $appSettings.deleteConfirmationEnabled) {
+        Text(l10n: "delete_confirmation_toggle")
+          .fontWeight(.medium)
+      }
+      .toggleStyle(.checkbox)
+
+      Text(l10n: "delete_confirmation_description")
+        .font(.caption)
         .foregroundColor(.secondary)
-      KeyPickerView(selectedKey: modifier)
-      Spacer(minLength: 0)
     }
   }
 
-  private var hasTransformShortcutConflict: Bool {
-    struct Combo: Hashable { let base: ShortcutBaseKey; let mod: ModifierKey }
-    let combos: [Combo] = [
-      Combo(base: appSettings.rotateCCWBaseKey, mod: appSettings.rotateCCWModifierKey),
-      Combo(base: appSettings.rotateCWBaseKey, mod: appSettings.rotateCWModifierKey),
-      Combo(base: appSettings.mirrorHBaseKey, mod: appSettings.mirrorHModifierKey),
-      Combo(base: appSettings.mirrorVBaseKey, mod: appSettings.mirrorVModifierKey),
-      Combo(base: appSettings.resetTransformBaseKey, mod: appSettings.resetTransformModifierKey),
-    ]
-    var set = Set<Combo>()
-    for c in combos {
-      if set.contains(c) { return true }
-      set.insert(c)
+  /// 重置按钮区域
+  private var resetSection: some View {
+    HStack {
+      Spacer()
+      Button(L10n.key("reset_defaults_button")) {
+        withAnimation {
+          appSettings.resetToDefaults(settingsTab: .keyboard)
+        }
+        populateShortcutCache()
+      }
+      .buttonStyle(.bordered)
     }
-    return false
   }
 
-  private var hasReservedShortcutUsage: Bool {
-    // 常见 macOS 保留快捷键（Command + H/Q/W/V/C/X/A/M 等）
-    let reservedLetters: Set<ShortcutBaseKey> = [.h, .q, .w, .v, .c, .x, .a, .m]
-    let pairs: [(ShortcutBaseKey, ModifierKey)] = [
-      (appSettings.rotateCCWBaseKey, appSettings.rotateCCWModifierKey),
-      (appSettings.rotateCWBaseKey, appSettings.rotateCWModifierKey),
-      (appSettings.mirrorHBaseKey, appSettings.mirrorHModifierKey),
-      (appSettings.mirrorVBaseKey, appSettings.mirrorVModifierKey),
-      (appSettings.resetTransformBaseKey, appSettings.resetTransformModifierKey),
-    ]
-    for (base, mod) in pairs {
-      if mod == .command && reservedLetters.contains(base) { return true }
-    }
-    return false
-  }
+  /// 通用的录制控件行布局
+  private func recorderRow(labelKey: String, action: ShortcutAction) -> some View
+  {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack(alignment: .firstTextBaseline, spacing: 12) {
+        Text(l10n: labelKey)
+          .frame(width: labelColumnWidth, alignment: .leading)
 
-  // 列出重复冲突的详细条目
-  private func duplicateConflictItems() -> [String] {
-    struct Combo: Hashable { let base: ShortcutBaseKey; let mod: ModifierKey }
-    struct Item { let label: String; let combo: Combo }
-    let items: [Item] = [
-      Item(label: L10n.string("rotate_ccw_shortcut_label"), combo: .init(base: appSettings.rotateCCWBaseKey, mod: appSettings.rotateCCWModifierKey)),
-      Item(label: L10n.string("rotate_cw_shortcut_label"), combo: .init(base: appSettings.rotateCWBaseKey, mod: appSettings.rotateCWModifierKey)),
-      Item(label: L10n.string("mirror_horizontal_shortcut_label"), combo: .init(base: appSettings.mirrorHBaseKey, mod: appSettings.mirrorHModifierKey)),
-      Item(label: L10n.string("mirror_vertical_shortcut_label"), combo: .init(base: appSettings.mirrorVBaseKey, mod: appSettings.mirrorVModifierKey)),
-      Item(label: L10n.string("reset_transform_shortcut_label"), combo: .init(base: appSettings.resetTransformBaseKey, mod: appSettings.resetTransformModifierKey)),
-    ]
-    var map: [Combo: [Item]] = [:]
-    for it in items { map[it.combo, default: []].append(it) }
-    var lines: [String] = []
-    for (combo, list) in map where list.count > 1 {
-      // 将同一组合下的多个动作两两配对，合并为一条提示
-      let names = list.map { $0.label }
-      let joined = names.joined(separator: ", ")
-      let comboStr = humanReadableCombo((base: combo.base, mod: combo.mod))
-      let pattern = L10n.string("transform_conflict_duplicate_item") // "%@ and %@ both set to %@" or generic
-      if list.count == 2 {
-        let a = names[0], b = names[1]
-        lines.append(String(format: pattern, a, b, comboStr))
-      } else {
-        // 3 个及以上时，直接列出所有名称 + 组合
-        lines.append("\(joined) — \(comboStr)")
+        let definition = shortcutDefinition(for: action)
+        KeyboardShortcuts.Recorder(for: definition.name) { shortcut in
+          let previousShortcut = cachedShortcuts[action] ?? appSettings.shortcut(for: action)
+          let result = appSettings.handleRecorderChange(
+            for: action,
+            newShortcut: shortcut,
+            previousShortcut: previousShortcut
+          )
+          switch result {
+          case .accepted:
+            populateShortcutCache(for: [action])
+          case .conflict(let conflicting):
+            populateShortcutCache(for: [action, conflicting])
+          }
+        }
+        .id(localizationManager.refreshTrigger)
+        .frame(minWidth: recorderMinWidth, alignment: .leading)
+
+        Spacer(minLength: 0)
       }
     }
-    return lines
   }
 
-  // 列出可能与系统保留快捷键冲突的条目
-  private func reservedConflictItems() -> [String] {
-    let reservedLetters: Set<ShortcutBaseKey> = [.h, .q, .w, .v, .c, .x, .a, .m]
-    let pairs: [(label: String, base: ShortcutBaseKey, mod: ModifierKey)] = [
-      (L10n.string("rotate_ccw_shortcut_label"), appSettings.rotateCCWBaseKey, appSettings.rotateCCWModifierKey),
-      (L10n.string("rotate_cw_shortcut_label"), appSettings.rotateCWBaseKey, appSettings.rotateCWModifierKey),
-      (L10n.string("mirror_horizontal_shortcut_label"), appSettings.mirrorHBaseKey, appSettings.mirrorHModifierKey),
-      (L10n.string("mirror_vertical_shortcut_label"), appSettings.mirrorVBaseKey, appSettings.mirrorVModifierKey),
-      (L10n.string("reset_transform_shortcut_label"), appSettings.resetTransformBaseKey, appSettings.resetTransformModifierKey),
-    ]
-    var lines: [String] = []
-    let pattern = L10n.string("transform_conflict_reserved_item") // "%@ uses macOS-reserved shortcut %@"
-    for p in pairs where p.mod == .command && reservedLetters.contains(p.base) {
-      lines.append(String(format: pattern, p.label, humanReadableCombo((p.base, p.mod))))
+  /// 安全读取定义，若缺失则直接终止（属于开发期错误）
+  private func shortcutDefinition(for action: ShortcutAction) -> ShortcutDefinition {
+    guard let definition = shortcutCatalog.definition(for: action) else {
+      preconditionFailure("Missing keyboard shortcut definition for \(action)")
     }
-    return lines
+    return definition
   }
 
-  // 组合的文字表示，例如："⌘ + ["、"⌥ + 0"、"V"（无修饰）
-  private func humanReadableCombo(_ combo: (base: ShortcutBaseKey, mod: ModifierKey)) -> String {
-    let base = humanReadableBase(combo.base)
-    let mod = symbol(for: combo.mod)
-    return mod.isEmpty ? base : "\(mod) + \(base)"
-  }
-
-  private func humanReadableBase(_ base: ShortcutBaseKey) -> String {
-    return base.displayName
-  }
-
-  private func symbol(for mod: ModifierKey) -> String {
-    switch mod {
-    case .none: return ""
-    case .command: return "⌘"
-    case .option: return "⌥"
-    case .control: return "⌃"
-    case .shift: return "⇧"
+  /// 更新缓存数据，默认同步所有动作或指定动作。
+  private func populateShortcutCache(for actions: [ShortcutAction]? = nil) {
+    let targets = actions ?? Array(ShortcutAction.allCases)
+    for target in targets {
+      cachedShortcuts[target] = appSettings.shortcut(for: target)
     }
   }
+
+  /// 带有统一布局的下拉选择行
+  private func labelledPickerRow<PickerContent: View>(
+    labelKey: String,
+    descriptionKey: String?,
+    @ViewBuilder picker: () -> PickerContent
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack(alignment: .firstTextBaseline, spacing: 12) {
+        Text(l10n: labelKey)
+          .fontWeight(.medium)
+          .frame(width: labelColumnWidth, alignment: .leading)
+        picker()
+          .frame(minWidth: recorderMinWidth, alignment: .leading)
+        Spacer(minLength: 0)
+      }
+      if let descriptionKey {
+        Text(l10n: descriptionKey)
+          .font(.caption)
+          .foregroundColor(.secondary)
+      }
+    }
+  }
+
 }
 
 // 通用键选择器视图
@@ -308,7 +231,6 @@ struct KeyPickerView<T: KeySelectable & Hashable>: View {
 
   var body: some View {
     HStack {
-      // 键选择器
       Picker("", selection: $selectedKey) {
         ForEach(T.availableKeys()) { key in
           Text(key.displayName)
