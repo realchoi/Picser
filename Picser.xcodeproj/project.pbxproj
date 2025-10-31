@@ -10,6 +10,19 @@
 		079B0BA72EB48431004682FD /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 079B0BA62EB48431004682FD /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		0722BD172EB4E0F500B9466C /* Copy Licenses */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Legal;
+			dstSubfolderSpec = 7;
+			files = (
+			);
+			name = "Copy Licenses";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		07A3FBFA2E5324E800CF5188 /* Picser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Picser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -18,11 +31,22 @@
 		07DED9B02E9792C600CEB662 /* Exceptions for "Picser" folder in "Picser" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Features/Purchase/Docs/PurchaseFlow.md,
 				Info.plist,
 			);
 			target = 07A3FBF92E5324E800CF5188 /* Picser */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		07BA8B9A2EB4E40B004C013C /* Exceptions for "legal" folder in "Copy Licenses" phase from "Picser" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = 0722BD172EB4E0F500B9466C /* Copy Licenses */;
+			membershipExceptions = (
+				THIRD_PARTY_LICENSES_RELEASE.md,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		07A3FBFC2E5324E800CF5188 /* Picser */ = {
@@ -36,6 +60,14 @@
 		07A3FBFD2E5324E800CF5189 /* Languages */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Languages;
+			sourceTree = "<group>";
+		};
+		07BA8B902EB4E264004C013C /* legal */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				07BA8B9A2EB4E40B004C013C /* Exceptions for "legal" folder in "Copy Licenses" phase from "Picser" target */,
+			);
+			path = legal;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -55,6 +87,7 @@
 		07A3FBF12E5324E800CF5188 = {
 			isa = PBXGroup;
 			children = (
+				07BA8B902EB4E264004C013C /* legal */,
 				07A3FBFC2E5324E800CF5188 /* Picser */,
 				07A3FBFD2E5324E800CF5189 /* Languages */,
 				07A3FBFB2E5324E800CF5188 /* Products */,
@@ -79,6 +112,7 @@
 				07A3FBF62E5324E800CF5188 /* Sources */,
 				07A3FBF72E5324E800CF5188 /* Frameworks */,
 				07A3FBF82E5324E800CF5188 /* Resources */,
+				0722BD172EB4E0F500B9466C /* Copy Licenses */,
 			);
 			buildRules = (
 			);

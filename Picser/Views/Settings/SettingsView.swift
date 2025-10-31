@@ -75,6 +75,20 @@ struct SettingsView: View {
               systemImage: "externaldrive"
             )
           }
+
+        // 关于页面
+        IntrinsicTabContainer(tab: .about, shouldScroll: {
+          tabScrollNeeds[.about] ?? false
+        }) {
+          AboutView()
+        }
+        .tag(SettingsTab.about)
+          .tabItem {
+            Label(
+              L10n.string("about_tab"),
+              systemImage: "person.circle"
+            )
+          }
       }
       .tabViewStyle(.automatic)
 

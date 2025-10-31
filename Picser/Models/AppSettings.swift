@@ -287,6 +287,8 @@ class AppSettings: ObservableObject {
       imageScanRecursively = true
     case .cache:
       break
+    case .about:
+      break
     }
   }
 
@@ -317,6 +319,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
   case keyboard = "Keyboard"
   case display = "Display"
   case cache = "Cache"
+  case about = "About"
 
   var id: String { rawValue }
 }

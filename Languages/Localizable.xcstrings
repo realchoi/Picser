@@ -2,6 +2,102 @@
   "version": "1.0",
   "sourceLanguage": "en",
   "strings": {
+    "about_tab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关于"
+          }
+        }
+      }
+    },
+    "about_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About Picser"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关于 Picser"
+          }
+        }
+      }
+    },
+    "about_tagline": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Picser is a native macOS photo viewer designed to be clean, lightweight, and delightful to use."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Picser 是一款简约、原生、轻量的 macOS 看图工具。"
+          }
+        }
+      }
+    },
+    "about_author_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Author"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作者"
+          }
+        }
+      }
+    },
+    "about_website_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Website"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "官网"
+          }
+        }
+      }
+    },
+    "about_contact_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contact"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "联系"
+          }
+        }
+      }
+    },
     "altitude_label": {
       "localizations": {
         "en": {
