@@ -67,7 +67,7 @@ We may update this Policy to reflect service adjustments or legal requirements. 
 
 ## 10. Contact Us
 
-- Email: mallocai@foxmail.com
+- Email: dscai.im@gmail.com
 - Website: https://soyotube.com
 
 If you have questions, suggestions, or complaints regarding this Policy or personal data protection, please contact us. We will respond within 30 days. If you are dissatisfied with our response, you may lodge a complaint with your local data protection authority.

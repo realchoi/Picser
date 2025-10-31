@@ -14,7 +14,7 @@ struct AboutView: View {
   /// 作者/团队信息配置。
   private let authorName = "Eric Cai (Soyotube)"
   private let websiteURL = URL(string: "https://soyotube.com")!
-  private let contactEmailAddress = "mallocai@foxmail.com"
+  private let contactEmailAddress = "dscai.im@gmail.com"
   private var contactEmailURL: URL? {
     URL(string: "mailto:\(contactEmailAddress)")
   }

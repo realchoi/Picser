@@ -101,7 +101,7 @@
 
 ## 十五、联系我们
 
-- 电子邮箱：mallocai@foxmail.com
+- 电子邮箱：dscai.im@gmail.com
 - 官方网站/帮助中心：https://soyotube.com
 
 如您对本条款有任何疑问或需要帮助，请通过上述方式与我们联系。
