@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		074207EA2EB61F01007B7E0A /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 074207E92EB61F01007B7E0A /* AppIcon.icon */; };
 		079B0BA72EB48431004682FD /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 079B0BA62EB48431004682FD /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
@@ -24,6 +25,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		074207E92EB61F01007B7E0A /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		07A3FBFA2E5324E800CF5188 /* Picser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Picser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -91,6 +93,7 @@
 				07A3FBFC2E5324E800CF5188 /* Picser */,
 				07A3FBFD2E5324E800CF5189 /* Languages */,
 				07A3FBFB2E5324E800CF5188 /* Products */,
+				074207E92EB61F01007B7E0A /* AppIcon.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -173,6 +176,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				074207EA2EB61F01007B7E0A /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
