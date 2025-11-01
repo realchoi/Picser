@@ -11,7 +11,7 @@ extension ContentView {
   /// 根据订阅状态展示试用提醒条
   @ViewBuilder
   var trialBannerInset: some View {
-    if purchaseManager.isTrialBannerDismissed || purchaseManager.hasOwnedLicense {
+    if purchaseManager.isTrialBannerDismissed || purchaseManager.hasActiveLicense {
       EmptyView()
     } else {
       switch purchaseManager.state {
@@ -33,11 +33,10 @@ extension ContentView {
             }
           )
         }
-      case .subscriberLapsed:
+      case let .subscriberLapsed(status):
         bannerContainer {
-          TrialExpiredBanner(
-            title: localized("subscription_lapsed_title"),
-            message: localized("subscription_lapsed_subtitle"),
+          SubscriptionGraceBanner(
+            status: status,
             onPurchase: { requestUpgrade(.purchase) },
             onRestore: { startRestoreFlow() },
             onDismiss: {

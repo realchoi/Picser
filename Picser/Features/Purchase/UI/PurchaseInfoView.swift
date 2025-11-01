@@ -33,7 +33,7 @@ struct PurchaseInfoView: View {
   }
 
   private var entitlementSummary: EntitlementSummary? {
-    guard purchaseManager.hasOwnedLicense else { return nil }
+    guard purchaseManager.hasLegacyLicense else { return nil }
 
     switch purchaseManager.state {
     case .lifetime(let status):
@@ -56,12 +56,18 @@ struct PurchaseInfoView: View {
     case .subscriberLapsed(let status):
       guard status.isInGracePeriod else { return nil }
       let title = L10n.string("purchase_info_owned_subscription_grace_title")
-      let template = L10n.string("purchase_info_owned_subscription_grace_message")
-      var message = template
+      var messageLines: [String] = []
       if let expiration = status.expirationDate {
         let graceful = L10n.string("purchase_info_owned_subscription_grace_with_date")
-        message = String(format: graceful, FormatUtils.dateString(from: expiration))
+        messageLines.append(String(format: graceful, FormatUtils.dateString(from: expiration)))
+        let graceEnd = expiration.addingTimeInterval(3 * 24 * 60 * 60)
+        let remaining = SubscriptionGraceBanner.normalizeRemainingDescription(TrialFormatter.remainingDescription(endDate: graceEnd))
+        let remainingTemplate = L10n.string("purchase_info_owned_subscription_grace_remaining")
+        messageLines.append(String(format: remainingTemplate, remaining))
+      } else {
+        messageLines.append(L10n.string("purchase_info_owned_subscription_grace_message"))
       }
+      let message = messageLines.joined(separator: "\n")
       return EntitlementSummary(icon: "clock.badge.exclamationmark", title: title, message: message)
 
     default:
@@ -70,7 +76,7 @@ struct PurchaseInfoView: View {
   }
 
   private var shouldShowPurchaseOptions: Bool {
-    !purchaseManager.hasOwnedLicense
+    !purchaseManager.hasActiveLicense
   }
 
   private var isSubscriptionTrialAvailable: Bool {

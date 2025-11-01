@@ -3570,6 +3570,22 @@
         }
       }
     },
+    "purchase_info_owned_subscription_grace_remaining": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grace period ends in %@. Renew now to keep access."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宽限期将在 %@ 后结束，请尽快续订以保持访问。"
+          }
+        }
+      }
+    },
     "purchase_info_refresh_receipt_button": {
       "localizations": {
         "en": {
@@ -4046,6 +4062,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "订阅有效期：%@"
+          }
+        }
+      }
+    },
+    "purchase_status_grace_remaining": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grace period remaining: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宽限期剩余时间：%@"
+          }
+        }
+      }
+    },
+    "purchase_status_grace_generic": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription is in the grace period. Please renew soon."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅处于宽限期，请尽快续订。"
           }
         }
       }
@@ -4654,6 +4702,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "订阅已到期"
+          }
+        }
+      }
+    },
+    "subscription_grace_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription grace period"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅宽限期"
+          }
+        }
+      }
+    },
+    "subscription_grace_message_with_remaining": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expired on %@ · Grace ends in %@ · Renew now to keep premium features."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅已于 %@ 到期 · 宽限期将在 %@ 后结束 · 请尽快续订以保留高级功能。"
+          }
+        }
+      }
+    },
+    "subscription_grace_message_generic": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription is in the grace period. Renew promptly to avoid losing premium features."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅处于宽限期，请及时续订以避免失去高级功能。"
           }
         }
       }

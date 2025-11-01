@@ -83,18 +83,35 @@ final class PurchaseManager: ObservableObject {
     }
   }
 
-  /// 是否已经通过订阅或买断拥有高级权限（不含试用期）
-  var hasOwnedLicense: Bool {
+  /// 是否拥有当前仍在生效的付费权益（订阅未过期或买断）
+  var hasActiveLicense: Bool {
     switch state {
     case .lifetime:
       return true
-    case .subscriber:
+    case .subscriber(let status):
+      if let expiration = status.expirationDate {
+        return expiration > Date()
+      }
       return true
-    case .subscriberLapsed(let status):
-      return status.isInGracePeriod
     default:
       return false
     }
+  }
+
+  /// 是否曾经通过订阅或买断解锁高级权限（含宽限期）
+  var hasLegacyLicense: Bool {
+    switch state {
+    case .lifetime, .subscriber, .subscriberLapsed:
+      return true
+    default:
+      return false
+    }
+  }
+
+  /// 兼容旧代码，等同于 `hasLegacyLicense`
+  @available(*, deprecated, message: "请改用 hasActiveLicense 或 hasLegacyLicense")
+  var hasOwnedLicense: Bool {
+    hasLegacyLicense
   }
 
   /// 是否已过试用期
@@ -410,10 +427,8 @@ final class PurchaseManager: ObservableObject {
         return true
       }
 
-      if status.isInGracePeriod {
-        state = .subscriberLapsed(status)
-        return true
-      }
+      state = .subscriberLapsed(status)
+      return false
     }
 
     return false

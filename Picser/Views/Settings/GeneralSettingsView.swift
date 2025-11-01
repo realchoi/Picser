@@ -123,6 +123,16 @@ struct GeneralSettingsView: View {
         return String(format: template, description)
       }
       return nil
+    case let .subscriberLapsed(status):
+      guard status.isInGracePeriod else { return nil }
+      if let expiration = status.expirationDate {
+        let graceEnd = expiration.addingTimeInterval(3 * 24 * 60 * 60)
+        let description = TrialFormatter.remainingDescription(endDate: graceEnd)
+        let template = localized("purchase_status_grace_remaining")
+        return String(format: template, description)
+      } else {
+        return localized("purchase_status_grace_generic")
+      }
     default:
       return nil
     }
@@ -213,7 +223,7 @@ struct GeneralSettingsView: View {
   }
 
   private var shouldShowPurchaseButton: Bool {
-    !purchaseManager.hasOwnedLicense
+    !purchaseManager.hasActiveLicense
   }
 
   @ViewBuilder
