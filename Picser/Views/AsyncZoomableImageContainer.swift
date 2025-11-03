@@ -69,10 +69,13 @@ struct AsyncZoomableImageContainer: View {
       }
       .onChange(of: url) { _, newURL in
         // 切换图片时显示 Loading，除非立即有缓存
-        if ImageLoader.shared.cachedFullImage(for: newURL) != nil {
-          // 有完整图缓存，立即显示，不显示 loading
+        if let cachedFull = ImageLoader.shared.cachedFullImage(for: newURL) {
+          self.displayImage = cachedFull
+          self.isShowingFull = true
+        } else if let cachedThumb = ImageLoader.shared.cachedThumbnail(for: newURL) {
+          self.displayImage = cachedThumb
+          self.isShowingFull = false
         } else {
-          // 没有缓存，显示 loading
           self.displayImage = nil
           self.isShowingFull = false
         }
@@ -81,12 +84,6 @@ struct AsyncZoomableImageContainer: View {
         // 视口尺寸变化时更新
         self.viewportSize = newSize
       }
-      .transition(
-        .asymmetric(
-          insertion: .opacity.animation(Motion.Anim.fast),
-          removal: .identity
-        )
-      )
     }
     .task(id: taskKey) {
       // 取消上一轮加载
@@ -117,9 +114,7 @@ struct AsyncZoomableImageContainer: View {
         // 第2步：如果还没有完整图，先加载缩略图
         if self.displayImage == nil && !self.isShowingFull {
           if let thumb = await ImageLoader.shared.loadThumbnail(for: currentURL), !Task.isCancelled {
-            withAnimation(Motion.Anim.fast) {
-              self.displayImage = thumb
-            }
+            self.displayImage = thumb
           }
         }
 
@@ -129,9 +124,7 @@ struct AsyncZoomableImageContainer: View {
             for: currentURL,
             targetLongSidePixels: targetLongSidePixels
           ), !Task.isCancelled, !self.isShowingFull {
-            withAnimation(Motion.Anim.medium) {
-              self.displayImage = optimized
-            }
+            self.displayImage = optimized
           }
         }
 
@@ -139,10 +132,8 @@ struct AsyncZoomableImageContainer: View {
         fullLoadTask?.cancel()
         fullLoadTask = Task { @MainActor in
           if let full = await ImageLoader.shared.loadFullImage(for: currentURL), !Task.isCancelled {
-            withAnimation(Motion.Anim.standard) {
-              self.displayImage = full
-              self.isShowingFull = true
-            }
+            self.displayImage = full
+            self.isShowingFull = true
           }
         }
 
