@@ -228,6 +228,8 @@ struct GeneralSettingsView: View {
 
   @ViewBuilder
   private var contentView: some View {
+    let slideshowLocked = !purchaseManager.isEntitled
+
     VStack(alignment: .leading, spacing: 20) {
       Text(l10n: "general_settings_title")
         .font(.title2)
@@ -282,6 +284,58 @@ struct GeneralSettingsView: View {
         }
 
       }
+
+      Divider()
+
+      // 幻灯片设置组
+      VStack(alignment: .leading, spacing: 16) {
+        Text(l10n: "slideshow_settings_group")
+          .fontWeight(.medium)
+
+        VStack(alignment: .leading, spacing: 8) {
+          HStack(spacing: 12) {
+            Text(l10n: "slideshow_interval_label")
+              .frame(width: 140, alignment: .leading)
+
+            Slider(
+              value: $appSettings.slideshowIntervalSeconds,
+              in: 1.0...10.0,
+              step: 0.5
+            )
+
+            Text(
+              String(
+                format: L10n.string("slideshow_interval_value_format"),
+                appSettings.slideshowIntervalSeconds
+              )
+            )
+            .frame(width: 60, alignment: .trailing)
+            .monospaced()
+          }
+
+          Text(l10n: "slideshow_interval_description")
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+
+        Toggle(isOn: $appSettings.slideshowLoopEnabled) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text(l10n: "slideshow_loop_toggle_title")
+              .fontWeight(.medium)
+            Text(l10n: "slideshow_loop_toggle_description")
+              .font(.caption)
+              .foregroundColor(.secondary)
+          }
+        }
+
+        if slideshowLocked {
+          Text(l10n: "slideshow_requires_purchase_hint")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      }
+      .disabled(slideshowLocked)
+      .opacity(slideshowLocked ? 0.55 : 1)
 
       Divider()
 

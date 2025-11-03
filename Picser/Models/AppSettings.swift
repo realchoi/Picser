@@ -144,6 +144,41 @@ class AppSettings: ObservableObject {
     }
   }
 
+  // MARK: - 幻灯片设置
+
+  private enum SlideshowDefaults {
+    static let intervalRange: ClosedRange<Double> = 1.0...10.0
+    static let interval: Double = 3.0
+  }
+
+  /// 幻灯片播放间隔（持久化存储）
+  @AppStorage("slideshowIntervalSeconds") private var slideshowIntervalSecondsStorage: Double =
+    SlideshowDefaults.interval
+  /// 幻灯片播放间隔（UI 显示）
+  @Published var slideshowIntervalSeconds: Double = SlideshowDefaults.interval {
+    didSet {
+      let clamped = min(
+        max(slideshowIntervalSeconds, SlideshowDefaults.intervalRange.lowerBound),
+        SlideshowDefaults.intervalRange.upperBound
+      )
+      if abs(clamped - slideshowIntervalSeconds) > 0.0001 {
+        slideshowIntervalSeconds = clamped
+        return
+      }
+      slideshowIntervalSecondsStorage = clamped
+    }
+  }
+
+  /// 幻灯片是否循环（持久化存储）
+  @AppStorage("slideshowLoopEnabled") private var slideshowLoopEnabledStorage: Bool = true
+  /// 幻灯片是否循环（UI 显示）
+  @Published var slideshowLoopEnabled: Bool = true {
+    didSet {
+      guard slideshowLoopEnabled != slideshowLoopEnabledStorage else { return }
+      slideshowLoopEnabledStorage = slideshowLoopEnabled
+    }
+  }
+
   // MARK: - 图片枚举设置
 
   /// 是否递归扫描子目录寻找图片（UserDefaults 存储）
@@ -173,6 +208,8 @@ class AppSettings: ObservableObject {
     self.deleteConfirmationEnabled = deleteConfirmationEnabledStorage
     self.deleteShortcutPreference =
       DeleteShortcutPreference(rawValue: deleteShortcutPreferenceStorage) ?? .both
+    self.slideshowIntervalSeconds = slideshowIntervalSecondsStorage
+    self.slideshowLoopEnabled = slideshowLoopEnabledStorage
 
     // 初始化时同步语言设置到本地化管理器
     LocalizationManager.shared.setLanguage(self.appLanguage.rawValue)
@@ -285,6 +322,8 @@ class AppSettings: ObservableObject {
     case .general:
       appLanguage = .system
       deleteConfirmationEnabled = true
+      slideshowIntervalSeconds = SlideshowDefaults.interval
+      slideshowLoopEnabled = true
     case .keyboard:
       zoomModifierKey = .none
       panModifierKey = .none

@@ -5,6 +5,7 @@ enum UpgradePromptContext: String, Identifiable {
   case transform
   case crop
   case exif
+  case slideshow
   case generic
   case purchase
 

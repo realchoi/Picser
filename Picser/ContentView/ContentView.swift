@@ -40,6 +40,8 @@ struct ContentView: View {
   @State private var showingAddCustomRatio = false
   @State private var customRatioW: String = "1"
   @State private var customRatioH: String = "1"
+  @State private var isSlideshowPlaying = false
+  @State private var slideshowTask: Task<Void, Never>? = nil
   @State var securityAccessGroup: SecurityScopedAccessGroup?
   @State var currentSecurityScopedInputs: [URL] = []
   @State var showingFullDiskAccessPrompt = false
@@ -102,6 +104,11 @@ struct ContentView: View {
     windowToken ?? fallbackWindowToken
   }
 
+  /// 幻灯片播放状态对外只读访问，避免破坏封装。
+  var isSlideshowActive: Bool {
+    isSlideshowPlaying
+  }
+
   var body: some View {
     var view: AnyView = AnyView(baseContent)
 
@@ -147,6 +154,7 @@ struct ContentView: View {
       view
         .onChange(of: imageURLs) { _, newURLs in
           updateSidebarVisibility(for: newURLs)
+          handleSlideshowImageListChange(newURLs)
         }
         .onChange(of: selectedImageURL) { _, newURL in
           handleSelectionChange(newURL)
@@ -157,12 +165,26 @@ struct ContentView: View {
               isCropping = false
             }
             showingAddCustomRatio = false
+            if isSlideshowPlaying {
+              stopSlideshowPlayback()
+            }
           }
         }
         .onChange(of: showingExifInfo) { _, newValue in
           if !newValue {
             cancelOngoingExifLoad()
             currentExifInfo = nil
+          }
+        }
+        .onChange(of: appSettings.slideshowIntervalSeconds) { _, _ in
+          handleSlideshowIntervalChange()
+        }
+        .onChange(of: appSettings.slideshowLoopEnabled) { _, newValue in
+          handleSlideshowLoopChange(newValue)
+        }
+        .onChange(of: isCropping) { _, newValue in
+          if newValue {
+            stopSlideshowPlayback()
           }
         }
     )
@@ -267,6 +289,9 @@ struct ContentView: View {
     view = AnyView(
       view
         .focusedSceneValue(\.windowCommandHandlers, windowCommandHandlers)
+        .onDisappear {
+          stopSlideshowPlayback()
+        }
     )
 
     return view
@@ -364,6 +389,127 @@ struct ContentView: View {
     selectedImageURL = imageURLs[currentIndex + 1]
   }
 
+  // MARK: - 幻灯片播放
+
+  @MainActor
+  func toggleSlideshowPlayback() {
+    if isSlideshowPlaying {
+      stopSlideshowPlayback()
+    } else {
+      guard !imageURLs.isEmpty else { return }
+      performIfEntitled(.slideshow) {
+        startSlideshowPlayback()
+      }
+    }
+  }
+
+  @MainActor
+  private func startSlideshowPlayback() {
+    guard !imageURLs.isEmpty else { return }
+    if selectedImageURL == nil {
+      selectedImageURL = imageURLs.first
+    }
+    isSlideshowPlaying = true
+    restartSlideshowTask()
+  }
+
+  @MainActor
+  private func stopSlideshowPlayback() {
+    slideshowTask?.cancel()
+    slideshowTask = nil
+    if isSlideshowPlaying {
+      isSlideshowPlaying = false
+    }
+  }
+
+  @MainActor
+  private func restartSlideshowTask() {
+    slideshowTask?.cancel()
+    guard isSlideshowPlaying else { return }
+    slideshowTask = Task { @MainActor in
+      while !Task.isCancelled {
+        let intervalSeconds = max(appSettings.slideshowIntervalSeconds, 0.1)
+        let nanoseconds = UInt64(intervalSeconds * 1_000_000_000)
+        do {
+          try await Task.sleep(nanoseconds: nanoseconds)
+        } catch {
+          break
+        }
+        guard !Task.isCancelled, isSlideshowPlaying else { continue }
+        advanceSlideshowFrame()
+      }
+    }
+  }
+
+  @MainActor
+  private func advanceSlideshowFrame() {
+    guard isSlideshowPlaying else { return }
+    guard !imageURLs.isEmpty else {
+      stopSlideshowPlayback()
+      return
+    }
+
+    guard let current = selectedImageURL else {
+      selectedImageURL = imageURLs.first
+      return
+    }
+
+    guard let currentIndex = imageURLs.firstIndex(of: current) else {
+      selectedImageURL = imageURLs.first
+      return
+    }
+
+    let nextIndex = currentIndex + 1
+    if nextIndex < imageURLs.count {
+      selectedImageURL = imageURLs[nextIndex]
+    } else if appSettings.slideshowLoopEnabled {
+      selectedImageURL = imageURLs.first
+    } else {
+      stopSlideshowPlayback()
+    }
+  }
+
+  @MainActor
+  private func handleSlideshowImageListChange(_ newURLs: [URL]) {
+    if newURLs.isEmpty {
+      stopSlideshowPlayback()
+      return
+    }
+    guard isSlideshowPlaying else { return }
+
+    if let current = selectedImageURL {
+      if !newURLs.contains(current) {
+        selectedImageURL = newURLs.first
+      }
+    } else {
+      selectedImageURL = newURLs.first
+    }
+
+    if newURLs.count <= 1 && !appSettings.slideshowLoopEnabled {
+      stopSlideshowPlayback()
+      return
+    }
+    restartSlideshowTask()
+  }
+
+  @MainActor
+  private func handleSlideshowIntervalChange() {
+    guard isSlideshowPlaying else { return }
+    restartSlideshowTask()
+  }
+
+  @MainActor
+  private func handleSlideshowLoopChange(_ isLooping: Bool) {
+    guard isSlideshowPlaying else { return }
+    if !isLooping,
+       let current = selectedImageURL,
+       let index = imageURLs.firstIndex(of: current),
+       index >= imageURLs.count - 1
+    {
+      stopSlideshowPlayback()
+    }
+  }
+
   @MainActor
   private func handleDeleteShortcut() -> Bool {
     guard selectedImageURL != nil, !isPerformingDeletion else { return false }
@@ -387,6 +533,9 @@ struct ContentView: View {
     }
 
     guard let newURL else {
+      if isSlideshowPlaying {
+        stopSlideshowPlayback()
+      }
       imageTransform = .identity
       if showingExifInfo {
         withAnimation(Motion.Anim.drawer) {

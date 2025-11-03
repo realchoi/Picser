@@ -4402,6 +4402,166 @@
         }
       }
     },
+    "slideshow_interval_description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set how long each photo stays on screen during playback."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置每张图片在播放时停留的时间。"
+          }
+        }
+      }
+    },
+    "slideshow_interval_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interval"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "播放间隔"
+          }
+        }
+      }
+    },
+    "slideshow_interval_value_format": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1f s"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1f 秒"
+          }
+        }
+      }
+    },
+    "slideshow_loop_toggle_description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart from the first photo automatically after reaching the end."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "播完最后一张后自动回到第一张继续播放。"
+          }
+        }
+      }
+    },
+    "slideshow_loop_toggle_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loop Playback"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "循环播放"
+          }
+        }
+      }
+    },
+    "slideshow_requires_purchase_hint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slideshow playback is available after subscribing or purchasing the lifetime license."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻灯片播放仅对已订阅或买断的用户开放。"
+          }
+        }
+      }
+    },
+    "slideshow_settings_group": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slideshow"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻灯片播放"
+          }
+        }
+      }
+    },
+    "slideshow_toolbar_help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cycle through the current photos"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轮播当前图片列表"
+          }
+        }
+      }
+    },
+    "slideshow_toolbar_pause": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause Slideshow"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂停幻灯片"
+          }
+        }
+      }
+    },
+    "slideshow_toolbar_play": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Slideshow"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始幻灯片播放"
+          }
+        }
+      }
+    },
     "shutter_speed_label": {
       "localizations": {
         "en": {

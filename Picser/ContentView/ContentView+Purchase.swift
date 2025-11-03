@@ -154,6 +154,8 @@ private extension UpgradePromptContext {
       return .crop
     case .exif:
       return .exif
+    case .slideshow:
+      return .slideshow
     case .generic, .purchase:
       return .generic
     }

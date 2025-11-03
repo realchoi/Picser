@@ -120,6 +120,23 @@ extension ContentView {
 
       ToolbarItem {
         Button {
+          toggleSlideshowPlayback()
+        } label: {
+          let isPlaying = isSlideshowActive
+          Label(
+            isPlaying
+              ? L10n.string("slideshow_toolbar_pause")
+              : L10n.string("slideshow_toolbar_play"),
+            systemImage: isPlaying ? "pause.circle.fill" : "play.circle"
+          )
+          .foregroundStyle(isPlaying ? Color.accentColor : Color.primary)
+        }
+        .disabled(imageURLs.isEmpty)
+        .help(L10n.key("slideshow_toolbar_help"))
+      }
+
+      ToolbarItem {
+        Button {
           requestDeletion()
         } label: {
           Label(L10n.key("delete_button"), systemImage: "trash")
