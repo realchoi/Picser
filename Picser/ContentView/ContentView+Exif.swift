@@ -42,16 +42,19 @@ extension ContentView {
     exifLoadTask = nil
     exifLoadRequestID = nil
     isLoadingExif = false
+    resetExifLoadingIndicator()
   }
 
   /// 启动 EXIF 信息加载任务
   func startExifLoad(for url: URL, shouldPresentPanel: Bool) {
     exifLoadTask?.cancel()
     exifLoadTask = nil
+    resetExifLoadingIndicator()
 
     let requestID = UUID()
     exifLoadRequestID = requestID
     isLoadingExif = true
+    scheduleExifLoadingIndicatorReveal(for: requestID)
 
     if shouldPresentPanel {
       withAnimation(Motion.Anim.drawer) {
@@ -68,6 +71,7 @@ extension ContentView {
           guard self.selectedImageURL == url else { return }
           self.currentExifInfo = exifInfo
           self.isLoadingExif = false
+          self.resetExifLoadingIndicator()
           self.exifLoadTask = nil
           self.exifLoadRequestID = nil
         }
@@ -76,6 +80,7 @@ extension ContentView {
         await MainActor.run {
           guard self.exifLoadRequestID == requestID else { return }
           self.isLoadingExif = false
+          self.resetExifLoadingIndicator()
           self.exifLoadTask = nil
           self.exifLoadRequestID = nil
           withAnimation(Motion.Anim.drawer) {
@@ -91,6 +96,7 @@ extension ContentView {
         await MainActor.run {
           guard self.exifLoadRequestID == requestID else { return }
           self.isLoadingExif = false
+          self.resetExifLoadingIndicator()
           self.exifLoadTask = nil
           self.exifLoadRequestID = nil
           withAnimation(Motion.Anim.drawer) {
@@ -106,6 +112,7 @@ extension ContentView {
         await MainActor.run {
           guard self.exifLoadRequestID == requestID else { return }
           self.isLoadingExif = false
+          self.resetExifLoadingIndicator()
           self.exifLoadTask = nil
           self.exifLoadRequestID = nil
           withAnimation(Motion.Anim.drawer) {
@@ -117,6 +124,23 @@ extension ContentView {
           )
         }
       }
+    }
+  }
+
+  /// 重置工具栏 Loading 指示状态，确保取消旧任务与可见性。
+  private func resetExifLoadingIndicator() {
+    exifLoadingIndicatorDelayTask?.cancel()
+    exifLoadingIndicatorDelayTask = nil
+    isShowingExifLoadingIndicator = false
+  }
+
+  /// 为工具栏 Loading 指示设置延迟，避免立即闪现。
+  private func scheduleExifLoadingIndicatorReveal(for requestID: UUID) {
+    exifLoadingIndicatorDelayTask = Task { @MainActor [requestID] in
+      try? await Task.sleep(nanoseconds: 250_000_000)
+      guard !Task.isCancelled else { return }
+      guard self.exifLoadRequestID == requestID, self.isLoadingExif else { return }
+      self.isShowingExifLoadingIndicator = true
     }
   }
 }

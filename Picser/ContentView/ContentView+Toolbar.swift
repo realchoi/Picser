@@ -38,22 +38,19 @@ extension ContentView {
           toggleExifInfoPanel()
         } label: {
           let isActive = showingExifInfo || isLoadingExif
-          HStack(spacing: 4) {
-            if isLoadingExif {
+          let iconColor = isActive ? Color.accentColor : Color.primary
+          ZStack {
+            Image(systemName: isActive ? "info.circle.fill" : "info.circle")
+              .foregroundStyle(iconColor)
+              .opacity(isShowingExifLoadingIndicator ? 0 : 1)
+            if isShowingExifLoadingIndicator {
               ProgressView()
                 .scaleEffect(0.8)
                 .frame(width: 16, height: 16)
-                .tint(Color.accentColor)
-            } else {
-              Image(systemName: isActive ? "info.circle.fill" : "info.circle")
-            }
-
-            if isLoadingExif {
-              Text(l10n: "loading_text")
-                .font(.caption)
+                .tint(iconColor)
             }
           }
-          .foregroundStyle(isActive ? Color.accentColor : Color.primary)
+          .frame(width: 24, height: 24)
         }
         .disabled(isLoadingExif)
         .help(

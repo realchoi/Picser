@@ -25,9 +25,11 @@ struct ContentView: View {
   @State var showingExifInfo = false  // 是否显示 EXIF 信息弹窗
   @State var currentExifInfo: ExifInfo?  // 当前图片的 EXIF 信息
   @State var isLoadingExif = false  // 是否正在加载 EXIF 信息
+  @State var isShowingExifLoadingIndicator = false  // 工具栏是否显示 EXIF 加载指示
   @State var alertContent: AlertContent?  // 通用弹窗内容
   @State var exifLoadTask: Task<Void, Never>? = nil
   @State var exifLoadRequestID: UUID?
+  @State var exifLoadingIndicatorDelayTask: Task<Void, Never>? = nil
   // 拖放高亮
   @State private var isDropTargeted = false
 
