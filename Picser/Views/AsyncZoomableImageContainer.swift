@@ -23,14 +23,18 @@ struct AsyncZoomableImageContainer: View {
   var isCropping: Bool = false
   var cropAspect: CropAspectOption = .freeform
   var cropControls: CropControlConfiguration? = nil
+  var isSlideshowActive: Bool = false
 
   // 我们现在只需要一个 State 来存储最终显示的图片
   @State private var displayImage: NSImage?
+  @State private var displayedImageURL: URL?
   @State private var isShowingFull: Bool = false
   @State private var loadTask: Task<Void, Never>?
   @State private var fullLoadTask: Task<Void, Never>?
   @State private var viewportSize: CGSize = .zero
   @State private var backingScaleFactor: CGFloat = NSScreen.main?.backingScaleFactor ?? 2.0
+
+  private var isSeamlessModeEnabled: Bool { isSlideshowActive }
 
   // 任务触发键：由 URL 和视口的离散尺寸组成，满足 Equatable
   private var taskKey: String {
@@ -48,7 +52,7 @@ struct AsyncZoomableImageContainer: View {
             image: image,
             transform: transform,
             windowToken: windowToken,
-            sourceURL: url,
+            sourceURL: displayedImageURL ?? url,
             isCropping: isCropping,
             cropAspect: cropAspect,
             cropControls: cropControls
@@ -70,24 +74,42 @@ struct AsyncZoomableImageContainer: View {
       .onChange(of: url) { _, newURL in
         // 切换图片时显示 Loading，除非立即有缓存
         if let cachedFull = ImageLoader.shared.cachedFullImage(for: newURL) {
-          self.displayImage = cachedFull
+          showImage(cachedFull, for: newURL)
           self.isShowingFull = true
         } else if let cachedThumb = ImageLoader.shared.cachedThumbnail(for: newURL) {
-          self.displayImage = cachedThumb
+          showImage(cachedThumb, for: newURL)
           self.isShowingFull = false
         } else {
-          self.displayImage = nil
           self.isShowingFull = false
+          if !isSeamlessModeEnabled || displayImage == nil {
+            showImage(nil, for: nil)
+          }
         }
       }
       .onChange(of: geometry.size) { _, newSize in
         // 视口尺寸变化时更新
         self.viewportSize = newSize
       }
+      .onChange(of: isSlideshowActive) { _, newValue in
+        guard !newValue else { return }
+        guard displayedImageURL != url else { return }
+        if let cachedFull = ImageLoader.shared.cachedFullImage(for: url) {
+          showImage(cachedFull, for: url)
+          self.isShowingFull = true
+        } else if let cachedThumb = ImageLoader.shared.cachedThumbnail(for: url) {
+          showImage(cachedThumb, for: url)
+          self.isShowingFull = false
+        } else {
+          showImage(nil, for: nil)
+          self.isShowingFull = false
+        }
+      }
     }
     .task(id: taskKey) {
       // 取消上一轮加载
       loadTask?.cancel()
+      fullLoadTask?.cancel()
+      fullLoadTask = nil
 
       // 重置状态，但先尝试使用缓存避免闪烁
       self.isShowingFull = false
@@ -98,10 +120,10 @@ struct AsyncZoomableImageContainer: View {
         updateBackingScaleFactor()
         // 第1步：缓存直读，立即显示缓存内容（避免闪烁）
         if let cachedFull = ImageLoader.shared.cachedFullImage(for: currentURL) {
-          self.displayImage = cachedFull
+          showImage(cachedFull, for: currentURL)
           self.isShowingFull = true
         } else if let cachedThumb = ImageLoader.shared.cachedThumbnail(for: currentURL) {
-          self.displayImage = cachedThumb
+          showImage(cachedThumb, for: currentURL)
         }
 
         let scale = backingScaleFactor
@@ -111,20 +133,24 @@ struct AsyncZoomableImageContainer: View {
           max(viewportSize.width, viewportSize.height) * scale * 2.5
         ))
 
+        var showingCurrent = (self.displayedImageURL == currentURL)
+
         // 第2步：如果还没有完整图，先加载缩略图
-        if self.displayImage == nil && !self.isShowingFull {
+        if !showingCurrent && !self.isShowingFull {
           if let thumb = await ImageLoader.shared.loadThumbnail(for: currentURL), !Task.isCancelled {
-            self.displayImage = thumb
+            showImage(thumb, for: currentURL)
+            showingCurrent = (self.displayedImageURL == currentURL)
           }
         }
 
         // 第3步：加载优化的中等尺寸图片（更好的过渡）
-        if !self.isShowingFull {
+        if !self.isShowingFull && !Task.isCancelled {
           if let optimized = await ImageLoader.shared.loadOptimizedImage(
             for: currentURL,
             targetLongSidePixels: targetLongSidePixels
           ), !Task.isCancelled, !self.isShowingFull {
-            self.displayImage = optimized
+            showImage(optimized, for: currentURL)
+            showingCurrent = (self.displayedImageURL == currentURL)
           }
         }
 
@@ -132,7 +158,7 @@ struct AsyncZoomableImageContainer: View {
         fullLoadTask?.cancel()
         fullLoadTask = Task { @MainActor in
           if let full = await ImageLoader.shared.loadFullImage(for: currentURL), !Task.isCancelled {
-            self.displayImage = full
+            showImage(full, for: currentURL)
             self.isShowingFull = true
           }
         }
@@ -197,6 +223,13 @@ extension AsyncZoomableImageContainer {
       guard let tracked = KeyboardShortcutManager.shared.window(for: windowToken), tracked === window else { return }
       updateBackingScaleFactor()
     }
+  }
+
+  /// 统一更新当前显示的图片与其来源 URL，便于与异步加载管线同步。
+  @MainActor
+  private func showImage(_ image: NSImage?, for sourceURL: URL?) {
+    displayImage = image
+    displayedImageURL = sourceURL
   }
 
   /// 仅解析元数据以获取宽高比（width/height）。失败返回 nil。

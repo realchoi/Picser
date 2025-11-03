@@ -352,6 +352,7 @@ struct ContentView: View {
       showingExifInfo: $showingExifInfo,
       exifInfo: currentExifInfo,
       transform: imageTransform,
+      isSlideshowActive: isSlideshowActive,
       isCropping: $isCropping,
       cropAspect: $cropAspect,
       showingAddCustomRatio: $showingAddCustomRatio

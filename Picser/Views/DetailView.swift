@@ -17,6 +17,7 @@ struct DetailView: View {
   @Binding var showingExifInfo: Bool
   let exifInfo: ExifInfo?
   let transform: ImageTransform
+  let isSlideshowActive: Bool
   // 裁剪参数（由上层传入）
   @Binding var isCropping: Bool
   @Binding var cropAspect: CropAspectOption
@@ -75,7 +76,8 @@ struct DetailView: View {
                     cropAspect = .freeform
                   }
                 }
-              )
+              ),
+              isSlideshowActive: isSlideshowActive
             )
               .frame(maxWidth: .infinity, maxHeight: .infinity)
               .overlay {
