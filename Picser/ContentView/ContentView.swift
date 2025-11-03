@@ -42,6 +42,7 @@ struct ContentView: View {
   @State private var showingAddCustomRatio = false
   @State private var customRatioW: String = "1"
   @State private var customRatioH: String = "1"
+  /// 幻灯片播放状态与驱动任务
   @State private var isSlideshowPlaying = false
   @State private var slideshowTask: Task<Void, Never>? = nil
   @State var securityAccessGroup: SecurityScopedAccessGroup?
@@ -393,6 +394,7 @@ struct ContentView: View {
 
   // MARK: - 幻灯片播放
 
+  /// 切换幻灯片播放/暂停，含权限校验与空集合保护
   @MainActor
   func toggleSlideshowPlayback() {
     if isSlideshowPlaying {
@@ -405,6 +407,7 @@ struct ContentView: View {
     }
   }
 
+  /// 启动幻灯片播放：必要时定位到第一张并拉起定时任务
   @MainActor
   private func startSlideshowPlayback() {
     guard !imageURLs.isEmpty else { return }
@@ -415,6 +418,7 @@ struct ContentView: View {
     restartSlideshowTask()
   }
 
+  /// 停止播放并释放定时任务，保证状态一致
   @MainActor
   private func stopSlideshowPlayback() {
     slideshowTask?.cancel()
@@ -424,6 +428,7 @@ struct ContentView: View {
     }
   }
 
+  /// 重建定时任务，确保间隔调整或列表变化后生效
   @MainActor
   private func restartSlideshowTask() {
     slideshowTask?.cancel()
@@ -443,6 +448,7 @@ struct ContentView: View {
     }
   }
 
+  /// 根据当前列表和循环策略推进下一帧，异常时自动停播
   @MainActor
   private func advanceSlideshowFrame() {
     guard isSlideshowPlaying else { return }
@@ -471,6 +477,7 @@ struct ContentView: View {
     }
   }
 
+  /// 图片集合变动时同步当前选中项，并视情况重建任务
   @MainActor
   private func handleSlideshowImageListChange(_ newURLs: [URL]) {
     if newURLs.isEmpty {
@@ -494,12 +501,14 @@ struct ContentView: View {
     restartSlideshowTask()
   }
 
+  /// 播放间隔更新后立即应用
   @MainActor
   private func handleSlideshowIntervalChange() {
     guard isSlideshowPlaying else { return }
     restartSlideshowTask()
   }
 
+  /// 循环策略更新时评估是否需要停播
   @MainActor
   private func handleSlideshowLoopChange(_ isLooping: Bool) {
     guard isSlideshowPlaying else { return }

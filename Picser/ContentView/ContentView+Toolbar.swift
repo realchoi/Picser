@@ -120,6 +120,7 @@ extension ContentView {
           toggleSlideshowPlayback()
         } label: {
           let isPlaying = isSlideshowActive
+          // 幻灯片播放按钮：根据当前状态切换文案与图标
           Label(
             isPlaying
               ? L10n.string("slideshow_toolbar_pause")
