@@ -11,17 +11,8 @@ extension ZoomableImageView {
     let imageBounds = imageFrame(in: geometry).intersection(viewBounds)
 
     ZStack(alignment: .topLeading) {
-      Canvas { ctx, size in
-        var bg = Path(CGRect(origin: .zero, size: size))
-        if let rect = cropRect {
-          bg.addRect(rect)
-          ctx.fill(bg, with: .color(Color.black.opacity(0.45)), style: FillStyle(eoFill: true))
-        } else {
-          ctx.fill(bg, with: .color(Color.black.opacity(0.35)))
-        }
-      }
-      .frame(width: geometry.size.width, height: geometry.size.height)
-      .allowsHitTesting(false)
+      cropDimmingLayer(size: geometry.size)
+        .allowsHitTesting(false)
 
       if let rect = cropRect {
         cropSelectionLayer(for: rect, bounds: imageBounds, geometry: geometry)
@@ -186,6 +177,27 @@ extension ZoomableImageView {
           }
         }
     }
+  }
+
+  private func cropDimmingLayer(size: CGSize) -> some View {
+    return Canvas { context, canvasSize in
+      guard canvasSize.width > 0, canvasSize.height > 0 else { return }
+      var shape = Path(CGRect(origin: .zero, size: canvasSize))
+      if let rect = cropRect {
+        shape.addRect(rect)
+        context.fill(
+          shape,
+          with: .color(Color.black.opacity(0.45)),
+          style: FillStyle(eoFill: true, antialiased: true)
+        )
+      } else {
+        context.fill(
+          shape,
+          with: .color(Color.black.opacity(0.35))
+        )
+      }
+    }
+    .frame(width: size.width, height: size.height)
   }
 
   private func applyCursor(for handle: CropHandle?) {
@@ -628,11 +640,11 @@ extension ZoomableImageView {
     }
   }
 
-  func setupCropRect(in geometry: GeometryProxy) {
+  func setupCropRect(in geometry: GeometryProxy, preferredRect: CGRect? = nil) {
     let frame = imageFrame(in: geometry).intersection(CGRect(origin: .zero, size: geometry.size))
     guard !frame.isEmpty else { cropRect = nil; return }
-    let rect = clampRect(defaultCropRect(in: frame), within: frame)
-    cropRect = rect
+    let base = preferredRect ?? defaultCropRect(in: frame)
+    cropRect = resolveInitialCropRect(base: base, within: frame)
     cropDragStartRect = nil
     activeCropHandle = nil
     isCropHandleDragging = false
@@ -663,7 +675,7 @@ extension ZoomableImageView {
     let frame = imageFrame(in: geometry).intersection(CGRect(origin: .zero, size: geometry.size))
     guard !frame.isEmpty else { cropRect = nil; return }
     guard let current = cropRect else {
-      cropRect = defaultCropRect(in: frame)
+      cropRect = resolveInitialCropRect(base: defaultCropRect(in: frame), within: frame)
       return
     }
 
@@ -719,6 +731,53 @@ extension ZoomableImageView {
       width: max(0, displayWidth),
       height: max(0, displayHeight)
     )
+  }
+
+  /// 当前视图中可见的图像区域（视图坐标系）
+  func preferredCropRectForCurrentView(in geometry: GeometryProxy) -> CGRect? {
+    let viewBounds = CGRect(origin: .zero, size: geometry.size)
+    let visible = imageFrame(in: geometry).intersection(viewBounds)
+    guard !visible.isEmpty else { return nil }
+
+    let desiredInset = cropHandleSize / 2 + cropEdgeHitThickness + 6
+    let insetX = min(desiredInset, max(0, (visible.width - minCropSide) / 2))
+    let insetY = min(desiredInset, max(0, (visible.height - minCropSide) / 2))
+    let adjusted = visible.insetBy(dx: insetX, dy: insetY)
+    return adjusted.width >= minCropSide && adjusted.height >= minCropSide ? adjusted : visible
+  }
+
+  /// 将初始裁剪框按当前约束调整到合法范围
+  private func resolveInitialCropRect(base: CGRect, within frame: CGRect) -> CGRect {
+    guard let aspect = currentAspectValue() else {
+      return clampRect(base, within: frame)
+    }
+
+    let clampedBase = clampRect(base, within: frame)
+    let center = CGPoint(x: clampedBase.midX, y: clampedBase.midY)
+    var width = min(max(clampedBase.width, minCropSide), frame.width)
+    var height = min(max(clampedBase.height, minCropSide), frame.height)
+
+    if width / height > aspect {
+      height = width / aspect
+      if height > frame.height {
+        height = frame.height
+        width = height * aspect
+      }
+    } else {
+      width = height * aspect
+      if width > frame.width {
+        width = frame.width
+        height = width / aspect
+      }
+    }
+
+    let adjusted = CGRect(
+      x: center.x - width / 2,
+      y: center.y - height / 2,
+      width: width,
+      height: height
+    )
+    return clampRect(adjusted, within: frame)
   }
 
   /// 将视图坐标中的裁剪矩形映射到“旋转后”图像坐标

@@ -4978,6 +4978,38 @@
         }
       }
     },
+    "zoom_anchor_pointer_toggle_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom around pointer"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "围绕指针缩放"
+          }
+        }
+      }
+    },
+    "zoom_anchor_pointer_toggle_description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keeps the cursor position locked when zooming (may reveal background)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缩放时锁定当前指针位置，可能会露出背景区域。"
+          }
+        }
+      }
+    },
     "zoom_settings_group": {
       "localizations": {
         "en": {

@@ -70,6 +70,16 @@ struct DisplaySettingsView: View {
             .frame(width: 40, alignment: .trailing)
             .monospaced()
         }
+
+        Toggle(isOn: $appSettings.zoomAnchorsToPointer) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text(l10n: "zoom_anchor_pointer_toggle_title")
+              .fontWeight(.medium)
+            Text(l10n: "zoom_anchor_pointer_toggle_description")
+              .font(.caption)
+              .foregroundColor(.secondary)
+          }
+        }
       }
 
       Spacer().frame(height: 20)

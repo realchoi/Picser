@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import CoreGraphics
 
 enum ImageRotation: Int, CaseIterable, Equatable {
   case deg0 = 0
@@ -27,6 +28,7 @@ enum ImageRotation: Int, CaseIterable, Equatable {
   }
 
   var degrees: Double { Double(rawValue) }
+  var radians: CGFloat { CGFloat(degrees * .pi / 180.0) }
   var isRightAngle: Bool { self != .deg0 }
 }
 
@@ -37,4 +39,3 @@ struct ImageTransform: Equatable {
 
   static let identity = ImageTransform()
 }
-

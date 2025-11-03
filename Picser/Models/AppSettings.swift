@@ -103,6 +103,17 @@ class AppSettings: ObservableObject {
       if zoomSensitivity > 0.1 { zoomSensitivity = 0.1 }
     }
   }
+  /// 是否围绕指针进行缩放（UserDefaults 存储）
+  @AppStorage("zoomAnchorsToPointer") private var zoomAnchorsToPointerStorage: Bool = true {
+    willSet {
+      guard zoomAnchorsToPointerStorage != newValue else { return }
+      objectWillChange.send()
+    }
+  }
+  var zoomAnchorsToPointer: Bool {
+    get { zoomAnchorsToPointerStorage }
+    set { zoomAnchorsToPointerStorage = newValue }
+  }
   /// 最小缩放比例（UserDefaults 存储）
   @AppStorage("minZoomScale") var minZoomScale: Double = 0.1 {
     didSet {
@@ -280,6 +291,7 @@ class AppSettings: ObservableObject {
       resetKeyboardShortcutsToDefaults()
     case .display:
       zoomSensitivity = 0.05
+      zoomAnchorsToPointer = true
       minZoomScale = 0.1
       maxZoomScale = 10.0
       showMinimap = true

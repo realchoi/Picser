@@ -68,6 +68,9 @@ struct ZoomableImageView: View {
 
   var cropControls: CropControlConfiguration? = nil
 
+  // MARK: - 指针跟踪
+  @State private var lastPointerLocation: CGPoint?
+
   private var effectiveScale: CGFloat {
     scale
   }
@@ -91,8 +94,22 @@ struct ZoomableImageView: View {
         .scaleEffect(effectiveScale)
         .offset(effectiveOffset)
         .overlay(
-          ScrollWheelHandler { deltaY in
+          ScrollWheelHandler { deltaY, location in
             guard shouldRespondToZoomGesture() else { return }
+
+            let anchorEnabled = appSettings.zoomAnchorsToPointer
+            let clampedLocation = clampToViewBounds(location: location, in: geometry)
+            let focus = anchorEnabled
+              ? PanZoomMath.focusVectors(
+                location: clampedLocation,
+                viewSize: geometry.size,
+                offset: offset,
+                baseFitScale: baseFitScale,
+                scale: scale,
+                transform: transform
+              )
+              : nil
+
             let clampedScale = PanZoomMath.scaleByWheel(
               current: scale,
               deltaY: deltaY,
@@ -101,17 +118,54 @@ struct ZoomableImageView: View {
               max: maxScale
             )
 
+            let maxOffset = PanZoomMath.maxOffset(
+              viewSize: geometry.size,
+              imageSize: effectiveImageSize(),
+              baseFitScale: baseFitScale,
+              scale: clampedScale
+            )
+
+            let proposedOffset: CGSize
+            if let focus {
+              proposedOffset = PanZoomMath.offsetKeepingFocus(
+                viewVector: focus.viewVector,
+                baseVector: focus.baseVector,
+                baseFitScale: baseFitScale,
+                targetScale: clampedScale,
+                transform: transform
+              )
+            } else {
+              proposedOffset = offset
+            }
+            let finalOffset: CGSize
+            if anchorEnabled, focus != nil {
+              finalOffset = proposedOffset
+            } else {
+              finalOffset = PanZoomMath.clamp(offset: proposedOffset, to: maxOffset)
+            }
+            let clampedOffset = finalOffset
+            if anchorEnabled {
+              lastPointerLocation = clampedLocation
+            }
             withAnimation(Motion.Anim.fast) {
               scale = clampedScale
               lastScale = clampedScale
-              let maxOffset = getCachedMaxOffset(geometry: geometry)
-              offset = PanZoomMath.clamp(offset: offset, to: maxOffset)
-              lastOffset = PanZoomMath.clamp(offset: lastOffset, to: maxOffset)
+              offset = clampedOffset
+              lastOffset = clampedOffset
               cacheMaxOffset(maxOffset, for: clampedScale)
             }
             triggerMinimapAutoHide()
           }
         )
+        .overlay(alignment: .topLeading) {
+          if appSettings.zoomAnchorsToPointer {
+            PointerTrackingView { point in
+              lastPointerLocation = clampToViewBounds(location: point, in: geometry)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
+          }
+        }
         .gesture(
             // 拖拽手势
             DragGesture()
@@ -138,6 +192,9 @@ struct ZoomableImageView: View {
                   height: lastOffset.height + value.translation.height
                 )
                 offset = PanZoomMath.clamp(offset: proposed, to: maxOffset)
+                if appSettings.zoomAnchorsToPointer {
+                  lastPointerLocation = clampToViewBounds(location: value.location, in: geometry)
+                }
                 // 拖拽过程中刷新小地图可见性
                 triggerMinimapAutoHide()
               }
@@ -171,6 +228,22 @@ struct ZoomableImageView: View {
               .onChanged { value in
                 // 与滚轮缩放一样，遵从修饰键设置
                 guard shouldRespondToZoomGesture() else { return }
+                let pointer = pointerLocation(in: geometry)
+                let clampedLocation = pointer.map { clampToViewBounds(location: $0, in: geometry) }
+                if let clampedLocation {
+                  lastPointerLocation = clampedLocation
+                }
+                let focus = clampedLocation.flatMap {
+                  PanZoomMath.focusVectors(
+                    location: $0,
+                    viewSize: geometry.size,
+                    offset: offset,
+                    baseFitScale: baseFitScale,
+                    scale: scale,
+                    transform: transform
+                  )
+                }
+
                 // value 是相对比例（1.0 为不变）
                 let clamped = PanZoomMath.scaleByMagnification(
                   last: lastScale,
@@ -178,17 +251,39 @@ struct ZoomableImageView: View {
                   min: minScale,
                   max: maxScale
                 )
+                let maxOffset = PanZoomMath.maxOffset(
+                  viewSize: geometry.size,
+                  imageSize: effectiveImageSize(),
+                  baseFitScale: baseFitScale,
+                  scale: clamped
+                )
+
+                let proposedOffset: CGSize
+                if let focus {
+                  proposedOffset = PanZoomMath.offsetKeepingFocus(
+                    viewVector: focus.viewVector,
+                    baseVector: focus.baseVector,
+                    baseFitScale: baseFitScale,
+                    targetScale: clamped,
+                    transform: transform
+                  )
+                } else {
+                  proposedOffset = offset
+                }
+
+                let finalOffset: CGSize
+                if focus != nil {
+                  finalOffset = proposedOffset
+                } else {
+                  finalOffset = PanZoomMath.clamp(offset: proposedOffset, to: maxOffset)
+                }
+
                 withAnimation(Motion.Anim.ultraFast) {
                   scale = clamped
-                  // 缩放后更新并夹取偏移，避免越界
-                  let maxOffset = PanZoomMath.maxOffset(
-                    viewSize: geometry.size,
-                    imageSize: effectiveImageSize(),
-                    baseFitScale: baseFitScale,
-                    scale: scale
-                  )
-                  offset = PanZoomMath.clamp(offset: offset, to: maxOffset)
+                  offset = finalOffset
+                  lastOffset = finalOffset
                 }
+                cacheMaxOffset(maxOffset, for: clamped)
                 // 捏合过程中刷新小地图可见性
                 triggerMinimapAutoHide()
               }
@@ -201,13 +296,34 @@ struct ZoomableImageView: View {
                   max: maxScale
                 )
                 lastScale = clamped
+                let pointer = pointerLocation(in: geometry)
+                let clampedLocation = pointer.map { clampToViewBounds(location: $0, in: geometry) }
+                if let clampedLocation {
+                  lastPointerLocation = clampedLocation
+                }
+                let focus = clampedLocation.flatMap {
+                  PanZoomMath.focusVectors(
+                    location: $0,
+                    viewSize: geometry.size,
+                    offset: offset,
+                    baseFitScale: baseFitScale,
+                    scale: scale,
+                    transform: transform
+                  )
+                }
                 let maxOffset = PanZoomMath.maxOffset(
                   viewSize: geometry.size,
                   imageSize: effectiveImageSize(),
                   baseFitScale: baseFitScale,
                   scale: scale
                 )
-                lastOffset = PanZoomMath.clamp(offset: offset, to: maxOffset)
+                if focus == nil {
+                  let clampedOffset = PanZoomMath.clamp(offset: offset, to: maxOffset)
+                  offset = clampedOffset
+                  lastOffset = clampedOffset
+                } else {
+                  lastOffset = offset
+                }
                 // 清理滚轮缓存，使后续滚轮缩放重新计算边界
                 invalidateCache()
                 // 捏合结束后继续计时隐藏
@@ -276,15 +392,31 @@ struct ZoomableImageView: View {
         // 旋转/镜像改变时根据新有效尺寸重新适配
         fitImageToView(geometry: geometry)
       }
+      .onChange(of: appSettings.zoomAnchorsToPointer) { _, newValue in
+        if !newValue {
+          lastPointerLocation = nil
+          let maxOffset = PanZoomMath.maxOffset(
+            viewSize: geometry.size,
+            imageSize: effectiveImageSize(),
+            baseFitScale: baseFitScale,
+            scale: scale
+          )
+          let clamped = PanZoomMath.clamp(offset: offset, to: maxOffset)
+          withAnimation(Motion.Anim.fast) {
+            offset = clamped
+            lastOffset = clamped
+          }
+        }
+      }
       .onChange(of: isCropping) { _, newValue in
         if newValue {
           minimapWasVisibleBeforeCropping = minimapUserVisible
           minimapHideTask?.cancel()
           minimapHideTask = nil
           minimapUserVisible = false
-          // 进入裁剪模式时，重置平移并初始化裁剪框，确保选区位于可见区域内
-          resetPan()
-          setupCropRect(in: geometry)
+          // 进入裁剪模式时，根据当前视图初始化裁剪区域
+          let preferredRect = preferredCropRectForCurrentView(in: geometry)
+          setupCropRect(in: geometry, preferredRect: preferredRect)
           activeCropHandle = nil
           isCropHandleDragging = false
         } else {
@@ -535,58 +667,106 @@ struct ZoomableImageView: View {
 
   /// 计算在原始图像坐标中的可见区域（考虑旋转与镜像）
   private func visibleRectInOriginalImage(geometry: GeometryProxy) -> CGRect {
-    let originalSize = image.size
-    let effSize = effectiveImageSize()
-    // 先在“旋转后”的坐标系中计算可见区域（不考虑镜像，镜像不改变区域大小，仅改变原点位置）
-    let r = PanZoomMath.visibleRectInImage(
+    PanZoomMath.visibleRectInOriginalImage(
       viewSize: geometry.size,
-      imageSize: effSize,
+      imageSize: image.size,
       offset: offset,
       baseFitScale: baseFitScale,
-      scale: scale
+      scale: scale,
+      transform: transform
     )
+  }
 
-    // 将旋转坐标系中的矩形映射回原始图像坐标（不在此处应用镜像；镜像在小地图视图中统一应用）
-    let mapped: CGRect
-    switch transform.rotation {
-    case .deg0:
-      mapped = r
-    case .deg90: // 顺时针90°：x = W - (y' + h'), y = x', w = h', h = w'
-      mapped = CGRect(
-        x: max(0, originalSize.width - (r.origin.y + r.size.height)),
-        y: max(0, r.origin.x),
-        width: max(0, r.size.height),
-        height: max(0, r.size.width)
-      )
-    case .deg180: // 180°：x = W - (x' + w'), y = H - (y' + h')
-      mapped = CGRect(
-        x: max(0, originalSize.width - (r.origin.x + r.size.width)),
-        y: max(0, originalSize.height - (r.origin.y + r.size.height)),
-        width: max(0, r.size.width),
-        height: max(0, r.size.height)
-      )
-    case .deg270: // 逆时针90°：x = y', y = H - (x' + w'), w = h', h = w'
-      mapped = CGRect(
-        x: max(0, r.origin.y),
-        y: max(0, originalSize.height - (r.origin.x + r.size.width)),
-        width: max(0, r.size.height),
-        height: max(0, r.size.width)
-      )
+  /// 将事件坐标限定在当前视图边界内
+private func clampToViewBounds(location: CGPoint, in geometry: GeometryProxy) -> CGPoint {
+  let x = min(max(location.x, 0.0), geometry.size.width)
+  let y = min(max(location.y, 0.0), geometry.size.height)
+  return CGPoint(x: x, y: y)
+}
+
+/// 获取最近记录的指针位置
+private func pointerLocation(in geometry: GeometryProxy) -> CGPoint? {
+  guard appSettings.zoomAnchorsToPointer else { return nil }
+  guard let stored = lastPointerLocation else { return nil }
+  return clampToViewBounds(location: stored, in: geometry)
+}
+
+/// 捕获鼠标移动位置的透明视图
+private struct PointerTrackingView: NSViewRepresentable {
+  let onUpdate: (CGPoint) -> Void
+
+  func makeNSView(context: Context) -> TrackingView {
+    let view = TrackingView()
+    view.onUpdate = onUpdate
+    return view
+  }
+
+  func updateNSView(_ nsView: TrackingView, context: Context) {
+    nsView.onUpdate = onUpdate
+  }
+
+  final class TrackingView: NSView {
+    var onUpdate: ((CGPoint) -> Void)?
+    private var trackingArea: NSTrackingArea?
+
+    override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { true }
+
+    override func viewDidMoveToWindow() {
+      super.viewDidMoveToWindow()
+      window?.acceptsMouseMovedEvents = true
     }
 
-    // 夹取到原图范围内
-    let x0 = max(0.0, mapped.origin.x)
-    let y0 = max(0.0, mapped.origin.y)
-    let x1 = min(originalSize.width, mapped.origin.x + mapped.size.width)
-    let y1 = min(originalSize.height, mapped.origin.y + mapped.size.height)
-    return CGRect(x: x0, y: y0, width: max(0, x1 - x0), height: max(0, y1 - y0))
-  }
+    override func updateTrackingAreas() {
+      super.updateTrackingAreas()
+      if let trackingArea {
+        removeTrackingArea(trackingArea)
+      }
+      let options: NSTrackingArea.Options = [
+        .mouseMoved,
+        .mouseEnteredAndExited,
+        .activeInKeyWindow,
+        .inVisibleRect,
+        .enabledDuringMouseDrag
+      ]
+      let area = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+      addTrackingArea(area)
+      trackingArea = area
+    }
 
-  /// 缓存最大偏移量
-  private func cacheMaxOffset(_ maxOffset: CGSize, for scale: CGFloat) {
-    cachedMaxOffset = maxOffset
-    cachedScale = scale
+    override func mouseMoved(with event: NSEvent) {
+      onUpdate?(convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+      onUpdate?(convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+      onUpdate?(convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+      onUpdate?(convert(event.locationInWindow, from: nil))
+    }
+
+    override func otherMouseDragged(with event: NSEvent) {
+      onUpdate?(convert(event.locationInWindow, from: nil))
+    }
+
+    deinit {
+      if let trackingArea {
+        removeTrackingArea(trackingArea)
+      }
+    }
   }
+}
+
+/// 缓存最大偏移量
+private func cacheMaxOffset(_ maxOffset: CGSize, for scale: CGFloat) {
+  cachedMaxOffset = maxOffset
+  cachedScale = scale
+}
 
   /// 获取缓存的缩放比例
   private func getCachedScale() -> CGFloat {

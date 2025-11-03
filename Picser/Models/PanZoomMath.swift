@@ -124,4 +124,126 @@ enum PanZoomMath {
     let proposed = last * gestureValue
     return clampScale(proposed, min: min, max: max)
   }
+
+  // MARK: - Focus helpers
+
+  /// 将视图坐标系中的交互点转换为图像坐标系向量，考虑当前偏移、缩放、旋转与镜像
+  static func focusVectors(
+    location: CGPoint,
+    viewSize: CGSize,
+    offset: CGSize,
+    baseFitScale: CGFloat,
+    scale: CGFloat,
+    transform: ImageTransform
+  ) -> (viewVector: CGPoint, baseVector: CGPoint)? {
+    guard viewSize.width > 0, viewSize.height > 0 else { return nil }
+    let displayScale = baseFitScale * scale
+    guard displayScale > 0 else { return nil }
+
+    let center = CGPoint(x: viewSize.width / 2.0, y: viewSize.height / 2.0)
+    let viewVector = CGPoint(x: location.x - center.x, y: location.y - center.y)
+    let translated = CGPoint(
+      x: viewVector.x - offset.width,
+      y: viewVector.y - offset.height
+    )
+
+    let transformMatrix = linearTransform(scale: displayScale, transform: transform)
+    let inverseMatrix = transformMatrix.inverted()
+    let baseVector = translated.applying(inverseMatrix)
+    return (viewVector, baseVector)
+  }
+
+  /// 根据目标缩放保持交互点不变，计算新的偏移量
+  static func offsetKeepingFocus(
+    viewVector: CGPoint,
+    baseVector: CGPoint,
+    baseFitScale: CGFloat,
+    targetScale: CGFloat,
+    transform: ImageTransform
+  ) -> CGSize {
+    let targetDisplayScale = baseFitScale * targetScale
+    let transformMatrix = linearTransform(scale: targetDisplayScale, transform: transform)
+    let projectedPoint = baseVector.applying(transformMatrix)
+
+    return CGSize(
+      width: viewVector.x - projectedPoint.x,
+      height: viewVector.y - projectedPoint.y
+    )
+  }
+
+  /// 计算当前视口对应的原始图像可见区域
+  static func visibleRectInOriginalImage(
+    viewSize: CGSize,
+    imageSize: CGSize,
+    offset: CGSize,
+    baseFitScale: CGFloat,
+    scale: CGFloat,
+    transform: ImageTransform
+  ) -> CGRect {
+    guard imageSize.width > 0, imageSize.height > 0 else { return .zero }
+
+    let corners = [
+      CGPoint(x: 0, y: 0),
+      CGPoint(x: viewSize.width, y: 0),
+      CGPoint(x: 0, y: viewSize.height),
+      CGPoint(x: viewSize.width, y: viewSize.height)
+    ]
+
+    var xs: [CGFloat] = []
+    var ys: [CGFloat] = []
+
+    for corner in corners {
+      guard let vectors = focusVectors(
+        location: corner,
+        viewSize: viewSize,
+        offset: offset,
+        baseFitScale: baseFitScale,
+        scale: scale,
+        transform: transform
+      ) else { continue }
+
+      let baseVector = vectors.baseVector
+      let imagePoint = CGPoint(
+        x: baseVector.x + imageSize.width / 2.0,
+        y: baseVector.y + imageSize.height / 2.0
+      )
+      xs.append(imagePoint.x)
+      ys.append(imagePoint.y)
+    }
+
+    guard
+      let rawMinX = xs.min(),
+      let rawMaxX = xs.max(),
+      let rawMinY = ys.min(),
+      let rawMaxY = ys.max()
+    else {
+      return CGRect(origin: .zero, size: imageSize)
+    }
+
+    let minX = max(CGFloat.zero, rawMinX)
+    let maxX = min(imageSize.width, rawMaxX)
+    let minY = max(CGFloat.zero, rawMinY)
+    let maxY = min(imageSize.height, rawMaxY)
+
+    return CGRect(
+      x: minX,
+      y: minY,
+      width: max(CGFloat.zero, maxX - minX),
+      height: max(CGFloat.zero, maxY - minY)
+    )
+  }
+
+  // MARK: - 私有辅助函数
+
+  private static func linearTransform(scale: CGFloat, transform: ImageTransform) -> CGAffineTransform {
+    var matrix = CGAffineTransform.identity
+    matrix = matrix.rotated(by: transform.rotation.radians)
+    var sx: CGFloat = 1.0
+    var sy: CGFloat = 1.0
+    if transform.mirrorH { sx *= -1.0 }
+    if transform.mirrorV { sy *= -1.0 }
+    matrix = matrix.scaledBy(x: sx, y: sy)
+    matrix = matrix.scaledBy(x: scale, y: scale)
+    return matrix
+  }
 }
