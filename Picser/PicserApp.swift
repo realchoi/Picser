@@ -51,19 +51,25 @@ struct PicserApp: App {
   }
 
   var body: some Scene {
-    WindowGroup {
+    WindowGroup(id: "MainWindow") {
       ContentView()
         .environmentObject(appSettings)
         .environmentObject(purchaseManager)
         .environmentObject(featureGatekeeper)
         .environmentObject(externalOpenCoordinator)
         .environment(\.locale, localizationManager.currentLocale)
-        // 让试图内容延伸至标题栏区域，实现完全无边框效果
         .ignoresSafeArea(.all, edges: .top)
+        // 处理外部打开的图片批次
+        .onReceive(externalOpenCoordinator.latestBatchPublisher) { batch in
+          if let window = NSApp.keyWindow ?? NSApp.mainWindow {
+            window.makeKeyAndOrderFront(nil)
+          }
+        }
     }
     // 实现沉浸式看图：隐藏系统默认的标题栏
     .windowStyle(.hiddenTitleBar)
     .windowResizability(.contentSize)
+    .defaultSize(CGSize(width: 1000, height: 700))
     .commands {
       AppCommands(recent: RecentOpensManager.shared, appSettings: appSettings)
     }
@@ -76,5 +82,4 @@ struct PicserApp: App {
         .environment(\.locale, localizationManager.currentLocale)
     }
   }
-
 }

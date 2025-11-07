@@ -12,7 +12,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-  @State private var windowToken: UUID?
+  @State private var windowToken: Any?
+  @State private var associatedWindow: NSWindow?  // ContentView对应的NSWindow实例
   private let fallbackWindowToken = UUID()
   // 使用 @State 属性包装器来声明一个状态变量
   // 当这个变量改变时，SwiftUI 会自动刷新相关的视图
@@ -104,7 +105,10 @@ struct ContentView: View {
   }
 
   private var activeWindowToken: UUID {
-    windowToken ?? fallbackWindowToken
+    if let token = windowToken as? UUID {
+      return token
+    }
+    return fallbackWindowToken
   }
 
   /// 幻灯片播放状态对外只读访问，避免破坏封装。
@@ -195,13 +199,16 @@ struct ContentView: View {
     view = AnyView(
       view
         .task {
+          // 尝试消费latestBatch，只有一个ContentView会成功
           if let batch = externalOpenCoordinator.consumeLatestBatch() {
             handleExternalImageBatch(batch)
           }
         }
         .onReceive(externalOpenCoordinator.latestBatchPublisher) { batch in
-          handleExternalImageBatch(batch)
-          externalOpenCoordinator.clearLatestBatch()
+          // 多个ContentView都会收到，但只有第一个能成功消费
+          if let batch = externalOpenCoordinator.consumeLatestBatch() {
+            handleExternalImageBatch(batch)
+          }
         }
     )
 
@@ -284,6 +291,14 @@ struct ContentView: View {
             },
             tokenUpdate: { token in
               windowToken = token
+              // 保存NSWindow实例
+              if let window = token as? NSWindow {
+                associatedWindow = window
+              }
+            },
+            shouldRegisterHandler: {
+              // 只在有图片内容时注册键盘事件，防止空窗口干扰
+              !imageURLs.isEmpty
             }
           )
         )

@@ -10,27 +10,37 @@ import SwiftUI
 /// 将 SwiftUI 视图与全局 `KeyboardShortcutManager` 连接，确保多窗口模式下的快捷键处理。
 struct KeyboardShortcutBridge: NSViewRepresentable {
   let handlerProvider: () -> (NSEvent) -> Bool
-  let tokenUpdate: (UUID?) -> Void
+  let tokenUpdate: (Any?) -> Void  // 改为Any，支持NSWindow或UUID
+  let shouldRegisterHandler: () -> Bool  // 检查是否应该注册键盘事件
 
   func makeNSView(context: Context) -> BridgeView {
-    BridgeView(handlerProvider: handlerProvider, tokenUpdate: tokenUpdate)
+    BridgeView(
+      handlerProvider: handlerProvider,
+      tokenUpdate: tokenUpdate,
+      shouldRegisterHandler: shouldRegisterHandler
+    )
   }
 
   func updateNSView(_ nsView: BridgeView, context: Context) {
     nsView.handlerProvider = handlerProvider
     nsView.tokenUpdate = tokenUpdate
+    nsView.shouldRegisterHandler = shouldRegisterHandler
     nsView.refreshRegistration()
   }
 
   // MARK: - Backing View
   final class BridgeView: NSView {
     var handlerProvider: () -> (NSEvent) -> Bool
-    var tokenUpdate: (UUID?) -> Void
+    var tokenUpdate: (Any?) -> Void  // 改为Any，支持NSWindow或UUID
+    var shouldRegisterHandler: () -> Bool  // 新增：检查是否应该注册键盘事件
     private var token: UUID?
 
-    init(handlerProvider: @escaping () -> (NSEvent) -> Bool, tokenUpdate: @escaping (UUID?) -> Void) {
+    init(handlerProvider: @escaping () -> (NSEvent) -> Bool,
+         tokenUpdate: @escaping (Any?) -> Void,
+         shouldRegisterHandler: @escaping () -> Bool) {
       self.handlerProvider = handlerProvider
       self.tokenUpdate = tokenUpdate
+      self.shouldRegisterHandler = shouldRegisterHandler
       super.init(frame: .zero)
     }
 
@@ -63,14 +73,28 @@ struct KeyboardShortcutBridge: NSViewRepresentable {
         tokenUpdate(nil)
         return
       }
+
+      // 只有当ContentView有图片内容时，才注册键盘事件
+      if !shouldRegisterHandler() {
+        // 如果之前注册过，现在需要注销
+        if let token {
+          KeyboardShortcutManager.shared.unregister(token: token)
+          self.token = nil
+        }
+        tokenUpdate(nil)
+        return
+      }
+
       let handler = handlerProvider()
       if let token {
         KeyboardShortcutManager.shared.update(token: token, handler: handler)
-        tokenUpdate(token)
+        // 传递NSWindow实例给ContentView
+        tokenUpdate(window)
       } else {
         let newToken = KeyboardShortcutManager.shared.register(window: window, handler: handler)
         token = newToken
-        tokenUpdate(newToken)
+        // 传递NSWindow实例给ContentView
+        tokenUpdate(window)
       }
     }
 

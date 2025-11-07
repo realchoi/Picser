@@ -4,6 +4,7 @@
 //  Created by Eric Cai on 2025/10/09.
 //
 
+import AppKit
 import Combine
 import Foundation
 
@@ -17,18 +18,19 @@ final class ExternalOpenCoordinator: ObservableObject {
       .eraseToAnyPublisher()
   }
 
-  func handleIncoming(urls: [URL], recordRecents: Bool = true) {
+  func handleIncoming(urls: [URL], recordRecents: Bool = true) async {
     guard !urls.isEmpty else { return }
     let normalized = urls.map { $0.standardizedFileURL }
-    Task(priority: .userInitiated) { [weak self, normalized, urls] in
-      guard let self else { return }
-      let batch = await FileOpenService.loadImageBatch(
-        from: normalized,
-        recordRecents: recordRecents,
-        securityScopedInputs: urls
-      )
-      self.latestBatch = batch
-    }
+
+    // 同步处理外部打开
+    let batch = await FileOpenService.loadImageBatch(
+      from: normalized,
+      recordRecents: recordRecents,
+      securityScopedInputs: urls
+    )
+
+    // 设置latestBatch，等待ContentView消费
+    latestBatch = batch
   }
 
   func consumeLatestBatch() -> ImageBatch? {
