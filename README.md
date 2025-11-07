@@ -61,7 +61,7 @@ chmod +x scripts/build_release.sh # 给脚本执行权限（只需运行一次�
 - [x] 图片播放功能
 - [x] 删除图片功能，并支持自定义快捷键，支持设置是否删除前确认
 - [ ] 增加 HDR 支持
-- [ ] 增加格式支持，如 AVIF、JXL、TIFF、ICNS、svg、RAW（如：NEF（尼康）、cr3（佳能）） 等等
+- [ ] 增加格式支持，如 AVIF、JXL、TIFF、ICNS、svg、RAW（如：NEF（尼康）、cr3（佳能）、rw2（松下）） 等等
 - [ ] 区分免费版（JPEG、PNG、WebP、HEIC、GIF）和收费版（AVIF、JXL、TIFF、ICNS）的格式支持
 - [ ] 增加设置项：打开单个图片时是否打开当前目录下的所有图片
 - [ ] 切换到下一个目录功能
