@@ -962,98 +962,34 @@
         }
       }
     },
-    "delete_primary_shortcut_label": {
+    "delete_forward_label": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Primary Delete Shortcut"
+            "value": "Delete ⌦"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "主要删除快捷键"
+            "value": "Delete 键 ⌦"
           }
         }
       }
     },
-    "delete_secondary_shortcut_label": {
+    "delete_backspace_label": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Secondary Delete Shortcut"
+            "value": "Backspace ⌫"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "备用删除快捷键"
-          }
-        }
-      }
-    },
-    "delete_shortcut_option_backspace": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Backspace"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Backspace 键"
-          }
-        }
-      }
-    },
-    "delete_shortcut_option_forward": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete 键"
-          }
-        }
-      }
-    },
-    "delete_shortcut_option_both": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete or Backspace"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete 或 Backspace 键"
-          }
-        }
-      }
-    },
-    "delete_shortcut_option_none": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "None"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无"
+            "value": "Backspace 键 ⌫"
           }
         }
       }
@@ -1886,38 +1822,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "图片"
-          }
-        }
-      }
-    },
-    "image_navigation_description": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose which keys to use for switching between images"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择用于切换图片的按键"
-          }
-        }
-      }
-    },
-    "image_navigation_label": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Image Navigation Shortcuts"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "图片切换快捷键"
           }
         }
       }
@@ -5230,6 +5134,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "无法自动打开系统设置，请手动进入“系统设置 > 隐私与安全性 > 完整磁盘访问”。"
+          }
+        }
+      }
+    },
+    "navigation_wasd": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WASD 键"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WASD keys"
+          }
+        }
+      }
+    },
+    "navigation_hjkl": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HJKL 键"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HJKL keys"
+          }
+        }
+      }
+    },
+    "image_navigation_label": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片导航快捷键"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image Navigation Shortcuts"
+          }
+        }
+      }
+    },
+    "image_navigation_description": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择用于切换图片的快捷键组合。可同时选择多种按键组合。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose which keys to use for switching between images. You can select multiple key combinations."
           }
         }
       }

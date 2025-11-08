@@ -39,8 +39,15 @@ struct KeyboardShortcutHandler {
       return false
     }
 
-    if matches(action: .deletePrimary, eventShortcut) || matches(action: .deleteSecondary, eventShortcut) {
-      return performDelete()
+    // 检查所有激活的删除快捷键
+    let deleteShortcuts = appSettings.getActiveDeleteShortcuts()
+    if let action = deleteShortcuts[eventShortcut] {
+      switch action {
+      case .deleteForward, .deleteBackspace:
+        return performDelete()
+      default:
+        break
+      }
     }
 
     if matches(action: .rotateCounterclockwise, eventShortcut) {
@@ -68,12 +75,17 @@ struct KeyboardShortcutHandler {
       return true
     }
 
-    if matches(action: .navigatePrevious, eventShortcut) {
-      return navigate(offset: -1)
-    }
-
-    if matches(action: .navigateNext, eventShortcut) {
-      return navigate(offset: 1)
+    // 检查所有激活的导航快捷键
+    let navigationShortcuts = appSettings.getActiveNavigationShortcuts()
+    if let action = navigationShortcuts[eventShortcut] {
+      switch action {
+      case .navigatePrevious:
+        return navigate(offset: -1)
+      case .navigateNext:
+        return navigate(offset: 1)
+      default:
+        break
+      }
     }
 
     return false

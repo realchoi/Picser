@@ -17,8 +17,8 @@ enum ShortcutAction: CaseIterable {
   case resetTransform
   case navigatePrevious
   case navigateNext
-  case deletePrimary
-  case deleteSecondary
+  case deleteForward
+  case deleteBackspace
 }
 
 /// 表示一个快捷键组合（按键 + 修饰键），可用于默认值配置与数据迁移。
@@ -107,16 +107,16 @@ struct KeyboardShortcutCatalog {
         ShortcutKeyCombination(key: .rightArrow)
       ]
     )
-    let deletePrimary = ShortcutDefinition(
-      action: .deletePrimary,
-      name: .deletePrimary,
+    let deleteForward = ShortcutDefinition(
+      action: .deleteForward,
+      name: .deleteForward,
       defaultCombinations: [
         ShortcutKeyCombination(key: .delete)
       ]
     )
-    let deleteSecondary = ShortcutDefinition(
-      action: .deleteSecondary,
-      name: .deleteSecondary,
+    let deleteBackspace = ShortcutDefinition(
+      action: .deleteBackspace,
+      name: .deleteBackspace,
       defaultCombinations: [
         ShortcutKeyCombination(key: .deleteForward)
       ]
@@ -130,8 +130,8 @@ struct KeyboardShortcutCatalog {
       resetTransform.action: resetTransform,
       navigatePrevious.action: navigatePrevious,
       navigateNext.action: navigateNext,
-      deletePrimary.action: deletePrimary,
-      deleteSecondary.action: deleteSecondary,
+      deleteForward.action: deleteForward,
+      deleteBackspace.action: deleteBackspace,
     ]
   }
 
@@ -181,13 +181,13 @@ extension KeyboardShortcuts.Name {
     default: KeyboardShortcuts.Shortcut(.rightArrow)
   )
   /// 删除（主快捷键，默认 Delete）
-  static let deletePrimary = Self(
-    "deletePrimary",
+  static let deleteForward = Self(
+    "deleteForward",
     default: KeyboardShortcuts.Shortcut(.delete)
   )
   /// 删除（备用快捷键，默认 Forward Delete）
-  static let deleteSecondary = Self(
-    "deleteSecondary",
+  static let deleteBackspace = Self(
+    "deleteBackspace",
     default: KeyboardShortcuts.Shortcut(.deleteForward)
   )
 }
@@ -210,10 +210,10 @@ extension ShortcutAction {
       return L10n.string("navigate_previous_action_name")
     case .navigateNext:
       return L10n.string("navigate_next_action_name")
-    case .deletePrimary:
-      return L10n.string("delete_primary_shortcut_label")
-    case .deleteSecondary:
-      return L10n.string("delete_secondary_shortcut_label")
+    case .deleteForward:
+      return L10n.string("delete_forward_label")
+    case .deleteBackspace:
+      return L10n.string("delete_backspace_label")
     }
   }
 }

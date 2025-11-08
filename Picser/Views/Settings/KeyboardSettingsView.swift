@@ -27,9 +27,9 @@ struct KeyboardSettingsView: View {
       Divider()
       panSection
       Divider()
-      navigationSection
-      Divider()
       transformSection
+      Divider()
+      navigationSection
       Divider()
       deleteSection
       Spacer().frame(height: 20)
@@ -40,10 +40,10 @@ struct KeyboardSettingsView: View {
     .onAppear {
       populateShortcutCache()
     }
-    .onChange(of: appSettings.deleteShortcutPreference) { _, _ in
-      populateShortcutCache(for: [.deletePrimary, .deleteSecondary])
+    .onChange(of: appSettings.deleteShortcutOptions) { _, _ in
+      populateShortcutCache(for: [.deleteForward, .deleteBackspace])
     }
-    .onChange(of: appSettings.imageNavigationOption) { _, _ in
+    .onChange(of: appSettings.imageNavigationOptions) { _, _ in
       populateShortcutCache(for: [.navigatePrevious, .navigateNext])
     }
   }
@@ -77,25 +77,14 @@ struct KeyboardSettingsView: View {
 
   /// 图片导航快捷键配置
   private var navigationSection: some View {
-    labelledPickerRow(
-      labelKey: "image_navigation_label",
-      descriptionKey: "image_navigation_description"
-    ) {
-      Picker("", selection: $appSettings.imageNavigationOption) {
-        ForEach(
-          [NavigationShortcutOption.leftRight, .upDown, .pageUpDown],
-          id: \.self
-        ) { option in
-          Text(l10n: option.localizedTitleKey).tag(option)
-        }
-        if appSettings.imageNavigationOption == .custom {
-          Text(l10n: NavigationShortcutOption.custom.localizedTitleKey)
-            .tag(NavigationShortcutOption.custom)
-            .disabled(true)
-        }
-      }
-      .pickerStyle(.menu)
-    }
+    multiSelectRow(
+      titleKey: "image_navigation_label",
+      descriptionKey: "image_navigation_description",
+      options: NavigationShortcutOption.allCases,
+      selections: $appSettings.imageNavigationOptions,
+      labelColumnWidth: labelColumnWidth,
+      contentMinWidth: recorderMinWidth
+    )
   }
 
   /// 图像变换相关快捷键配置
@@ -113,19 +102,18 @@ struct KeyboardSettingsView: View {
   }
 
   /// 删除操作快捷键配置
+  /// 删除快捷键区域
+  /// 说明：Delete 键（⌦）映射到 ShortcutAction.deleteForward，Backspace 键（⌫）映射到 ShortcutAction.deleteBackspace
   private var deleteSection: some View {
     VStack(alignment: .leading, spacing: 12) {
-      labelledPickerRow(
-        labelKey: "delete_shortcut_section_title",
-        descriptionKey: "delete_shortcut_section_description"
-      ) {
-        Picker("", selection: $appSettings.deleteShortcutPreference) {
-          ForEach(DeleteShortcutPreference.allCases, id: \.self) { option in
-            Text(l10n: option.localizedTitleKey).tag(option)
-          }
-        }
-        .pickerStyle(.menu)
-      }
+      multiSelectRow(
+        titleKey: "delete_shortcut_section_title",
+        descriptionKey: "delete_shortcut_section_description",
+        options: DeleteShortcutOption.allCases,
+        selections: $appSettings.deleteShortcutOptions,
+        labelColumnWidth: labelColumnWidth,
+        contentMinWidth: recorderMinWidth
+      )
 
       Toggle(isOn: $appSettings.deleteConfirmationEnabled) {
         Text(l10n: "delete_confirmation_toggle")
@@ -239,6 +227,61 @@ struct KeyPickerView<T: KeySelectable & Hashable>: View {
       }
       .pickerStyle(.menu)
       .frame(minWidth: 120)
+    }
+  }
+}
+
+/// 多选行组件，包含标题、描述和多个复选框选项
+private func multiSelectRow<Option: Hashable & CustomStringConvertible>(
+  titleKey: String,
+  descriptionKey: String,
+  options: [Option],
+  selections: Binding<Set<Option>>,
+  labelColumnWidth: CGFloat,
+  contentMinWidth: CGFloat
+) -> some View {
+  HStack(alignment: .top, spacing: 12) {
+    VStack(alignment: .leading, spacing: 4) {
+      Text(l10n: titleKey)
+        .fontWeight(.medium)
+
+      Text(l10n: descriptionKey)
+        .font(.caption)
+        .foregroundColor(.secondary)
+    }
+    .frame(width: labelColumnWidth, alignment: .leading)
+
+    MultiSelectToggleList(
+      options: options,
+      selections: selections
+    )
+    .frame(minWidth: contentMinWidth, alignment: .leading)
+
+    Spacer(minLength: 0)
+  }
+}
+
+/// 多选 Toggle 列表组件，以 Toggle 形式展示选项
+struct MultiSelectToggleList<Option: Hashable & CustomStringConvertible>: View {
+  let options: [Option]
+  @Binding var selections: Set<Option>
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      ForEach(options, id: \.self) { option in
+        Toggle(option.description, isOn: Binding(
+          get: { selections.contains(option) },
+          set: { newValue in
+            if newValue {
+              selections.insert(option)
+            } else {
+              selections.remove(option)
+            }
+          }
+        ))
+        .toggleStyle(.checkbox)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
     }
   }
 }

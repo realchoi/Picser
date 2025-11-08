@@ -32,9 +32,6 @@ class AppSettings: ObservableObject {
     .rawValue
   /// 删除确认开关（UserDefaults 存储）
   @AppStorage("deleteConfirmationEnabled") private var deleteConfirmationEnabledStorage: Bool = true
-  /// 删除快捷键偏好（UserDefaults 存储）
-  @AppStorage("deleteShortcutPreference") private var deleteShortcutPreferenceStorage: String =
-    DeleteShortcutPreference.both.rawValue
 
   /// KeyboardShortcuts 动作注册表，集中管理所有可配置快捷键。
   private let shortcutCatalog = KeyboardShortcutCatalog.shared
@@ -51,18 +48,43 @@ class AppSettings: ObservableObject {
       panModifierKeyStorage = panModifierKey.rawValue
     }
   }
-  private var isApplyingNavigationOption = false
-  private var isApplyingDeletePreference = false
+  private var isApplyingNavigationOptions = false
+  private var isApplyingDeleteOptions = false
 
-  /// 图片导航快捷键选项（UI 显示）
-  @Published var imageNavigationOption: NavigationShortcutOption = .leftRight {
+  /// 图片导航快捷键选项集合（持久化 JSON 存储）
+  @AppStorage("imageNavigationOptionsJSON") private var imageNavigationOptionsJSON: String = ""
+  /// 图片导航快捷键选项集合（UI 显示）
+  /// 支持多选，用户可以选择多个预设组合
+  @Published var imageNavigationOptions: Set<NavigationShortcutOption> = [.leftRight] {
     didSet {
-      guard oldValue != imageNavigationOption else { return }
-      guard !isApplyingNavigationOption else { return }
-      if !applyNavigationShortcuts(option: imageNavigationOption) {
-        isApplyingNavigationOption = true
-        imageNavigationOption = oldValue
-        isApplyingNavigationOption = false
+      guard oldValue != imageNavigationOptions else { return }
+      guard !isApplyingNavigationOptions else { return }
+      if !applyNavigationShortcuts(options: imageNavigationOptions) {
+        isApplyingNavigationOptions = true
+        imageNavigationOptions = oldValue
+        isApplyingNavigationOptions = false
+      } else {
+        // 应用成功后保存到持久化存储
+        saveImageNavigationOptions()
+      }
+    }
+  }
+
+  /// 删除快捷键选项集合（持久化 JSON 存储）
+  @AppStorage("deleteShortcutOptionsJSON") private var deleteShortcutOptionsJSON: String = ""
+  /// 删除快捷键选项集合（UI 显示）
+  /// 支持多选，用户可以选择 Delete 键和 Backspace 键
+  @Published var deleteShortcutOptions: Set<DeleteShortcutOption> = [.forwardDelete, .backspace] {
+    didSet {
+      guard oldValue != deleteShortcutOptions else { return }
+      guard !isApplyingDeleteOptions else { return }
+      if !applyDeleteShortcutOptions(options: deleteShortcutOptions) {
+        isApplyingDeleteOptions = true
+        deleteShortcutOptions = oldValue
+        isApplyingDeleteOptions = false
+      } else {
+        // 应用成功后保存到持久化存储
+        saveDeleteShortcutOptions()
       }
     }
   }
@@ -77,20 +99,6 @@ class AppSettings: ObservableObject {
   /// 删除操作是否需要弹窗确认（UI 显示）
   @Published var deleteConfirmationEnabled: Bool = true {
     didSet { deleteConfirmationEnabledStorage = deleteConfirmationEnabled }
-  }
-  /// 删除快捷键偏好设置
-  @Published var deleteShortcutPreference: DeleteShortcutPreference = .both {
-    didSet {
-      guard oldValue != deleteShortcutPreference else { return }
-      guard !isApplyingDeletePreference else { return }
-      if applyDeleteShortcutPreference(deleteShortcutPreference) {
-        deleteShortcutPreferenceStorage = deleteShortcutPreference.rawValue
-      } else {
-        isApplyingDeletePreference = true
-        deleteShortcutPreference = oldValue
-        isApplyingDeletePreference = false
-      }
-    }
   }
 
   // MARK: - 显示设置
@@ -200,14 +208,15 @@ class AppSettings: ObservableObject {
     AppSettings.migrateLegacyShortcuts()
     self.zoomModifierKey = ModifierKey(rawValue: zoomModifierKeyStorage) ?? .none
     self.panModifierKey = ModifierKey(rawValue: panModifierKeyStorage) ?? .none
-    self.imageNavigationOption = NavigationShortcutOption.fromCurrentShortcuts(
-      previous: KeyboardShortcuts.getShortcut(for: .navigatePrevious),
-      next: KeyboardShortcuts.getShortcut(for: .navigateNext)
-    )
+
+    // 从持久化存储加载导航快捷键选项
+    loadImageNavigationOptions()
+
+    // 从持久化存储加载删除快捷键选项
+    loadDeleteShortcutOptions()
+
     self.appLanguage = AppLanguage(rawValue: appLanguageStorage) ?? .system
     self.deleteConfirmationEnabled = deleteConfirmationEnabledStorage
-    self.deleteShortcutPreference =
-      DeleteShortcutPreference(rawValue: deleteShortcutPreferenceStorage) ?? .both
     self.slideshowIntervalSeconds = slideshowIntervalSecondsStorage
     self.slideshowLoopEnabled = slideshowLoopEnabledStorage
 
@@ -280,11 +289,12 @@ class AppSettings: ObservableObject {
     }
 
     deactivateShortcut(for: action)
+    // 导航快捷键变更后，更新选项集合以反映当前配置
+    // 注意：由于支持多选，这里我们检查当前快捷键并更新选项集合
     if action == .navigatePrevious || action == .navigateNext {
-      imageNavigationOption = NavigationShortcutOption.fromCurrentShortcuts(
-        previous: KeyboardShortcuts.getShortcut(for: .navigatePrevious),
-        next: KeyboardShortcuts.getShortcut(for: .navigateNext)
-      )
+      isApplyingNavigationOptions = true
+      imageNavigationOptions = computeCurrentNavigationOptions()
+      isApplyingNavigationOptions = false
     }
     return .accepted
   }
@@ -296,8 +306,17 @@ class AppSettings: ObservableObject {
       guard let definition = shortcutCatalog.definition(for: action) else { continue }
       KeyboardShortcuts.reset(definition.name)
     }
-    imageNavigationOption = .leftRight
-    deleteShortcutPreference = .both
+    // 重置选项集合并保存到持久化存储
+    isApplyingNavigationOptions = true
+    imageNavigationOptions = [.leftRight]
+    isApplyingNavigationOptions = false
+    saveImageNavigationOptions()
+
+    isApplyingDeleteOptions = true
+    deleteShortcutOptions = [.forwardDelete, .backspace]
+    isApplyingDeleteOptions = false
+    saveDeleteShortcutOptions()
+
     deactivateAllShortcuts()
   }
 
@@ -362,6 +381,49 @@ class AppSettings: ObservableObject {
       customCropRatiosJSON = str
     }
   }
+
+  // MARK: - 快捷键选项持久化
+  /// 加载图片导航快捷键选项集合
+  private func loadImageNavigationOptions() {
+    if let data = imageNavigationOptionsJSON.data(using: .utf8),
+       let arr = try? JSONDecoder().decode([NavigationShortcutOption].self, from: data) {
+      isApplyingNavigationOptions = true
+      imageNavigationOptions = Set(arr)
+      isApplyingNavigationOptions = false
+    } else {
+      // 如果没有存储的设置，使用默认值
+      imageNavigationOptions = [.leftRight]
+    }
+  }
+
+  /// 保存图片导航快捷键选项集合
+  private func saveImageNavigationOptions() {
+    if let data = try? JSONEncoder().encode(Array(imageNavigationOptions)),
+       let str = String(data: data, encoding: .utf8) {
+      imageNavigationOptionsJSON = str
+    }
+  }
+
+  /// 加载删除快捷键选项集合
+  private func loadDeleteShortcutOptions() {
+    if let data = deleteShortcutOptionsJSON.data(using: .utf8),
+       let arr = try? JSONDecoder().decode([DeleteShortcutOption].self, from: data) {
+      isApplyingDeleteOptions = true
+      deleteShortcutOptions = Set(arr)
+      isApplyingDeleteOptions = false
+    } else {
+      // 如果没有存储的设置，使用默认值
+      deleteShortcutOptions = [.forwardDelete, .backspace]
+    }
+  }
+
+  /// 保存删除快捷键选项集合
+  private func saveDeleteShortcutOptions() {
+    if let data = try? JSONEncoder().encode(Array(deleteShortcutOptions)),
+       let str = String(data: data, encoding: .utf8) {
+      deleteShortcutOptionsJSON = str
+    }
+  }
 }
 
 /// 设置标签枚举，用于设置页面标签
@@ -376,13 +438,19 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 }
 
 /// 导航快捷键选项，覆盖应用支持的固定组合。
-enum NavigationShortcutOption: String, CaseIterable, Identifiable {
+enum NavigationShortcutOption: String, CaseIterable, Identifiable, CustomStringConvertible, Codable {
   case leftRight
   case upDown
   case pageUpDown
-  case custom
+  case wasd
+  case hjkl
 
   var id: String { rawValue }
+
+  /// 支持 CustomStringConvertible 协议
+  var description: String {
+    L10n.string(localizedTitleKey)
+  }
 
   /// 对应本地化 key。
   var localizedTitleKey: String {
@@ -393,11 +461,15 @@ enum NavigationShortcutOption: String, CaseIterable, Identifiable {
       return "navigation_up_down"
     case .pageUpDown:
       return "navigation_page_up_down"
-    case .custom:
-      return "navigation_custom_option_label"
+    case .wasd:
+      return "navigation_wasd"
+    case .hjkl:
+      return "navigation_hjkl"
     }
   }
 
+  /// 根据当前快捷键配置推断对应的选项
+  /// - 注意：由于支持多选，此方法主要用于向后兼容，默认返回 .leftRight
   static func fromCurrentShortcuts(
     previous: KeyboardShortcuts.Shortcut?,
     next: KeyboardShortcuts.Shortcut?
@@ -414,30 +486,80 @@ enum NavigationShortcutOption: String, CaseIterable, Identifiable {
        next?.matches(key: .pageDown, modifiers: []) == true {
       return .pageUpDown
     }
-    return .custom
+    // 默认返回左右方向键，保持向后兼容
+    return .leftRight
+  }
+
+  /// 获取该选项对应的快捷键组合
+  /// - Returns: 元组数组，每个元素包含 (动作, 快捷键)
+  func shortcutPairs() -> [(ShortcutAction, KeyboardShortcuts.Shortcut?)] {
+    switch self {
+    case .leftRight:
+      return [
+        (.navigatePrevious, KeyboardShortcuts.Shortcut(.leftArrow)),
+        (.navigateNext, KeyboardShortcuts.Shortcut(.rightArrow)),
+      ]
+    case .upDown:
+      return [
+        (.navigatePrevious, KeyboardShortcuts.Shortcut(.upArrow)),
+        (.navigateNext, KeyboardShortcuts.Shortcut(.downArrow)),
+      ]
+    case .pageUpDown:
+      return [
+        (.navigatePrevious, KeyboardShortcuts.Shortcut(.pageUp)),
+        (.navigateNext, KeyboardShortcuts.Shortcut(.pageDown)),
+      ]
+    case .wasd:
+      return [
+        (.navigatePrevious, KeyboardShortcuts.Shortcut(.w)),
+        (.navigateNext, KeyboardShortcuts.Shortcut(.s)),
+        (.navigatePrevious, KeyboardShortcuts.Shortcut(.a)),
+        (.navigateNext, KeyboardShortcuts.Shortcut(.d)),
+      ]
+    case .hjkl:
+      return [
+        (.navigatePrevious, KeyboardShortcuts.Shortcut(.h)),
+        (.navigateNext, KeyboardShortcuts.Shortcut(.j)),
+        (.navigatePrevious, KeyboardShortcuts.Shortcut(.k)),
+        (.navigateNext, KeyboardShortcuts.Shortcut(.l)),
+      ]
+    }
   }
 }
 
-/// 删除快捷键选择项，提供预设组合
-enum DeleteShortcutPreference: String, CaseIterable, Identifiable {
-  case both
-  case backspace
+/// 删除快捷键选项（多选模式）
+/// 映射关系：
+///   - forwardDelete (Delete ⌦) → ShortcutAction.deleteForward
+///   - backspace (Backspace ⌫) → ShortcutAction.deleteBackspace
+enum DeleteShortcutOption: String, CaseIterable, Identifiable, CustomStringConvertible, Codable {
   case forwardDelete
-  case none
+  case backspace
 
   var id: String { rawValue }
 
-  /// Picker 文案对应的本地化 key
+  /// 支持 CustomStringConvertible 协议
+  var description: String {
+    L10n.string(localizedTitleKey)
+  }
+
+  /// 对应本地化 key
   var localizedTitleKey: String {
     switch self {
-    case .both:
-      return "delete_shortcut_option_both"
-    case .backspace:
-      return "delete_shortcut_option_backspace"
     case .forwardDelete:
-      return "delete_shortcut_option_forward"
-    case .none:
-      return "delete_shortcut_option_none"
+      return "delete_forward_label"
+    case .backspace:
+      return "delete_backspace_label"
+    }
+  }
+
+  /// 获取该选项对应的快捷键
+  /// 注意：KeyboardShortcuts 库中，.delete 对应 Backspace 键，.deleteForward 对应 Delete 键
+  func shortcut() -> KeyboardShortcuts.Shortcut? {
+    switch self {
+    case .forwardDelete:
+      return KeyboardShortcuts.Shortcut(.deleteForward)  // Delete 键 (Forward Delete)
+    case .backspace:
+      return KeyboardShortcuts.Shortcut(.delete)  // Backspace 键
     }
   }
 }
@@ -541,63 +663,140 @@ enum AppLanguage: String, CaseIterable, Identifiable, Hashable, KeySelectable {
 }
 
 extension AppSettings {
-  /// 根据业务选项应用固定的导航快捷键组合。
-  func applyNavigationShortcuts(option: NavigationShortcutOption) -> Bool {
-    guard option != .custom else { return true }
+  /// 根据多选的业务选项集合应用导航快捷键组合。
+  /// - Parameter options: 选中的选项集合
+  /// - Returns: 应用成功返回 true，冲突返回 false
+  func applyNavigationShortcuts(options: Set<NavigationShortcutOption>) -> Bool {
+    // 如果用户一个选项也不选，则清除所有导航快捷键
+    if options.isEmpty {
+      let assignments: [(ShortcutAction, KeyboardShortcuts.Shortcut?)] = [
+        (.navigatePrevious, nil),
+        (.navigateNext, nil),
+      ]
+      return applyShortcutAssignments(assignments)
+    }
 
-    let assignments: [(ShortcutAction, KeyboardShortcuts.Shortcut?)] = {
-      switch option {
-      case .leftRight:
-        return [
-          (.navigatePrevious, KeyboardShortcuts.Shortcut(.leftArrow)),
-          (.navigateNext, KeyboardShortcuts.Shortcut(.rightArrow)),
-        ]
-      case .upDown:
-        return [
-          (.navigatePrevious, KeyboardShortcuts.Shortcut(.upArrow)),
-          (.navigateNext, KeyboardShortcuts.Shortcut(.downArrow)),
-        ]
-      case .pageUpDown:
-        return [
-          (.navigatePrevious, KeyboardShortcuts.Shortcut(.pageUp)),
-          (.navigateNext, KeyboardShortcuts.Shortcut(.pageDown)),
-        ]
-      case .custom:
-        return []
+    // 收集所有选中选项的快捷键组合
+    // 注意：由于 KeyboardShortcuts 库的限制，一个 action 只能有一个快捷键
+    // 我们通过选择最后一个选项的快捷键来保持兼容性
+    var lastOption: NavigationShortcutOption?
+    for option in options {
+      lastOption = option
+    }
+
+    guard let finalOption = lastOption else { return false }
+
+    // 应用最终选中的选项（使用最后一项以保持一致性）
+    let assignments: [(ShortcutAction, KeyboardShortcuts.Shortcut?)] = finalOption.shortcutPairs()
+    return applyShortcutAssignments(assignments)
+  }
+
+  /// 获取所有当前激活的导航快捷键映射
+  /// - Returns: 字典，key 为按键，value 为对应的导航动作
+  func getActiveNavigationShortcuts() -> [KeyboardShortcuts.Shortcut: ShortcutAction] {
+    var result: [KeyboardShortcuts.Shortcut: ShortcutAction] = [:]
+
+    for option in imageNavigationOptions {
+      let pairs = option.shortcutPairs()
+      for (action, shortcut) in pairs {
+        if let shortcut {
+          result[shortcut] = action
+        }
       }
-    }()
+    }
+
+    return result
+  }
+
+  /// 根据多选的删除快捷键选项应用快捷键。
+  /// - Parameter options: 选中的选项集合
+  /// - Returns: 应用成功返回 true，冲突返回 false
+  func applyDeleteShortcutOptions(options: Set<DeleteShortcutOption>) -> Bool {
+    // 先清除所有删除相关的快捷键设置
+    let clearAssignments: [(ShortcutAction, KeyboardShortcuts.Shortcut?)] = [
+      (.deleteForward, nil),
+      (.deleteBackspace, nil),
+    ]
+    let _ = applyShortcutAssignments(clearAssignments)
+
+    // 如果用户一个选项也不选，则清除后直接返回
+    if options.isEmpty {
+      return true
+    }
+
+    // 根据选中的选项应用对应的快捷键
+    var assignments: [(ShortcutAction, KeyboardShortcuts.Shortcut?)] = []
+    for option in options {
+      switch option {
+      case .forwardDelete:
+        assignments.append((.deleteForward, option.shortcut()))
+      case .backspace:
+        assignments.append((.deleteBackspace, option.shortcut()))
+      }
+    }
 
     return applyShortcutAssignments(assignments)
   }
 
-  /// 根据用户偏好应用删除快捷键组合。
-  private func applyDeleteShortcutPreference(_ preference: DeleteShortcutPreference) -> Bool {
-    let assignments: [(ShortcutAction, KeyboardShortcuts.Shortcut?)] = {
-      switch preference {
-      case .both:
-        return [
-          (.deletePrimary, KeyboardShortcuts.Shortcut(.delete)),
-          (.deleteSecondary, KeyboardShortcuts.Shortcut(.deleteForward)),
-        ]
-      case .backspace:
-        return [
-          (.deletePrimary, KeyboardShortcuts.Shortcut(.delete)),
-          (.deleteSecondary, nil),
-        ]
-      case .forwardDelete:
-        return [
-          (.deletePrimary, KeyboardShortcuts.Shortcut(.deleteForward)),
-          (.deleteSecondary, nil),
-        ]
-      case .none:
-        return [
-          (.deletePrimary, nil),
-          (.deleteSecondary, nil),
-        ]
-      }
-    }()
+  /// 获取所有当前激活的删除快捷键映射
+  /// - Returns: 字典，key 为按键，value 为对应的动作
+  func getActiveDeleteShortcuts() -> [KeyboardShortcuts.Shortcut: ShortcutAction] {
+    var result: [KeyboardShortcuts.Shortcut: ShortcutAction] = [:]
 
-    return applyShortcutAssignments(assignments)
+    for option in deleteShortcutOptions {
+      if let shortcut = option.shortcut() {
+        switch option {
+        case .forwardDelete:
+          // Delete 键映射到 deleteForward
+          result[shortcut] = .deleteForward
+        case .backspace:
+          // Backspace 键映射到 deleteBackspace
+          result[shortcut] = .deleteBackspace
+        }
+      }
+    }
+
+    return result
+  }
+
+  /// 根据当前快捷键配置计算对应的选项集合
+  /// - Returns: 选项集合
+  private func computeCurrentNavigationOptions() -> Set<NavigationShortcutOption> {
+    var result: Set<NavigationShortcutOption> = []
+    _ = KeyboardShortcuts.getShortcut(for: .navigatePrevious)
+    _ = KeyboardShortcuts.getShortcut(for: .navigateNext)
+
+    // 检查每个选项是否匹配当前快捷键
+    for option in NavigationShortcutOption.allCases {
+      if matchesCurrentShortcuts(option: option) {
+        result.insert(option)
+      }
+    }
+
+    // 如果没有匹配到任何选项，默认选择左右方向键
+    return result.isEmpty ? [.leftRight] : result
+  }
+
+  /// 检查指定选项是否与当前快捷键匹配
+  private func matchesCurrentShortcuts(option: NavigationShortcutOption) -> Bool {
+    let pairs = option.shortcutPairs()
+    let currentPrevious = KeyboardShortcuts.getShortcut(for: .navigatePrevious)
+    let currentNext = KeyboardShortcuts.getShortcut(for: .navigateNext)
+
+    // 检查是否有匹配 previous 和 next 的快捷键
+    var hasPreviousMatch = false
+    var hasNextMatch = false
+
+    for (action, shortcut) in pairs {
+      if action == .navigatePrevious, let shortcut, shortcut == currentPrevious {
+        hasPreviousMatch = true
+      }
+      if action == .navigateNext, let shortcut, shortcut == currentNext {
+        hasNextMatch = true
+      }
+    }
+
+    return hasPreviousMatch && hasNextMatch
   }
 
   /// 提供快捷键的展示文本，供菜单或提示使用。
@@ -644,7 +843,24 @@ private extension AppSettings {
     additionalIgnored: Set<ShortcutAction> = []
   ) -> ShortcutAction? {
     let ignored = additionalIgnored.union([action])
+
+    // 特殊处理删除快捷键：deleteForward 和 deleteBackspace 是同一类操作，
+    // 不应互相冲突（因为它们来自用户的多选选项）
+    let isDeleteAction = { (a: ShortcutAction) -> Bool in
+      switch a {
+      case .deleteForward, .deleteBackspace:
+        return true
+      default:
+        return false
+      }
+    }
+
     for candidate in ShortcutAction.allCases where !ignored.contains(candidate) {
+      // 如果 candidate 是删除动作，且 action 也是删除动作，跳过冲突检查
+      if isDeleteAction(candidate) && isDeleteAction(action) {
+        continue
+      }
+
       guard let otherShortcut = shortcut(for: candidate) else { continue }
       if otherShortcut == targetShortcut {
         return candidate
