@@ -16,7 +16,10 @@ struct SettingsView: View {
   @State private var tabScrollNeeds: [SettingsTab: Bool] = [:]
 
   private let minWindowHeight: CGFloat = 360
-  private let maxWindowHeight: CGFloat = 720
+  /// 大部分标签页使用的默认最大高度
+  private let defaultMaxWindowHeight: CGFloat = 720
+  /// 标签管理页面控件较多，需要更高的目标高度
+  private let tagsMaxWindowHeight: CGFloat = 860
   private let fallbackHeight: CGFloat = 420
   private let tabBarHeight: CGFloat = 48
 
@@ -59,6 +62,20 @@ struct SettingsView: View {
           .tabItem {
             Label(
               L10n.string("display_tab"), systemImage: "display"
+            )
+          }
+
+        // 标签管理页面
+        IntrinsicTabContainer(tab: .tags, shouldScroll: {
+          tabScrollNeeds[.tags] ?? false
+        }) {
+          TagSettingsView()
+        }
+        .tag(SettingsTab.tags)
+          .tabItem {
+            Label(
+              L10n.string("tag_settings_tab"),
+              systemImage: "tag"
             )
           }
 
@@ -118,7 +135,7 @@ struct SettingsView: View {
       SettingsWindowResizer(
         targetContentHeight: desiredContentHeight == 0 ? fallbackHeight : desiredContentHeight,
         minContentHeight: minWindowHeight,
-        maxContentHeight: maxWindowHeight,
+        maxContentHeight: maxHeight(for: selectedTab),
         animate: true,
         animationDuration: 0.3
       )
@@ -164,6 +181,7 @@ struct SettingsView: View {
   private func syncDesiredContentHeight(for tab: SettingsTab? = nil) {
     let targetTab = tab ?? selectedTab
     guard let contentHeight = tabHeights[targetTab] else { return }
+    let maxWindowHeight = maxHeight(for: targetTab)
     let totalHeight = contentHeight + validationAreaHeight + tabBarHeight
     let clamped = max(minWindowHeight, min(totalHeight, maxWindowHeight))
     desiredContentHeight = clamped
@@ -173,7 +191,18 @@ struct SettingsView: View {
   /// 根据测量数据决定每个标签页是否需要在真实渲染时启用滚动
   private func recalcScrollNeeds() {
     for (tab, height) in tabHeights {
-      tabScrollNeeds[tab] = height + validationAreaHeight + tabBarHeight > maxWindowHeight
+      let maxHeight = maxHeight(for: tab)
+      tabScrollNeeds[tab] = height + validationAreaHeight + tabBarHeight > maxHeight
+    }
+  }
+
+  /// 针对不同标签页返回优先的窗口高度上限
+  private func maxHeight(for tab: SettingsTab) -> CGFloat {
+    switch tab {
+    case .tags:
+      return tagsMaxWindowHeight
+    default:
+      return defaultMaxWindowHeight
     }
   }
 }

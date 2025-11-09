@@ -9,6 +9,10 @@ import SwiftUI
 /// 详情视图，显示选中图片及其 EXIF 信息面板。
 struct DetailView: View {
   let imageURLs: [URL]
+  /// 如果筛选导致无照片，提供清空按钮的上下文
+  let filterContext: FilterEmptyContext?
+  /// 是否显示底部 TagEditorView
+  let showTagEditor: Bool
   let selectedImageURL: URL?
   let onOpen: () -> Void
   let onNavigatePrevious: () -> Void
@@ -34,74 +38,89 @@ struct DetailView: View {
     GeometryReader { _ in
       Group {
         if imageURLs.isEmpty {
-          EmptyHint(onOpen: onOpen)
+          if let context = filterContext {
+            // 有图片但被筛选完全隐藏时，提示用户清空筛选
+            FilterEmptyView(context: context)
+          } else {
+            EmptyHint(onOpen: onOpen)
+          }
         } else if let url = selectedImageURL {
-          HStack(spacing: 0) {
-            AsyncZoomableImageContainer(
-              url: url,
-              transform: transform,
-              windowToken: windowToken,
-              isCropping: isCropping,
-              cropAspect: cropAspect,
-              cropControls: CropControlConfiguration(
-                customRatios: appSettings.customCropRatios,
-                currentAspect: cropAspect,
-                onSelectPreset: { preset in
-          cropAspect = CropAspectOption.fromPreset(preset)
-                },
-                onSelectCustomRatio: { ratio in
-                  cropAspect = .fixed(ratio)
-                },
-                onDeleteCustomRatio: { ratio in
-                  if let index = appSettings.customCropRatios.firstIndex(of: ratio) {
-                    appSettings.customCropRatios.remove(at: index)
+          VStack(spacing: 12) {
+            HStack(spacing: 0) {
+              AsyncZoomableImageContainer(
+                url: url,
+                transform: transform,
+                windowToken: windowToken,
+                isCropping: isCropping,
+                cropAspect: cropAspect,
+                cropControls: CropControlConfiguration(
+                  customRatios: appSettings.customCropRatios,
+                  currentAspect: cropAspect,
+                  onSelectPreset: { preset in
+                    cropAspect = CropAspectOption.fromPreset(preset)
+                  },
+                  onSelectCustomRatio: { ratio in
+                    cropAspect = .fixed(ratio)
+                  },
+                  onDeleteCustomRatio: { ratio in
+                    if let index = appSettings.customCropRatios.firstIndex(of: ratio) {
+                      appSettings.customCropRatios.remove(at: index)
+                    }
+                    if case .fixed(let current) = cropAspect, current == ratio {
+                      cropAspect = .freeform
+                    }
+                  },
+                  onAddCustomRatio: {
+                    showingAddCustomRatio = true
+                  },
+                  onSave: {
+                    NotificationCenter.default.post(
+                      name: .cropCommitRequested,
+                      object: nil,
+                      userInfo: ["windowToken": windowToken]
+                    )
+                  },
+                  onCancel: {
+                    withAnimation(Motion.Anim.standard) {
+                      isCropping = false
+                      cropAspect = .freeform
+                    }
                   }
-                  if case .fixed(let current) = cropAspect, current == ratio {
-                    cropAspect = .freeform
-                  }
-                },
-                onAddCustomRatio: {
-                  showingAddCustomRatio = true
-                },
-                onSave: {
-                  NotificationCenter.default.post(
-                    name: .cropCommitRequested,
-                    object: nil,
-                    userInfo: ["windowToken": windowToken]
+                ),
+                isSlideshowActive: isSlideshowActive
+              )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay {
+                  let navigationState = navigationContext
+                  EdgeNavigationOverlay(
+                    canNavigatePrevious: navigationState.canNavigatePrevious,
+                    canNavigateNext: navigationState.canNavigateNext,
+                    isCropping: isCropping,
+                    onNavigatePrevious: onNavigatePrevious,
+                    onNavigateNext: onNavigateNext
                   )
-                },
-                onCancel: {
-                  withAnimation(Motion.Anim.standard) {
-                    isCropping = false
-                    cropAspect = .freeform
+                }
+                .overlay(alignment: .trailing) {
+                  if showingExifInfo {
+                    drawerObscureOverlay
+                      .transition(.opacity)
                   }
                 }
-              ),
-              isSlideshowActive: isSlideshowActive
-            )
-              .frame(maxWidth: .infinity, maxHeight: .infinity)
-              .overlay {
-                let navigationState = navigationContext
-                EdgeNavigationOverlay(
-                  canNavigatePrevious: navigationState.canNavigatePrevious,
-                  canNavigateNext: navigationState.canNavigateNext,
-                  isCropping: isCropping,
-                  onNavigatePrevious: onNavigatePrevious,
-                  onNavigateNext: onNavigateNext
-                )
-              }
-              .overlay(alignment: .trailing) {
-                if showingExifInfo {
-                  drawerObscureOverlay
-                    .transition(.opacity)
-                }
-              }
 
-            if showingExifInfo {
-              exifDrawer(for: exifInfo)
+              if showingExifInfo {
+                exifDrawer(for: exifInfo)
+              }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if showTagEditor {
+              TagEditorView(imageURL: url, imageURLs: imageURLs)
+                .padding(.horizontal)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
           }
           .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .padding(.bottom, 8)
         } else {
           Text(l10n: "select_image_hint")
             .font(.title)
@@ -201,6 +220,39 @@ private struct ExifDrawerLoadingView: View {
     .padding(24)
   }
 }
+
+// MARK: - 筛选为空提示
+/// 当筛选条件导致无内容时，回调清空动作
+struct FilterEmptyContext {
+  let onClearFilter: () -> Void
+}
+
+/// 展示“无匹配”提示与清空按钮
+private struct FilterEmptyView: View {
+  let context: FilterEmptyContext
+
+  var body: some View {
+    VStack(spacing: 16) {
+      Image(systemName: "line.3.horizontal.decrease.circle")
+        .font(.system(size: 44))
+        .foregroundColor(.secondary)
+      Text(l10n: "filter_no_match_title")
+        .font(.headline)
+      Text(l10n: "filter_no_match_message")
+        .font(.subheadline)
+        .foregroundColor(.secondary)
+      Button {
+        context.onClearFilter()
+      } label: {
+        Label(L10n.string("tag_filter_clear_button"), systemImage: "xmark.circle")
+      }
+      .buttonStyle(.borderedProminent)
+    }
+    .padding(32)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+}
+
 
 // MARK: - 边缘导航浮层
 private enum EdgeNavigationLayoutMetrics {

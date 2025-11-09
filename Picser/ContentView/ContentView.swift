@@ -43,6 +43,10 @@ struct ContentView: View {
   @State private var showingAddCustomRatio = false
   @State private var customRatioW: String = "1"
   @State private var customRatioH: String = "1"
+  /// 控制详情页是否展示标签编辑器
+  @State var showingTagEditorPanel = false
+  /// 控制侧边栏是否展开标签筛选器
+  @State var showingTagFilterPanel = false
   /// 幻灯片播放状态与驱动任务
   @State private var isSlideshowPlaying = false
   @State private var slideshowTask: Task<Void, Never>? = nil
@@ -63,6 +67,7 @@ struct ContentView: View {
   @EnvironmentObject var purchaseManager: PurchaseManager
   @EnvironmentObject var featureGatekeeper: FeatureGatekeeper
   @EnvironmentObject var externalOpenCoordinator: ExternalOpenCoordinator
+  @EnvironmentObject var tagService: TagService
 
   /// 侧边栏宽度限制，防止用户将其放大全屏
   private enum LayoutMetrics {
@@ -71,10 +76,21 @@ struct ContentView: View {
     static let sidebarMaxWidth: CGFloat = 360
   }
 
+  /// 当前经过标签筛选后的图片集合，供主视图与扩展共享
+  /// 根据标签筛选结果计算当前真正可见的图片列表
+  var visibleImageURLs: [URL] {
+    tagService.filteredImageURLs(from: imageURLs)
+  }
+
+  /// 当过滤条件导致列表为空时提供额外提示
+  private var isFilterHidingAllImages: Bool {
+    tagService.activeFilter.isActive && !imageURLs.isEmpty && visibleImageURLs.isEmpty
+  }
+
   private var keyboardShortcutHandler: KeyboardShortcutHandler {
     KeyboardShortcutHandler(
       appSettings: appSettings,
-      imageURLs: { imageURLs },
+      imageURLs: { visibleImageURLs },  // 快捷键始终基于筛选后的集合
       selectedImageURL: { selectedImageURL },
       setSelectedImage: { selectedImageURL = $0 },
       showingExifInfo: { showingExifInfo },
@@ -160,8 +176,19 @@ struct ContentView: View {
     view = AnyView(
       view
         .onChange(of: imageURLs) { _, newURLs in
-          updateSidebarVisibility(for: newURLs)
-          handleSlideshowImageListChange(newURLs)
+          Task {
+            await tagService.refreshScope(with: newURLs)
+          }
+          // 目录切换后需要重新确保选中项在可见集合里
+          ensureSelectionVisible()
+          updateSidebarVisibility()
+          handleSlideshowImageListChange()
+        }
+        .onChange(of: tagService.activeFilter) { _, _ in
+          // 筛选条件变化也要同步处理可见列表
+          ensureSelectionVisible()
+          updateSidebarVisibility()
+          handleSlideshowImageListChange()
         }
         .onChange(of: selectedImageURL) { _, newURL in
           handleSelectionChange(newURL)
@@ -298,7 +325,7 @@ struct ContentView: View {
             },
             shouldRegisterHandler: {
               // 只在有图片内容时注册键盘事件，防止空窗口干扰
-              !imageURLs.isEmpty
+              !visibleImageURLs.isEmpty
             }
           )
         )
@@ -345,7 +372,12 @@ struct ContentView: View {
 
   @ViewBuilder
   private var sidebarColumn: some View {
-    SidebarView(imageURLs: imageURLs, selectedImageURL: selectedImageURL) { url in
+    SidebarView(
+      imageURLs: visibleImageURLs,
+      selectedImageURL: selectedImageURL,
+      showingTagFilter: showingTagFilterPanel,
+      toggleTagFilter: { showingTagFilterPanel.toggle() }
+    ) { url in
       selectedImageURL = url
     }
     .frame(
@@ -358,7 +390,11 @@ struct ContentView: View {
   @ViewBuilder
   private var detailColumn: some View {
     DetailView(
-      imageURLs: imageURLs,
+      imageURLs: visibleImageURLs,
+      filterContext: isFilterHidingAllImages
+        ? FilterEmptyContext(onClearFilter: { clearFilterAndRestoreSelection() })
+        : nil,
+      showTagEditor: showingTagEditorPanel,
       selectedImageURL: selectedImageURL,
       onOpen: openFileOrFolder,
       onNavigatePrevious: navigateToPreviousImage,
@@ -373,6 +409,7 @@ struct ContentView: View {
       showingAddCustomRatio: $showingAddCustomRatio
     )
     .environmentObject(appSettings)
+    .environmentObject(tagService)
   }
 
   @ViewBuilder
@@ -384,28 +421,54 @@ struct ContentView: View {
     }
   }
 
-  private func updateSidebarVisibility(for newURLs: [URL]) {
-    sidebarVisibility = newURLs.isEmpty ? .detailOnly : .all
+  private func updateSidebarVisibility() {
+    sidebarVisibility = imageURLs.isEmpty ? .detailOnly : .all  // 标签筛选不影响侧边栏显隐，只看总数据源
+  }
+
+  private func clearFilterAndRestoreSelection() {
+    tagService.clearFilter()
+    // 清空筛选后尽量回到原始列表第一张，避免空白状态
+    if let first = imageURLs.first {
+      selectedImageURL = first
+    } else {
+      selectedImageURL = nil
+    }
+  }
+
+  func ensureSelectionVisible() {
+    let pool = visibleImageURLs
+    guard !pool.isEmpty else {
+      selectedImageURL = nil
+      return
+    }
+    // 如果当前选中项被过滤掉，就自动跳转到新集合第一项
+    if let selected = selectedImageURL {
+      if !pool.contains(selected) {
+        selectedImageURL = pool.first
+      }
+    } else {
+      selectedImageURL = pool.first
+    }
   }
 
   @MainActor
   private func navigateToPreviousImage() {
     guard let current = selectedImageURL,
-          let currentIndex = imageURLs.firstIndex(of: current),
+          let currentIndex = visibleImageURLs.firstIndex(of: current),
           currentIndex > 0 else {
       return
     }
-    selectedImageURL = imageURLs[currentIndex - 1]
+    selectedImageURL = visibleImageURLs[currentIndex - 1]
   }
 
   @MainActor
   private func navigateToNextImage() {
     guard let current = selectedImageURL,
-          let currentIndex = imageURLs.firstIndex(of: current),
-          currentIndex < imageURLs.count - 1 else {
+          let currentIndex = visibleImageURLs.firstIndex(of: current),
+          currentIndex < visibleImageURLs.count - 1 else {
       return
     }
-    selectedImageURL = imageURLs[currentIndex + 1]
+    selectedImageURL = visibleImageURLs[currentIndex + 1]
   }
 
   // MARK: - 幻灯片播放
@@ -416,7 +479,7 @@ struct ContentView: View {
     if isSlideshowPlaying {
       stopSlideshowPlayback()
     } else {
-      guard !imageURLs.isEmpty else { return }
+      guard !visibleImageURLs.isEmpty else { return }
       performIfEntitled(.slideshow) {
         startSlideshowPlayback()
       }
@@ -426,9 +489,9 @@ struct ContentView: View {
   /// 启动幻灯片播放：必要时定位到第一张并拉起定时任务
   @MainActor
   private func startSlideshowPlayback() {
-    guard !imageURLs.isEmpty else { return }
+    guard !visibleImageURLs.isEmpty else { return }
     if selectedImageURL == nil {
-      selectedImageURL = imageURLs.first
+      selectedImageURL = visibleImageURLs.first
     }
     isSlideshowPlaying = true
     restartSlideshowTask()
@@ -468,26 +531,26 @@ struct ContentView: View {
   @MainActor
   private func advanceSlideshowFrame() {
     guard isSlideshowPlaying else { return }
-    guard !imageURLs.isEmpty else {
+    guard !visibleImageURLs.isEmpty else {
       stopSlideshowPlayback()
       return
     }
 
     guard let current = selectedImageURL else {
-      selectedImageURL = imageURLs.first
+      selectedImageURL = visibleImageURLs.first
       return
     }
 
-    guard let currentIndex = imageURLs.firstIndex(of: current) else {
-      selectedImageURL = imageURLs.first
+    guard let currentIndex = visibleImageURLs.firstIndex(of: current) else {
+      selectedImageURL = visibleImageURLs.first
       return
     }
 
     let nextIndex = currentIndex + 1
-    if nextIndex < imageURLs.count {
-      selectedImageURL = imageURLs[nextIndex]
+    if nextIndex < visibleImageURLs.count {
+      selectedImageURL = visibleImageURLs[nextIndex]
     } else if appSettings.slideshowLoopEnabled {
-      selectedImageURL = imageURLs.first
+      selectedImageURL = visibleImageURLs.first
     } else {
       stopSlideshowPlayback()
     }
@@ -495,7 +558,9 @@ struct ContentView: View {
 
   /// 图片集合变动时同步当前选中项，并视情况重建任务
   @MainActor
-  private func handleSlideshowImageListChange(_ newURLs: [URL]) {
+  /// 图片集合或筛选变化时，校正幻灯片的播放状态
+  private func handleSlideshowImageListChange() {
+    let newURLs = visibleImageURLs
     if newURLs.isEmpty {
       stopSlideshowPlayback()
       return
@@ -530,8 +595,8 @@ struct ContentView: View {
     guard isSlideshowPlaying else { return }
     if !isLooping,
        let current = selectedImageURL,
-       let index = imageURLs.firstIndex(of: current),
-       index >= imageURLs.count - 1
+       let index = visibleImageURLs.firstIndex(of: current),
+       index >= visibleImageURLs.count - 1
     {
       stopSlideshowPlayback()
     }

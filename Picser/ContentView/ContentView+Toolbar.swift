@@ -129,8 +129,30 @@ extension ContentView {
           )
           .foregroundStyle(isPlaying ? Color.accentColor : Color.primary)
         }
-        .disabled(imageURLs.isEmpty)
+        .disabled(visibleImageURLs.isEmpty)
         .help(L10n.key("slideshow_toolbar_help"))
+      }
+
+      ToolbarItem {
+        Button {
+          withAnimation(Motion.Anim.standard) {
+            showingTagEditorPanel.toggle()
+          }
+        } label: {
+          Label(
+            showingTagEditorPanel
+              ? L10n.string("tag_editor_toolbar_hide")
+              : L10n.string("tag_editor_toolbar_show"),
+            systemImage: showingTagEditorPanel ? "tag.fill" : "tag"
+          )
+          .foregroundStyle(showingTagEditorPanel ? Color.accentColor : Color.primary)
+        }
+        // 允许用户随时展开/收起标签编辑器
+        .help(
+          showingTagEditorPanel
+            ? L10n.string("tag_editor_toolbar_hide")
+            : L10n.string("tag_editor_toolbar_show")
+        )
       }
 
       ToolbarItem {

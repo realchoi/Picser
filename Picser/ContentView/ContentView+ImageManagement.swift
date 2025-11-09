@@ -41,6 +41,7 @@ extension ContentView {
     }
 
     selectedImageURL = batch.imageURLs.first
+    ensureSelectionVisible()
   }
 
   /// 重新扫描当前输入源并同步图片列表
@@ -66,10 +67,11 @@ extension ContentView {
 
   /// 按选中项预取临近图片以提升切换体验
   func prefetchNeighbors(around url: URL) {
-    guard let idx = imageURLs.firstIndex(of: url) else { return }
+    let pool = visibleImageURLs  // 预取逻辑需与 UI 展示一致
+    guard let idx = pool.firstIndex(of: url) else { return }
     var neighbors: [URL] = []
-    if idx > 0 { neighbors.append(imageURLs[idx - 1]) }
-    if idx + 1 < imageURLs.count { neighbors.append(imageURLs[idx + 1]) }
+    if idx > 0 { neighbors.append(pool[idx - 1]) }  // 左邻
+    if idx + 1 < pool.count { neighbors.append(pool[idx + 1]) }  // 右邻
     ImageLoader.shared.prefetch(urls: neighbors)
   }
 

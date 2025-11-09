@@ -355,6 +355,8 @@ class AppSettings: ObservableObject {
       showMinimap = true
       minimapAutoHideSeconds = 0.0
       imageScanRecursively = true
+    case .tags:
+      break  // 标签设置页暂不需要默认值重置
     case .cache:
       break
     case .about:
@@ -431,6 +433,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
   case general = "General"
   case keyboard = "Keyboard"
   case display = "Display"
+  case tags = "Tags"  // 标签管理
   case cache = "Cache"
   case about = "About"
 

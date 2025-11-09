@@ -16,6 +16,8 @@ struct PicserApp: App {
   @StateObject private var featureGatekeeper: FeatureGatekeeper
   // 外部打开协调器
   @StateObject private var externalOpenCoordinator: ExternalOpenCoordinator
+  // 标签服务
+  @StateObject private var tagService = TagService()
   // 本地化管理器（用于驱动 Locale 环境刷新）
   @ObservedObject private var localizationManager = LocalizationManager.shared
   // 应用委托
@@ -57,6 +59,7 @@ struct PicserApp: App {
         .environmentObject(purchaseManager)
         .environmentObject(featureGatekeeper)
         .environmentObject(externalOpenCoordinator)
+        .environmentObject(tagService)  // 让所有视图能共享标签状态
         .environment(\.locale, localizationManager.currentLocale)
         .ignoresSafeArea(.all, edges: .top)
         // 处理外部打开的图片批次
@@ -79,6 +82,7 @@ struct PicserApp: App {
       SettingsView(appSettings: appSettings)
         .environmentObject(purchaseManager)
         .environmentObject(featureGatekeeper)
+        .environmentObject(tagService)
         .environment(\.locale, localizationManager.currentLocale)
     }
   }

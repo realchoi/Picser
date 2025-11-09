@@ -107,6 +107,15 @@ extension ContentView {
 
     imageURLs.remove(at: index)
 
+    let path = url.standardizedFileURL.path
+    // 删除图片后同步清理标签缓存，保持 UI 状态一致
+    tagService.removeAssignments(for: [path])
+    Task.detached { [tagService] in
+      try? await TagRepository.shared.removeImage(at: path)
+      await tagService.refreshAllTags()
+      await tagService.rebuildScopedTags()
+    }
+
     guard !imageURLs.isEmpty else {
       selectedImageURL = nil
       imageTransform = .identity
@@ -117,8 +126,14 @@ extension ContentView {
       return
     }
 
-    let nextIndex = index < imageURLs.count ? index : imageURLs.count - 1
-    selectedImageURL = imageURLs[nextIndex]
+    let pool = visibleImageURLs  // 删除后重新基于筛选结果决定下一张
+    guard !pool.isEmpty else {
+      selectedImageURL = nil
+      return
+    }
+    // 若当前索引超出范围，则向前回退到最后一个可见元素
+    let nextIndex = min(max(index, 0), pool.count - 1)
+    selectedImageURL = pool[nextIndex]
   }
 
   /// 统一处理删除失败场景，优先提示权限问题，其次回退到通用错误弹窗
