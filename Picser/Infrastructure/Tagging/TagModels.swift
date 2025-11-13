@@ -39,14 +39,14 @@ struct TaggedImageRecord: Identifiable, Hashable {
 }
 
 /// 标签筛选模式
-enum TagFilterMode: String, Codable, CaseIterable {
+enum TagFilterMode: String, Codable, CaseIterable, Hashable {
   case any  // 满足任意一个标签
   case all  // 必须同时满足全部标签
   case exclude  // 排除包含指定标签的图片
 }
 
 /// 标签筛选条件
-struct TagFilter: Equatable, Codable {
+struct TagFilter: Equatable, Codable, Hashable {
   /// 标签匹配模式：任意/全部/排除
   var mode: TagFilterMode
   /// 参与筛选的标签 ID 集合

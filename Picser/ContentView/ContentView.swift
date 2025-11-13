@@ -45,8 +45,8 @@ struct ContentView: View {
   @State private var customRatioH: String = "1"
   /// 控制详情页是否展示标签编辑器
   @State var showingTagEditorPanel = false
-  /// 控制侧边栏是否展开标签筛选器
-  @State var showingTagFilterPanel = false
+  /// 控制标签筛选 Popover，可供侧栏与详情页共同操作
+  @State private var showingFilterPopover = false
   /// 幻灯片播放状态与驱动任务
   @State private var isSlideshowPlaying = false
   @State private var slideshowTask: Task<Void, Never>? = nil
@@ -58,6 +58,7 @@ struct ContentView: View {
   @State var pendingDeletionURL: URL?
   @State var showingDeletionOptions = false
   @State var isPerformingDeletion = false
+  @State private var filteredImageURLs: [URL] = []
 
   // 购买解锁引导
   @State var upgradePromptContext: UpgradePromptContext?
@@ -78,8 +79,14 @@ struct ContentView: View {
 
   /// 当前经过标签筛选后的图片集合，供主视图与扩展共享
   /// 根据标签筛选结果计算当前真正可见的图片列表
-  var visibleImageURLs: [URL] {
-    tagService.filteredImageURLs(from: imageURLs)
+  var visibleImageURLs: [URL] { filteredImageURLs }
+
+  private var filterTaskTrigger: FilterTaskTrigger {
+    FilterTaskTrigger(
+      urlsHash: hashForImageURLs(imageURLs),
+      filter: tagService.activeFilter,
+      assignmentsVersion: tagService.assignmentsVersion
+    )
   }
 
   /// 当过滤条件导致列表为空时提供额外提示
@@ -179,13 +186,8 @@ struct ContentView: View {
           Task {
             await tagService.refreshScope(with: newURLs)
           }
+          filteredImageURLs = newURLs
           // 目录切换后需要重新确保选中项在可见集合里
-          ensureSelectionVisible()
-          updateSidebarVisibility()
-          handleSlideshowImageListChange()
-        }
-        .onChange(of: tagService.activeFilter) { _, _ in
-          // 筛选条件变化也要同步处理可见列表
           ensureSelectionVisible()
           updateSidebarVisibility()
           handleSlideshowImageListChange()
@@ -220,6 +222,16 @@ struct ContentView: View {
           if newValue {
             stopSlideshowPlayback()
           }
+        }
+        .onChange(of: filteredImageURLs) { _, _ in
+          ensureSelectionVisible()
+          handleSlideshowImageListChange()
+        }
+        .onAppear {
+          filteredImageURLs = imageURLs
+        }
+        .task(id: filterTaskTrigger) {
+          filteredImageURLs = await tagService.filteredImageURLs(from: imageURLs)
         }
     )
 
@@ -375,8 +387,7 @@ struct ContentView: View {
     SidebarView(
       imageURLs: visibleImageURLs,
       selectedImageURL: selectedImageURL,
-      showingTagFilter: showingTagFilterPanel,
-      toggleTagFilter: { showingTagFilterPanel.toggle() }
+      showingFilterPopover: $showingFilterPopover
     ) { url in
       selectedImageURL = url
     }
@@ -392,7 +403,10 @@ struct ContentView: View {
     DetailView(
       imageURLs: visibleImageURLs,
       filterContext: isFilterHidingAllImages
-        ? FilterEmptyContext(onClearFilter: { clearFilterAndRestoreSelection() })
+        ? FilterEmptyContext(
+          onClearFilter: { clearFilterFromDetail() },
+          onShowFilters: { showingFilterPopover = true }
+        )
         : nil,
       showTagEditor: showingTagEditorPanel,
       selectedImageURL: selectedImageURL,
@@ -433,6 +447,11 @@ struct ContentView: View {
     } else {
       selectedImageURL = nil
     }
+  }
+
+  private func clearFilterFromDetail() {
+    showingFilterPopover = false
+    clearFilterAndRestoreSelection()
   }
 
   func ensureSelectionVisible() {
@@ -674,6 +693,21 @@ struct ContentView: View {
 
   // computeImageURLs moved to ImageDiscovery
 
+}
+
+private func hashForImageURLs(_ urls: [URL]) -> Int {
+  var hasher = Hasher()
+  hasher.combine(urls.count)
+  for url in urls {
+    hasher.combine(url.standardizedFileURL.path)
+  }
+  return hasher.finalize()
+}
+
+private struct FilterTaskTrigger: Hashable {
+  let urlsHash: Int
+  let filter: TagFilter
+  let assignmentsVersion: Int
 }
 
 // MARK: - Helpers

@@ -37,6 +37,16 @@ xcodebuild -scheme Picser -configuration Release …
 
 这样开发调试、测试和正式发布都能按需切换，而本地缺省逻辑也会自动回退到默认值或钥匙串配置，无需频繁改代码。
 
+#### 本地化校验
+
+新增或修改文案时，请运行本地化校验脚本，确保 `Localizable.xcstrings` 与代码中引用的 Key 保持一致：
+
+```bash
+python3 scripts/l10n_lint.py
+```
+
+CI 可调用 `scripts/run_ci_checks.sh` 在 PR 或发布流程中自动执行该校验，避免遗漏翻译或残留无用 Key。
+
 ### 打包
 - 在 .env.local 文件中配置环境变量
 - 依次执行以下命令：

@@ -11,10 +11,7 @@ import SwiftUI
 struct SidebarView: View {
   let imageURLs: [URL]
   let selectedImageURL: URL?
-  /// 是否显示 TagFilterPanel
-  let showingTagFilter: Bool
-  /// 切换筛选面板的回调，由外层控制状态
-  let toggleTagFilter: () -> Void
+  @Binding var showingFilterPopover: Bool
   let onSelect: (URL) -> Void
   @EnvironmentObject var tagService: TagService
 
@@ -73,18 +70,16 @@ struct SidebarView: View {
 }
 
 private extension SidebarView {
-  /// 顶部筛选开关，附带当前条件摘要
+  /// 顶部筛选按钮，通过 Popover 展示筛选器
   var filterHeader: some View {
     VStack(alignment: .leading, spacing: 8) {
       Button {
-        toggleTagFilter()
+        showingFilterPopover.toggle()
       } label: {
         HStack {
           Label(
-            showingTagFilter
-              ? L10n.string("tag_filter_hide_button")
-              : L10n.string("tag_filter_show_button"),
-            systemImage: showingTagFilter ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
+            L10n.string("tag_filter_show_button"),
+            systemImage: showingFilterPopover ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
           )
           Spacer()
           if tagService.activeFilter.isActive {
@@ -97,24 +92,16 @@ private extension SidebarView {
       .buttonStyle(.plain)
       .padding(.horizontal, 10)
       .padding(.top, 8)
-
-      if showingTagFilter {
+      .popover(isPresented: $showingFilterPopover, arrowEdge: .bottom) {
         TagFilterPanel()
-          .padding(.bottom, 6)
+          .frame(width: 340)
+          .padding()
       }
+
+      Divider()
+        .padding(.horizontal, 8)
+        .padding(.top, 2)
     }
-    .background(
-      showingTagFilter
-        ? AnyView(
-          RoundedRectangle(cornerRadius: 0)
-            .fill(Color.clear)
-            .overlay(alignment: .bottom) {
-              Divider()
-                .padding(.horizontal, 8)
-            }
-        )
-        : AnyView(EmptyView())
-    )
     .padding(.horizontal, 6)
   }
 

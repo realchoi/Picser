@@ -12,33 +12,42 @@ struct TagFilterPanel: View {
   // MARK: - 视图状态
   @State private var smartFilterDraftName: String = ""
   @State private var showingSmartFilterSheet = false
+  @State private var colorSearchText: String = ""
+  @State private var tagSearchText: String = ""
   @FocusState private var keywordFocused: Bool
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(spacing: 0) {
       headerRow
-      keywordSection
-      if !availableColors.isEmpty {
-        colorSection
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      Divider()
+      VStack(alignment: .leading, spacing: 0) {
+        keywordSection
+        if !availableColors.isEmpty {
+          sectionDivider
+          colorSection
+        }
+        sectionDivider
+        tagSelectionSection
+        if !tagService.smartFilters.isEmpty {
+          sectionDivider
+          smartFilterSection
+        }
       }
-      if tagService.scopedTags.isEmpty {
-        emptyStateView
-      } else {
-        tagSelectionMenu
-      }
-      if !tagService.smartFilters.isEmpty {
-        smartFilterSection
-      }
-      if tagService.activeFilter.isActive {
-        clearButton
-      }
+      .padding(12)
+      Divider()
+      footerRow
+        .padding(12)
+        .frame(maxWidth: .infinity)
     }
-    .padding(10)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(
       RoundedRectangle(cornerRadius: 12, style: .continuous)
         .fill(Color.secondary.opacity(0.08))
     )
+    .padding(.horizontal, 4)
+    .padding(.vertical, 2)
     .sheet(isPresented: $showingSmartFilterSheet) {
       SmartFilterNameSheet(
         name: $smartFilterDraftName,
@@ -46,7 +55,7 @@ struct TagFilterPanel: View {
         placeholderKey: "tag_filter_smart_sheet_placeholder",
         actionKey: "tag_filter_smart_sheet_save_button"
       ) { name in
-        tagService.saveCurrentFilterAsSmart(named: name)
+        try tagService.saveCurrentFilterAsSmart(named: name)
       }
       .frame(width: 320)
     }
@@ -85,28 +94,47 @@ struct TagFilterPanel: View {
 
   /// 标签颜色过滤区，支持多选
   private var colorSection: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      HStack {
+    let canClearColors = !tagService.activeFilter.colorHexes.isEmpty
+    return VStack(alignment: .leading, spacing: 6) {
+      HStack(spacing: 8) {
         Text(L10n.string("tag_filter_color_title"))
           .font(.caption)
           .foregroundColor(.secondary)
         Spacer()
-        if !tagService.activeFilter.colorHexes.isEmpty {
-          Button(L10n.string("tag_filter_color_clear_button")) {
-            tagService.clearColorFilters()
-          }
-          .buttonStyle(.borderless)
+        Text(colorSelectionSummary)
+          .font(.caption)
+          .foregroundColor(.secondary)
+        Button(L10n.string("tag_filter_color_clear_button")) {
+          guard canClearColors else { return }
+          tagService.clearColorFilters()
         }
+        .buttonStyle(.borderless)
+        .allowsHitTesting(canClearColors)
+        .opacity(canClearColors ? 1 : disabledButtonOpacity)
       }
-      ScrollView(.horizontal, showsIndicators: true) {
-        HStack(spacing: 8) {
-          ForEach(availableColors, id: \.self) { hex in
-            colorChip(for: hex)
+      TextField(
+        L10n.string("tag_filter_color_search_placeholder"),
+        text: $colorSearchText
+      )
+      .textFieldStyle(.roundedBorder)
+      Group {
+        if filteredColors.isEmpty {
+          EmptyView()
+        } else if filteredColors.count <= colorInlineLimit {
+          colorGridContent(filteredColors)
+        } else {
+          ScrollView {
+            colorGridContent(filteredColors)
           }
+          .frame(maxHeight: colorScrollMaxHeight)
         }
-        .padding(.vertical, 2)
       }
       .frame(maxWidth: .infinity)
+      if filteredColors.isEmpty {
+        Text(L10n.string("tag_filter_color_search_empty"))
+          .font(.caption)
+          .foregroundColor(.secondary)
+      }
     }
   }
 
@@ -133,6 +161,11 @@ struct TagFilterPanel: View {
     }
   }
 
+  private var sectionDivider: some View {
+    Divider()
+      .padding(.vertical, 10)
+  }
+
   private var emptyStateView: some View {
     VStack(alignment: .leading, spacing: 8) {
       Text(L10n.string("tag_filter_empty_hint"))
@@ -141,14 +174,21 @@ struct TagFilterPanel: View {
     }
   }
 
-  /// 一键清空所有筛选条件
-  private var clearButton: some View {
-    Button {
-      tagService.clearFilter()
-    } label: {
-      Label(L10n.string("tag_filter_clear_button"), systemImage: "xmark.circle")
+  /// 底部清除按钮区域，保持与顶部工具条一致
+  private var footerRow: some View {
+    let canClearAll = tagService.activeFilter.isActive
+    return HStack {
+      Spacer()
+      Button {
+        guard canClearAll else { return }
+        tagService.clearFilter()
+      } label: {
+        Label(L10n.string("tag_filter_clear_button"), systemImage: "xmark.circle")
+      }
+      .buttonStyle(.borderless)
+      .allowsHitTesting(canClearAll)
+      .opacity(canClearAll ? 1 : disabledButtonOpacity)
     }
-    .buttonStyle(.borderless)
   }
 
   private var modeMenu: some View {
@@ -172,29 +212,61 @@ struct TagFilterPanel: View {
     .id("mode-menu-\(locale.identifier)")
   }
 
-  /// 标签勾选列表，可切换 ANY/ALL/EXCLUDE
-  private var tagSelectionMenu: some View {
-    Menu {
-      ForEach(tagService.scopedTags) { tag in
-        Button {
-          tagService.toggleFilter(tagID: tag.id, mode: tagService.activeFilter.mode)
-        } label: {
-          tagMenuTitle(
-            name: tag.name,
-            usageCount: tag.usageCount,
-            hex: tag.colorHex,
-            isSelected: tagService.activeFilter.tagIDs.contains(tag.id)
+  /// 标签勾选区域，支持滚动与搜索
+  private var tagSelectionSection: some View {
+    Group {
+      if tagService.scopedTags.isEmpty {
+        emptyStateView
+      } else {
+        let canClearTags = !tagService.activeFilter.tagIDs.isEmpty
+        VStack(alignment: .leading, spacing: 6) {
+          HStack(spacing: 8) {
+            Text(L10n.string("tag_filter_section_title"))
+              .font(.caption)
+              .foregroundColor(.secondary)
+            Spacer()
+            Text(selectionSummary)
+              .font(.caption)
+              .foregroundColor(.secondary)
+            Button(L10n.string("tag_filter_tag_clear_button")) {
+              guard canClearTags else { return }
+              tagService.clearTagFilters()
+            }
+            .buttonStyle(.borderless)
+            .allowsHitTesting(canClearTags)
+            .opacity(canClearTags ? 1 : disabledButtonOpacity)
+          }
+          TextField(
+            L10n.string("tag_filter_tag_search_placeholder"),
+            text: $tagSearchText
           )
+          .textFieldStyle(.roundedBorder)
+          tagList
         }
       }
-      if tagService.activeFilter.isActive {
-        Divider()
-        clearButton
-      }
-    } label: {
-      Label(selectionSummary, systemImage: "tag")
     }
-    .id("tag-menu-\(locale.identifier)")
+  }
+
+  /// 可滚动标签列表
+  private var tagList: some View {
+    ScrollView {
+      LazyVStack(alignment: .leading, spacing: 4) {
+        ForEach(filteredTags) { tag in
+          tagRow(for: tag)
+        }
+      }
+      .padding(.vertical, 2)
+    }
+    .frame(maxWidth: .infinity)
+    .frame(minHeight: 120, maxHeight: 300)
+    .overlay {
+      if filteredTags.isEmpty {
+        Text(L10n.string("tag_filter_tag_search_empty"))
+          .font(.caption)
+          .foregroundColor(.secondary)
+          .padding(.top, 8)
+      }
+    }
   }
 
   private var selectionSummary: String {
@@ -203,6 +275,18 @@ struct TagFilterPanel: View {
       return L10n.string("tag_filter_selection_summary_none")
     }
     return String(format: L10n.string("tag_filter_selection_summary_some"), count)
+  }
+
+  private var colorSelectionSummary: String {
+    let count = tagService.activeFilter.colorHexes.count
+    if count == 0 {
+      return L10n.string("tag_filter_color_summary_none")
+    }
+    return String(format: L10n.string("tag_filter_color_summary_some"), count)
+  }
+
+  private func tagUsageSummary(for count: Int) -> String {
+    String(format: L10n.string("tag_usage_format"), count)
   }
 
   /// 自定义 Binding，实时写入 TagService
@@ -220,17 +304,42 @@ struct TagFilterPanel: View {
     )
   }
 
-  /// 从作用域标签中提取去重后的颜色集合
+  /// 从作用域 + 全部标签中提取去重后的颜色集合
   private var availableColors: [String] {
-    let colors = tagService.scopedTags
-      .compactMap { normalizedHex($0.colorHex) }
-    return Array(Set(colors)).sorted()
+    let scoped = tagService.scopedTags.compactMap { $0.colorHex.normalizedHexColor() }
+    let global = tagService.allTags.compactMap { $0.colorHex.normalizedHexColor() }
+    return Array(Set(scoped + global)).sorted()
+  }
+
+  private var filteredColors: [String] {
+    let query = colorSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !query.isEmpty else { return availableColors }
+    return availableColors.filter { $0.localizedCaseInsensitiveContains(query) }
+  }
+
+  private var filteredTags: [ScopedTagSummary] {
+    let query = tagSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !query.isEmpty else { return tagService.scopedTags }
+    return tagService.scopedTags.filter { tag in
+      tag.name.localizedCaseInsensitiveContains(query) ||
+        "\(tag.usageCount)".localizedStandardContains(query)
+    }
   }
 
   /// 当前筛选条件是否与某个智能筛选完全一致
   private var activeSmartFilterID: TagSmartFilter.ID? {
     tagService.smartFilters.first(where: { $0.filter == tagService.activeFilter })?.id
   }
+
+  private var colorGridColumns: [GridItem] {
+    Array(
+      repeating: GridItem(.flexible(minimum: 80), spacing: 8, alignment: .leading),
+      count: 3
+    )
+  }
+  private let colorInlineLimit = 6
+  private let colorScrollMaxHeight: CGFloat = 110
+  private let disabledButtonOpacity: Double = 0.55
 
   /// 单个颜色过滤按钮，带选中态
   private func colorChip(for hex: String) -> some View {
@@ -257,6 +366,49 @@ struct TagFilterPanel: View {
             lineWidth: 1
           )
       )
+    }
+    .buttonStyle(.plain)
+  }
+
+  @ViewBuilder
+  private func colorGridContent(_ colors: [String]) -> some View {
+    LazyVGrid(columns: colorGridColumns, spacing: 8) {
+      ForEach(colors, id: \.self) { hex in
+        colorChip(for: hex)
+      }
+    }
+    .padding(.vertical, 2)
+  }
+
+  /// 标签多选行
+  private func tagRow(for tag: ScopedTagSummary) -> some View {
+    let isSelected = tagService.activeFilter.tagIDs.contains(tag.id)
+    return Button {
+      tagService.toggleFilter(tagID: tag.id, mode: tagService.activeFilter.mode)
+    } label: {
+      HStack(spacing: 8) {
+        TagColorIcon(hex: tag.colorHex)
+        HStack(spacing: 6) {
+          Text(tag.name)
+            .font(.body)
+            .lineLimit(1)
+          Text("(\(tagUsageSummary(for: tag.usageCount)))")
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .lineLimit(1)
+        }
+        Spacer()
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+          .foregroundColor(isSelected ? .accentColor : .secondary.opacity(0.6))
+      }
+      .padding(.horizontal, 8)
+      .padding(.vertical, 6)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+          .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+      )
+      .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
   }
@@ -289,17 +441,6 @@ struct TagFilterPanel: View {
   }
 
   /// 统一 HEX 格式，避免大小写/符号差异
-  private func normalizedHex(_ hex: String?) -> String? {
-    guard var value = hex?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
-      return nil
-    }
-    if value.hasPrefix("#") {
-      value.removeFirst()
-    }
-    guard !value.isEmpty else { return nil }
-    return "#\(value.uppercased())"
-  }
-
   /// 将模式枚举转换为本地化字符串
   private func title(for mode: TagFilterMode) -> String {
     switch mode {
@@ -321,7 +462,8 @@ struct SmartFilterNameSheet: View {
   let titleKey: String
   let placeholderKey: String
   let actionKey: String
-  let onSave: (String) -> Void
+  let onSave: (String) throws -> Void
+  @State private var errorMessage: String?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
@@ -332,21 +474,39 @@ struct SmartFilterNameSheet: View {
         text: $name
       )
       .textFieldStyle(.roundedBorder)
+      .onSubmit(performSave)
+      if let errorMessage {
+        Text(errorMessage)
+          .font(.caption)
+          .foregroundColor(.pink)
+      }
       HStack {
         Button(L10n.key("cancel_button"), role: .cancel) {
           dismiss()
         }
         Spacer()
         Button(L10n.string(actionKey)) {
-          let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-          guard !trimmed.isEmpty else { return }
-          onSave(trimmed)
-          dismiss()
+          performSave()
         }
         .buttonStyle(.borderedProminent)
         .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       }
     }
     .padding(24)
+    .onChange(of: name) { _, _ in
+      errorMessage = nil
+    }
+  }
+
+  private func performSave() {
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    do {
+      try onSave(trimmed)
+      errorMessage = nil
+      dismiss()
+    } catch {
+      errorMessage = error.localizedDescription
+    }
   }
 }

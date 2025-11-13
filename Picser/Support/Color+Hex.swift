@@ -76,3 +76,31 @@ extension Color {
     #endif
   }
 }
+
+extension String {
+  /// 归一化 HEX 字符串：移除空白与前缀，统一为大写 #RRGGBB/#RRGGBBAA
+  func normalizedHexColor() -> String? {
+    var value = trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !value.isEmpty else { return nil }
+    if value.hasPrefix("#") {
+      value.removeFirst()
+    }
+    guard !value.isEmpty else { return nil }
+    guard value.count == 6 || value.count == 8 else { return nil }
+    let uppercase = value.uppercased()
+    guard uppercase.allSatisfy(\.isHexDigit) else { return nil }
+    return "#\(uppercase)"
+  }
+}
+
+extension Optional where Wrapped == String {
+  /// 针对可选字符串的 HEX 归一化
+  func normalizedHexColor() -> String? {
+    switch self {
+    case let .some(value):
+      return value.normalizedHexColor()
+    case .none:
+      return nil
+    }
+  }
+}

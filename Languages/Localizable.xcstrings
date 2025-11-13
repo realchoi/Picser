@@ -4018,6 +4018,70 @@
         }
       }
     },
+    "receipt_validator_missing_receipt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No receipt found. Please try restoring purchases."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到收据信息，请尝试恢复购买。"
+          }
+        }
+      }
+    },
+    "receipt_validator_invalid_http": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to contact verification server (HTTP %d)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法连接验证服务器（HTTP %d）。"
+          }
+        }
+      }
+    },
+    "receipt_validator_server_status": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Store validation failed with status %d."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Store 验证失败，状态码 %d。"
+          }
+        }
+      }
+    },
+    "receipt_validator_decoding": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to decode receipt: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解析收据失败：%@"
+          }
+        }
+      }
+    },
     "refresh_button": {
       "localizations": {
         "en": {
@@ -5298,6 +5362,54 @@
         }
       }
     },
+    "tag_filter_tag_search_placeholder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索标签"
+          }
+        }
+      }
+    },
+    "tag_filter_tag_search_empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的标签"
+          }
+        }
+      }
+    },
+    "tag_filter_tag_clear_button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除标签"
+          }
+        }
+      }
+    },
     "tag_filter_keyword_label": {
       "localizations": {
         "en": {
@@ -5358,6 +5470,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "清除颜色"
+          }
+        }
+      }
+    },
+    "tag_filter_color_search_placeholder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search colors"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索颜色"
+          }
+        }
+      }
+    },
+    "tag_filter_color_search_empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching colors"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的颜色"
+          }
+        }
+      }
+    },
+    "tag_filter_color_summary_none": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All colors"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部颜色"
+          }
+        }
+      }
+    },
+    "tag_filter_color_summary_some": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d colors selected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选 %d 种颜色"
           }
         }
       }
@@ -5527,13 +5703,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Clear Filter"
+            "value": "Clear all filters"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "清除筛选"
+            "value": "清除所有筛选"
           }
         }
       }
@@ -5762,6 +5938,118 @@
         }
       }
     },
+    "tag_feedback_dismiss_button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dismiss"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "知道了"
+          }
+        }
+      }
+    },
+    "tag_feedback_inspect_failure": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspection failed: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "巡检失败：%@"
+          }
+        }
+      }
+    },
+    "tag_feedback_inspect_success": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspection finished: checked %d item(s), recovered %d tag(s), removed %d missing entries."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "巡检完成：检查 %d 项，恢复 %d 条，移除 %d 个缺失记录。"
+          }
+        }
+      }
+    },
+    "tag_feedback_sync_failure": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to sync tags: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步标签失败：%@"
+          }
+        }
+      }
+    },
+    "tag_feedback_sync_success": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synced tags for %d photo(s)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已同步 %d 张照片的标签。"
+          }
+        }
+      }
+    },
+    "smart_filter_error_duplicate_name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A filter preset with this name already exists."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已存在同名筛选方案。"
+          }
+        }
+      }
+    },
+    "smart_filter_error_duplicate_filter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A filter preset with identical conditions already exists."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已存在条件完全相同的筛选方案。"
+          }
+        }
+      }
+    },
     "tag_settings_tab": {
       "localizations": {
         "en": {
@@ -5842,7 +6130,7 @@
         }
       }
     },
-    "tag_settings_usage_format": {
+    "tag_usage_format": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6562,6 +6850,54 @@
         }
       }
     },
+    "tag_settings_feedback_history_button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View History"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看历史"
+          }
+        }
+      }
+    },
+    "tag_settings_feedback_history_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activity Log"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作历史"
+          }
+        }
+      }
+    },
+    "tag_settings_feedback_history_close": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
     "tag_settings_smart_filters_title": {
       "localizations": {
         "en": {
@@ -6830,6 +7166,134 @@
           "stringUnit": {
             "state": "translated",
             "value": "没有符合搜索条件的标签"
+          }
+        }
+      }
+    },
+    "tag_settings_tools_section_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag tools & list"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签工具与列表"
+          }
+        }
+      }
+    },
+    "tag_settings_tools_section_subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage batches, search, and browse tags here."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "批量处理、搜索与标签列表集中在此。"
+          }
+        }
+      }
+    },
+    "tag_settings_batch_toggle_short": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batch mode"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "批量模式"
+          }
+        }
+      }
+    },
+    "tag_settings_batch_disabled_summary": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batch tools disabled"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "批量工具未启用"
+          }
+        }
+      }
+    },
+    "tag_settings_empty_hint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use the batch tools above to add or import tags quickly."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可通过上方批量工具快速新增标签，或导入现有标签集合。"
+          }
+        }
+      }
+    },
+    "tag_settings_search_hint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try adjusting keywords or smart filters to find the right tags."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尝试调整搜索关键字或切换筛选方案，以找到目标标签。"
+          }
+        }
+      }
+    },
+    "tag_settings_smart_summary_active": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前：%@"
+          }
+        }
+      }
+    },
+    "tag_settings_smart_summary_count": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d smart presets"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共 %d 个方案"
           }
         }
       }

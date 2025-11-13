@@ -10,7 +10,13 @@ import SwiftUI
 enum L10n {
   /// 返回当前语言环境下的字符串，适用于 AppKit / NSAlert 等非 SwiftUI 场景。
   static func string(_ key: String, table: String? = nil, comment: String = "") -> String {
-    LocalizationManager.shared.localizedString(key, table: table, comment: comment)
+    let value = LocalizationManager.shared.localizedString(key, table: table, comment: comment)
+#if DEBUG
+    if table == nil && value == key {
+      assertionFailure("Missing localization for key: \(key)")
+    }
+#endif
+    return value
   }
 
   /// 返回 `LocalizedStringKey`，便于在 `Commands` 等需要键值的场景复用。

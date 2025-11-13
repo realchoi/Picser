@@ -1,7 +1,7 @@
 //
 //  SubscriptionGraceBanner.swift
 //
-//  Created by Codex on 2025/02/14.
+//  Created by Eric Cai on 2025/11/1.
 //
 
 import SwiftUI

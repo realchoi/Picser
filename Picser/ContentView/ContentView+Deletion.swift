@@ -112,7 +112,7 @@ extension ContentView {
     tagService.removeAssignments(for: [path])
     Task.detached { [tagService] in
       try? await TagRepository.shared.removeImage(at: path)
-      await tagService.refreshAllTags()
+      await tagService.refreshAllTags(immediate: true)
       await tagService.rebuildScopedTags()
     }
 

@@ -8,6 +8,7 @@ import SwiftUI
 
 struct SettingsView: View {
   @ObservedObject var appSettings: AppSettings
+  @EnvironmentObject private var tagService: TagService
   @State private var validationErrors: [String] = []
   @State private var selectedTab: SettingsTab = .general
   @State private var desiredContentHeight: CGFloat = 0
@@ -69,7 +70,7 @@ struct SettingsView: View {
         IntrinsicTabContainer(tab: .tags, shouldScroll: {
           tabScrollNeeds[.tags] ?? false
         }) {
-          TagSettingsView()
+          TagSettingsView(tagService: tagService)
         }
         .tag(SettingsTab.tags)
           .tabItem {
@@ -211,6 +212,7 @@ struct SettingsView: View {
 #Preview {
   SettingsView(appSettings: AppSettings())
     .environmentObject(PurchaseManager())
+    .environmentObject(TagService())
 }
 
 // MARK: - 动态尺寸

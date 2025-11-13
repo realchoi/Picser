@@ -17,6 +17,7 @@ struct TagEditorView: View {
   @State private var batchSelection: Set<URL> = []
   @State private var colorEditorTag: TagRecord?
   @State private var colorEditorColor: Color = .accentColor
+  @State private var recommendedSuggestions: [TagRecord] = []
 
   /// 已应用在当前主图片上的标签（按名称排序）
   private var assignedTags: [TagRecord] {
@@ -25,11 +26,6 @@ struct TagEditorView: View {
       .sorted {
         $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
       }
-  }
-
-  /// TagService 根据上下文计算的推荐标签
-  private var recommendedTags: [TagRecord] {
-    tagService.recommendedTags(for: imageURL)
   }
 
   /// 文本框输入是否可以提交
@@ -44,14 +40,15 @@ struct TagEditorView: View {
 
   /// 全部标签列表，按名称排序以便检索
   private var sortedLibraryTags: [TagRecord] {
-    tagService.allTags.sorted {
-      $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-    }
+    tagService.allTagsSortedByName
   }
 
-  /// 预留扩展点：可在此处加关键字过滤
-  private var filteredLibraryTags: [TagRecord] {
-    sortedLibraryTags
+  private var recommendationTrigger: RecommendationTrigger {
+    RecommendationTrigger(
+      imagePath: imageURL.path,
+      assignmentsVersion: tagService.assignmentsVersion,
+      scopedHash: tagService.scopedTags.hashValue
+    )
   }
 
   init(imageURL: URL, imageURLs: [URL]) {
@@ -97,6 +94,9 @@ struct TagEditorView: View {
           Task { await tagService.updateColor(tagID: tag.id, hex: nil) }
         }
       )
+    }
+    .task(id: recommendationTrigger) {
+      recommendedSuggestions = await tagService.recommendedTags(for: imageURL)
     }
   }
 }
@@ -218,16 +218,21 @@ private extension TagEditorView {
   /// 推荐标签列表，鼓励复用常用标签
   var recommendedSection: some View {
     Group {
-      if !recommendedTags.isEmpty {
+      if !recommendedSuggestions.isEmpty {
         VStack(alignment: .leading, spacing: 6) {
           Text(L10n.string("tag_editor_recommend_title"))
             .font(.caption)
             .foregroundColor(.secondary)
           ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-              ForEach(recommendedTags, id: \.id) { tag in
+              ForEach(recommendedSuggestions, id: \.id) { tag in
                 RecommendedTagChip(tag: tag) {
-                  Task { await tagService.assign(tagNames: [tag.name], to: [imageURL]) }
+                  Task {
+                    await MainActor.run {
+                      tagService.recordRecommendationSelection(tagID: tag.id, for: imageURL)
+                    }
+                    await tagService.assign(tagNames: [tag.name], to: [imageURL])
+                  }
                 }
               }
             }
@@ -303,7 +308,12 @@ private extension TagEditorView {
       batchSelection.insert(url)
     }
   }
+}
 
+private struct RecommendationTrigger: Hashable {
+  let imagePath: String
+  let assignmentsVersion: Int
+  let scopedHash: Int
 }
 
 /// 带颜色指示与删除按钮的标签胶囊

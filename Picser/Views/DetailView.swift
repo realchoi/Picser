@@ -225,6 +225,12 @@ private struct ExifDrawerLoadingView: View {
 /// 当筛选条件导致无内容时，回调清空动作
 struct FilterEmptyContext {
   let onClearFilter: () -> Void
+  let onShowFilters: (() -> Void)?
+
+  init(onClearFilter: @escaping () -> Void, onShowFilters: (() -> Void)? = nil) {
+    self.onClearFilter = onClearFilter
+    self.onShowFilters = onShowFilters
+  }
 }
 
 /// 展示“无匹配”提示与清空按钮
@@ -241,6 +247,14 @@ private struct FilterEmptyView: View {
       Text(l10n: "filter_no_match_message")
         .font(.subheadline)
         .foregroundColor(.secondary)
+      if let onShowFilters = context.onShowFilters {
+        Button {
+          onShowFilters()
+        } label: {
+          Label(L10n.string("tag_filter_show_button"), systemImage: "line.3.horizontal.decrease.circle")
+        }
+        .buttonStyle(.bordered)
+      }
       Button {
         context.onClearFilter()
       } label: {

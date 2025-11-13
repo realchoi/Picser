@@ -13,13 +13,16 @@ private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.sel
 actor TagRepository {
   static let shared = TagRepository()
 
-  private let database = TaggingDatabase.shared
+  private let database: TaggingDatabase
+
+  init(database: TaggingDatabase = .shared) {
+    self.database = database
+  }
 
   // MARK: - 查询
 
   func fetchAllTags() async throws -> [TagRecord] {
     try await database.perform { db in
-      // 使用子查询统计 usage_count，避免额外的聚合表
       let sql = """
         SELECT
           tags.id,
@@ -27,8 +30,15 @@ actor TagRepository {
           tags.color_hex,
           tags.created_at,
           tags.updated_at,
-          (SELECT COUNT(*) FROM image_tags WHERE image_tags.tag_id = tags.id) AS usage_count
+          COALESCE(usage_stats.usage_count, 0) AS usage_count
         FROM tags
+        LEFT JOIN (
+          SELECT
+            tag_id,
+            COUNT(*) AS usage_count
+          FROM image_tags
+          GROUP BY tag_id
+        ) AS usage_stats ON usage_stats.tag_id = tags.id
         ORDER BY usage_count DESC, LOWER(tags.name) ASC;
       """
       var statement: OpaquePointer?
@@ -59,8 +69,9 @@ actor TagRepository {
     guard !paths.isEmpty else { return [:] }
     let distinctPaths = Array(Set(paths))
     return try await database.perform { db in
-      // 使用 IN (?) 组合占位符批量查询，兼顾性能与安全
-      let placeholders = Array(repeating: "?", count: distinctPaths.count).joined(separator: ",")
+      try resetTempRequestPathsTable(db: db)
+      defer { try? dropTempRequestPathsTable(db: db) }
+      try populateTempRequestPathsTable(db: db, paths: distinctPaths)
       let sql = """
         SELECT
           images.path,
@@ -69,19 +80,16 @@ actor TagRepository {
           tags.color_hex,
           tags.created_at,
           tags.updated_at
-        FROM images
+        FROM temp.request_paths AS request_paths
+        JOIN images ON images.path = request_paths.path
         JOIN image_tags ON images.id = image_tags.image_id
         JOIN tags ON image_tags.tag_id = tags.id
-        WHERE images.path IN (\(placeholders))
         ORDER BY images.path, LOWER(tags.name);
       """
       var statement: OpaquePointer?
       defer { sqlite3_finalize(statement) }
       guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
         throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
-      }
-      for (index, path) in distinctPaths.enumerated() {
-        sqlite3_bind_text(statement, Int32(index + 1), path, -1, SQLITE_TRANSIENT)
       }
       var grouped: [String: [TagRecord]] = [:]
       while sqlite3_step(statement) == SQLITE_ROW {
@@ -100,29 +108,92 @@ actor TagRepository {
     }
   }
 
+  func fetchDirectoryTagCounts(directory: String) async throws -> [Int64: Int] {
+    try await database.perform { db in
+      let sql = """
+        SELECT
+          tags.id,
+          COUNT(*) AS usage_count
+        FROM images
+        JOIN image_tags ON images.id = image_tags.image_id
+        JOIN tags ON image_tags.tag_id = tags.id
+        WHERE images.directory = ?
+        GROUP BY tags.id;
+      """
+      var statement: OpaquePointer?
+      defer { sqlite3_finalize(statement) }
+      guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+        throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
+      }
+      sqlite3_bind_text(statement, 1, directory, -1, SQLITE_TRANSIENT)
+      var counts: [Int64: Int] = [:]
+      while sqlite3_step(statement) == SQLITE_ROW {
+        let tagID = sqlite3_column_int64(statement, 0)
+        let usage = Int(sqlite3_column_int(statement, 1))
+        counts[tagID] = usage
+      }
+      return counts
+    }
+  }
+
   // MARK: - 写入
 
   func assign(tagNames: [String], to url: URL) async throws -> [TagRecord] {
-    let normalized = normalize(url: url)
+    let result = try await assign(tagNames: tagNames, to: [url])
+    return result[url.standardizedFileURL.path] ?? []
+  }
+
+  func assign(tagNames: [String], to urls: [URL]) async throws -> [String: [TagRecord]] {
+    guard !urls.isEmpty else { return [:] }
+    let normalizedMap = Dictionary(uniqueKeysWithValues: urls.map { url in
+      let normalized = normalize(url: url)
+      return (normalized.path, normalized)
+    })
+    guard !normalizedMap.isEmpty else { return [:] }
+
+    let preparedNames = sanitizeTagNames(tagNames)
+    if preparedNames.isEmpty {
+      return try await database.perform { db in
+        var result: [String: [TagRecord]] = [:]
+        let now = Date().timeIntervalSince1970
+        for normalized in normalizedMap.values {
+          guard let imageID = try resolveImageID(
+            db: db,
+            normalized: normalized,
+            timestamp: now,
+            allowCreate: false
+          ) else {
+            result[normalized.path] = []
+            continue
+          }
+          result[normalized.path] = try queryTags(db: db, imageID: imageID)
+        }
+        return result
+      }
+    }
+
     return try await database.perform { db in
       let now = Date().timeIntervalSince1970
-      // 如果图片尚未入库，会在 resolveImageID 中自动创建
-      guard let imageID = try resolveImageID(
-        db: db,
-        normalized: normalized,
-        timestamp: now,
-        allowCreate: !tagNames.isEmpty
-      ) else {
-        return []
+      try beginTransaction(db, mode: "IMMEDIATE")
+      do {
+        let tagIDs = try ensureTags(db: db, names: preparedNames, timestamp: now)
+        var output: [String: [TagRecord]] = [:]
+        for normalized in normalizedMap.values {
+          guard let imageID = try resolveImageID(
+            db: db,
+            normalized: normalized,
+            timestamp: now,
+            allowCreate: true
+          ) else { continue }
+          try bindTags(db: db, imageID: imageID, tagIDs: tagIDs, timestamp: now)
+          output[normalized.path] = try queryTags(db: db, imageID: imageID)
+        }
+        try commitTransaction(db)
+        return output
+      } catch {
+        try rollbackTransaction(db)
+        throw error
       }
-      guard !tagNames.isEmpty else {
-        return try queryTags(db: db, imageID: imageID)
-      }
-      let preparedNames = sanitizeTagNames(tagNames)
-      // 先确保标签存在，再建立 image_tags 关联
-      let tagIDs = try ensureTags(db: db, names: preparedNames, timestamp: now)
-      try bindTags(db: db, imageID: imageID, tagIDs: tagIDs, timestamp: now)
-      return try queryTags(db: db, imageID: imageID)
     }
   }
 
@@ -130,8 +201,15 @@ actor TagRepository {
     let sanitized = sanitizeTagNames(names)
     guard !sanitized.isEmpty else { return }
     try await database.perform { db in
-      // 循环复用 ensureTags，避免重复造轮子
-      _ = try ensureTags(db: db, names: sanitized, timestamp: Date().timeIntervalSince1970)
+      try beginTransaction(db, mode: "IMMEDIATE")
+      do {
+        // 循环复用 ensureTags，避免重复造轮子
+        _ = try ensureTags(db: db, names: sanitized, timestamp: Date().timeIntervalSince1970)
+        try commitTransaction(db)
+      } catch {
+        try rollbackTransaction(db)
+        throw error
+      }
     }
   }
 
@@ -139,17 +217,30 @@ actor TagRepository {
     let unique = Array(Set(tagIDs))
     guard !unique.isEmpty else { return }
     try await database.perform { db in
-      let placeholders = unique.map { _ in "?" }.joined(separator: ",")
-      let sql = "DELETE FROM image_tags WHERE tag_id IN (\(placeholders));"
-      var statement: OpaquePointer?
-      defer { sqlite3_finalize(statement) }
-      guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-        throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
+      try beginTransaction(db, mode: "IMMEDIATE")
+      do {
+        let placeholders = unique.map { _ in "?" }.joined(separator: ",")
+        let sql = "DELETE FROM image_tags WHERE tag_id IN (\(placeholders));"
+        var statement: OpaquePointer?
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+          throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
+        }
+        for (index, tagID) in unique.enumerated() {
+          sqlite3_bind_int64(statement, Int32(index + 1), tagID)
+        }
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+          throw TaggingDatabaseError.executionFailed(
+            code: sqlite3_errcode(db),
+            message: errorMessage(from: db),
+            sql: sql
+          )
+        }
+        try commitTransaction(db)
+      } catch {
+        try rollbackTransaction(db)
+        throw error
       }
-      for (index, tagID) in unique.enumerated() {
-        sqlite3_bind_int64(statement, Int32(index + 1), tagID)
-      }
-      sqlite3_step(statement)
     }
   }
 
@@ -157,56 +248,77 @@ actor TagRepository {
     let sanitized = targetName.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !sanitized.isEmpty else { throw TagRepositoryError.invalidName }
     return try await database.perform { db in
-      let timestamp = Date().timeIntervalSince1970
-      // merge 的关键：先确保目标存在，再把其它 tag_id 的关系搬过去
-      let targetID = try ensureTag(db: db, name: sanitized, timestamp: timestamp)
-      let sources = Set(sourceIDs).subtracting([targetID])
-      guard !sources.isEmpty else { return targetID }
-      for source in sources {
-        try migrateAssignments(db: db, from: source, to: targetID, timestamp: timestamp)
+      try beginTransaction(db, mode: "IMMEDIATE")
+      do {
+        let timestamp = Date().timeIntervalSince1970
+        // merge 的关键：先确保目标存在，再把其它 tag_id 的关系搬过去
+        let targetID = try ensureTag(db: db, name: sanitized, timestamp: timestamp)
+        let sources = Set(sourceIDs).subtracting([targetID])
+        guard !sources.isEmpty else {
+          try commitTransaction(db)
+          return targetID
+        }
+        for source in sources {
+          try migrateAssignments(db: db, from: source, to: targetID, timestamp: timestamp)
+        }
+        try deleteTags(db: db, ids: Array(sources))
+        try commitTransaction(db)
+        return targetID
+      } catch {
+        try rollbackTransaction(db)
+        throw error
       }
-      try deleteTags(db: db, ids: Array(sources))
-      return targetID
     }
   }
 
   func remove(tagID: Int64, from url: URL) async throws -> [TagRecord] {
     let normalized = normalize(url: url)
     return try await database.perform { db in
-      let now = Date().timeIntervalSince1970
-      guard let imageID = try resolveImageID(
-        db: db,
-        normalized: normalized,
-        timestamp: now,
-        allowCreate: false
-      ) else {
-        return []
+      try beginTransaction(db, mode: "IMMEDIATE")
+      do {
+        let now = Date().timeIntervalSince1970
+        guard let imageID = try resolveImageID(
+          db: db,
+          normalized: normalized,
+          timestamp: now,
+          allowCreate: false
+        ) else {
+          try commitTransaction(db)
+          return []
+        }
+        try executeUpdate(
+          db: db,
+          sql: "DELETE FROM image_tags WHERE image_id = ? AND tag_id = ?;"
+        ) { statement in
+          sqlite3_bind_int64(statement, 1, imageID)
+          sqlite3_bind_int64(statement, 2, tagID)
+        }
+        try cleanupUnusedTags(db: db)
+        let tags = try queryTags(db: db, imageID: imageID)
+        try commitTransaction(db)
+        return tags
+      } catch {
+        try rollbackTransaction(db)
+        throw error
       }
-      let sql = "DELETE FROM image_tags WHERE image_id = ? AND tag_id = ?;"
-      var statement: OpaquePointer?
-      defer { sqlite3_finalize(statement) }
-      guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-        throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
-      }
-      sqlite3_bind_int64(statement, 1, imageID)
-      sqlite3_bind_int64(statement, 2, tagID)
-      sqlite3_step(statement)
-      try cleanupUnusedTags(db: db)
-      return try queryTags(db: db, imageID: imageID)
     }
   }
 
   func deleteTag(_ tagID: Int64) async throws {
-    _ = try await database.perform { db in
-      let sql = "DELETE FROM tags WHERE id = ?;"
-      var statement: OpaquePointer?
-      defer { sqlite3_finalize(statement) }
-      guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-        throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
+    try await database.perform { db in
+      try beginTransaction(db, mode: "IMMEDIATE")
+      do {
+        try executeUpdate(
+          db: db,
+          sql: "DELETE FROM tags WHERE id = ?;"
+        ) { statement in
+          sqlite3_bind_int64(statement, 1, tagID)
+        }
+        try commitTransaction(db)
+      } catch {
+        try rollbackTransaction(db)
+        throw error
       }
-      sqlite3_bind_int64(statement, 1, tagID)
-      sqlite3_step(statement)
-      return true
     }
   }
 
@@ -214,24 +326,24 @@ actor TagRepository {
     let sanitized = newName.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !sanitized.isEmpty else { throw TagRepositoryError.invalidName }
     try await database.perform { db in
-      if let existing = try queryTagID(db: db, name: sanitized), existing != tagID {
-        throw TagRepositoryError.duplicateName
-      }
-      let sql = "UPDATE tags SET name = ?, updated_at = ? WHERE id = ?;"
-      var statement: OpaquePointer?
-      defer { sqlite3_finalize(statement) }
-      guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-        throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
-      }
-      sqlite3_bind_text(statement, 1, sanitized, -1, SQLITE_TRANSIENT)
-      sqlite3_bind_double(statement, 2, Date().timeIntervalSince1970)
-      sqlite3_bind_int64(statement, 3, tagID)
-      guard sqlite3_step(statement) == SQLITE_DONE else {
-        throw TaggingDatabaseError.executionFailed(
-          code: sqlite3_errcode(db),
-          message: errorMessage(from: db),
-          sql: sql
-        )
+      try beginTransaction(db, mode: "IMMEDIATE")
+      do {
+        if let existing = try queryTagID(db: db, name: sanitized), existing != tagID {
+          throw TagRepositoryError.duplicateName
+        }
+        let timestamp = Date().timeIntervalSince1970
+        try executeUpdate(
+          db: db,
+          sql: "UPDATE tags SET name = ?, updated_at = ? WHERE id = ?;"
+        ) { statement in
+          sqlite3_bind_text(statement, 1, sanitized, -1, SQLITE_TRANSIENT)
+          sqlite3_bind_double(statement, 2, timestamp)
+          sqlite3_bind_int64(statement, 3, tagID)
+        }
+        try commitTransaction(db)
+      } catch {
+        try rollbackTransaction(db)
+        throw error
       }
     }
   }
@@ -244,15 +356,20 @@ actor TagRepository {
 
   func removeImage(at path: String) async throws {
     try await database.perform { db in
-      let sql = "DELETE FROM images WHERE path = ?;"
-      var statement: OpaquePointer?
-      defer { sqlite3_finalize(statement) }
-      guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-        throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
+      try beginTransaction(db, mode: "IMMEDIATE")
+      do {
+        try executeUpdate(
+          db: db,
+          sql: "DELETE FROM images WHERE path = ?;"
+        ) { statement in
+          sqlite3_bind_text(statement, 1, path, -1, SQLITE_TRANSIENT)
+        }
+        try cleanupUnusedTags(db: db)
+        try commitTransaction(db)
+      } catch {
+        try rollbackTransaction(db)
+        throw error
       }
-      sqlite3_bind_text(statement, 1, path, -1, SQLITE_TRANSIENT)
-      sqlite3_step(statement)
-      try cleanupUnusedTags(db: db)
     }
   }
 
@@ -616,7 +733,16 @@ actor TagRepository {
       sqlite3_bind_int64(statement, 1, imageID)
       sqlite3_bind_int64(statement, 2, tagID)
       sqlite3_bind_double(statement, 3, timestamp)
-      sqlite3_step(statement)
+
+      let result = sqlite3_step(statement)
+      // INSERT OR IGNORE 会返回 SQLITE_DONE，重复时也返回 SQLITE_DONE
+      guard result == SQLITE_DONE else {
+        throw TaggingDatabaseError.executionFailed(
+          code: sqlite3_errcode(db),
+          message: errorMessage(from: db),
+          sql: "INSERT OR IGNORE INTO image_tags"
+        )
+      }
     }
   }
 
@@ -698,7 +824,13 @@ actor TagRepository {
       throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
     }
     sqlite3_bind_int64(deleteStatement, 1, sourceID)
-    sqlite3_step(deleteStatement)
+    guard sqlite3_step(deleteStatement) == SQLITE_DONE else {
+      throw TaggingDatabaseError.executionFailed(
+        code: sqlite3_errcode(db),
+        message: errorMessage(from: db),
+        sql: deleteSQL
+      )
+    }
   }
 
   private func sanitizeTagNames(_ names: [String]) -> [String] {
@@ -801,14 +933,30 @@ extension TagRepository {
 
   private func touchTag(db: OpaquePointer, id: Int64, timestamp: TimeInterval) throws {
     let sql = "UPDATE tags SET updated_at = ? WHERE id = ?;"
+    try executeUpdate(db: db, sql: sql) { statement in
+      sqlite3_bind_double(statement, 1, timestamp)
+      sqlite3_bind_int64(statement, 2, id)
+    }
+  }
+
+  private func executeUpdate(
+    db: OpaquePointer,
+    sql: String,
+    bind: (OpaquePointer?) throws -> Void = { _ in }
+  ) throws {
     var statement: OpaquePointer?
     defer { sqlite3_finalize(statement) }
     guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
       throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
     }
-    sqlite3_bind_double(statement, 1, timestamp)
-    sqlite3_bind_int64(statement, 2, id)
-    sqlite3_step(statement)
+    try bind(statement)
+    guard sqlite3_step(statement) == SQLITE_DONE else {
+      throw TaggingDatabaseError.executionFailed(
+        code: sqlite3_errcode(db),
+        message: errorMessage(from: db),
+        sql: sql
+      )
+    }
   }
 
   private func cleanupUnusedTags(db: OpaquePointer) throws {
@@ -818,12 +966,71 @@ extension TagRepository {
         SELECT 1 FROM image_tags WHERE image_tags.tag_id = tags.id
       );
     """
+    try executeUpdate(db: db, sql: sql)
+  }
+
+  private func resetTempRequestPathsTable(db: OpaquePointer) throws {
+    let dropSQL = "DROP TABLE IF EXISTS temp.request_paths;"
+    if sqlite3_exec(db, dropSQL, nil, nil, nil) != SQLITE_OK {
+      throw TaggingDatabaseError.executionFailed(
+        code: sqlite3_errcode(db),
+        message: errorMessage(from: db),
+        sql: dropSQL
+      )
+    }
+    let createSQL = "CREATE TEMP TABLE request_paths (path TEXT PRIMARY KEY);"
+    if sqlite3_exec(db, createSQL, nil, nil, nil) != SQLITE_OK {
+      throw TaggingDatabaseError.executionFailed(
+        code: sqlite3_errcode(db),
+        message: errorMessage(from: db),
+        sql: createSQL
+      )
+    }
+  }
+
+  private func dropTempRequestPathsTable(db: OpaquePointer) throws {
+    let sql = "DROP TABLE IF EXISTS temp.request_paths;"
+    if sqlite3_exec(db, sql, nil, nil, nil) != SQLITE_OK {
+      throw TaggingDatabaseError.executionFailed(
+        code: sqlite3_errcode(db),
+        message: errorMessage(from: db),
+        sql: sql
+      )
+    }
+  }
+
+  private func populateTempRequestPathsTable(
+    db: OpaquePointer,
+    paths: [String]
+  ) throws {
+    guard !paths.isEmpty else { return }
+    try beginTransaction(db, mode: "IMMEDIATE")
+    var didCommit = false
+    defer {
+      if !didCommit {
+        try? rollbackTransaction(db)
+      }
+    }
+    let insertSQL = "INSERT OR IGNORE INTO temp.request_paths(path) VALUES (?);"
     var statement: OpaquePointer?
     defer { sqlite3_finalize(statement) }
-    guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+    guard sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK else {
       throw TaggingDatabaseError.prepareFailed(message: errorMessage(from: db))
     }
-    sqlite3_step(statement)
+    for path in paths {
+      sqlite3_reset(statement)
+      sqlite3_clear_bindings(statement)
+      sqlite3_bind_text(statement, 1, path, -1, SQLITE_TRANSIENT)
+      guard sqlite3_step(statement) == SQLITE_DONE else {
+        throw TaggingDatabaseError.executionFailed(
+          code: sqlite3_errcode(db),
+          message: errorMessage(from: db),
+          sql: insertSQL
+        )
+      }
+    }
+    try commitTransaction(db)
+    didCommit = true
   }
 
   private func stringColumn(_ statement: OpaquePointer?, index: Int32) -> String? {
@@ -852,6 +1059,32 @@ extension TagRepository {
     _ = data.withUnsafeBytes { buffer in
       sqlite3_bind_blob(statement, index, buffer.baseAddress, Int32(buffer.count), SQLITE_TRANSIENT)
     }
+  }
+
+  private func beginTransaction(_ db: OpaquePointer, mode: String = "DEFERRED") throws {
+    let sql = "BEGIN \(mode);"
+    guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else {
+      throw TaggingDatabaseError.executionFailed(
+        code: sqlite3_errcode(db),
+        message: errorMessage(from: db),
+        sql: sql
+      )
+    }
+  }
+
+  private func commitTransaction(_ db: OpaquePointer) throws {
+    let sql = "COMMIT;"
+    guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else {
+      throw TaggingDatabaseError.executionFailed(
+        code: sqlite3_errcode(db),
+        message: errorMessage(from: db),
+        sql: sql
+      )
+    }
+  }
+
+  private func rollbackTransaction(_ db: OpaquePointer) throws {
+    _ = sqlite3_exec(db, "ROLLBACK;", nil, nil, nil)
   }
 }
 

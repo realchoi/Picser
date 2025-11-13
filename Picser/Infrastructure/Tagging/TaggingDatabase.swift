@@ -13,30 +13,26 @@ actor TaggingDatabase {
 
   private let databaseURL: URL
   private var handle: OpaquePointer?
+  private var didConfigurePragmas = false
+  private var didRunMigrations = false
 
-  private init() {
+  init(databaseURL: URL? = nil) {
     let fm = FileManager.default
-    let appSupport = try? fm.url(
-      for: .applicationSupportDirectory,
-      in: .userDomainMask,
-      appropriateFor: nil,
-      create: true
-    )
-    let bundleID = Bundle.main.bundleIdentifier ?? "com.picser.app"
-    let folder = (appSupport ?? fm.temporaryDirectory).appendingPathComponent(bundleID, isDirectory: true)
-    if !fm.fileExists(atPath: folder.path) {
-      try? fm.createDirectory(at: folder, withIntermediateDirectories: true)
-    }
-    self.databaseURL = folder.appendingPathComponent("tags.sqlite3")
-
-    // 初始化后立即异步打开数据库并执行迁移，避免首次调用卡顿
-    Task {
-      do {
-        try await openIfNeeded()
-        try await migrateIfNeeded()
-      } catch {
-        assertionFailure("无法初始化标签数据库: \(error)")
+    if let databaseURL {
+      self.databaseURL = databaseURL
+    } else {
+      let appSupport = try? fm.url(
+        for: .applicationSupportDirectory,
+        in: .userDomainMask,
+        appropriateFor: nil,
+        create: true
+      )
+      let bundleID = Bundle.main.bundleIdentifier ?? "com.picser.app"
+      let folder = (appSupport ?? fm.temporaryDirectory).appendingPathComponent(bundleID, isDirectory: true)
+      if !fm.fileExists(atPath: folder.path) {
+        try? fm.createDirectory(at: folder, withIntermediateDirectories: true)
       }
+      self.databaseURL = folder.appendingPathComponent("tags.sqlite3")
     }
   }
 
@@ -50,6 +46,7 @@ actor TaggingDatabase {
 
   func perform<T>(_ block: (OpaquePointer) throws -> T) async throws -> T {
     try await ensureConnection()
+    try await runMigrationsIfNeeded()
     guard let handle else {
       throw TaggingDatabaseError.uninitialized
     }
@@ -74,78 +71,33 @@ actor TaggingDatabase {
       throw TaggingDatabaseError.openFailed(code: result, message: lastErrorMessage(from: db))
     }
     handle = db
-    try await execute("PRAGMA foreign_keys = ON;")
+    try configureDatabaseIfNeeded()
+  }
+
+  private func runMigrationsIfNeeded() async throws {
+    guard !didRunMigrations else { return }
+    try await migrateIfNeeded()
+    didRunMigrations = true
   }
 
   private func migrateIfNeeded() async throws {
+    try await ensureConnection()
+    guard let handle else {
+      throw TaggingDatabaseError.uninitialized
+    }
     let currentVersion = try await userVersion()
-    if currentVersion < 1 {
-      // V1: 基础标签/图片/关联表
-      try await performMigrationV1()
-      try await setUserVersion(1)
-    }
-    if currentVersion < 2 {
-      // V2: 增加文件唯一标识与书签，支持断开连接恢复
-      try await performMigrationV2()
-      try await setUserVersion(2)
-    }
-  }
-
-  private func performMigrationV1() async throws {
-    let migrationSQL = """
-      CREATE TABLE IF NOT EXISTS tags (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
-        color_hex TEXT,
-        created_at REAL NOT NULL,
-        updated_at REAL NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS images (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        path TEXT NOT NULL UNIQUE,
-        file_name TEXT NOT NULL,
-        directory TEXT NOT NULL,
-        created_at REAL NOT NULL,
-        updated_at REAL NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS image_tags (
-        image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
-        tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-        created_at REAL NOT NULL,
-        PRIMARY KEY(image_id, tag_id)
-      );
-      CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name COLLATE NOCASE);
-      CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id ON image_tags(tag_id);
-      CREATE INDEX IF NOT EXISTS idx_image_tags_image_id ON image_tags(image_id);
-    """
-    // 将多条建表语句拆成独立执行，便于排查失败语句
-    let statements = migrationSQL.split(separator: ";")
-      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-      .filter { !$0.isEmpty }
-    for statement in statements {
-      try await execute("\(statement);")
-    }
-  }
-
-  private func performMigrationV2() async throws {
-    let statements = [
-      "ALTER TABLE images ADD COLUMN file_identifier TEXT",
-      "ALTER TABLE images ADD COLUMN bookmark BLOB",
-      "CREATE INDEX IF NOT EXISTS idx_images_file_identifier ON images(file_identifier)"
-    ]
-    for sql in statements {
-      try await execute("\(sql);")
+    let ordered = TaggingDatabase.migrations.sorted { $0.version < $1.version }
+    for migration in ordered where migration.version > currentVersion {
+      try migration.apply(handle)
+      try setUserVersion(migration.version, db: handle)
     }
   }
 
   // MARK: - Helpers
 
-  private func execute(_ sql: String) async throws {
-    try await ensureConnection()
-    guard let handle else { throw TaggingDatabaseError.uninitialized }
-    // 简单语句直接用 sqlite3_exec，避免重复准备 statement
+  private func execute(_ sql: String, db: OpaquePointer) throws {
     var errorMessage: UnsafeMutablePointer<Int8>?
-    let result = sqlite3_exec(handle, sql, nil, nil, &errorMessage)
+    let result = sqlite3_exec(db, sql, nil, nil, &errorMessage)
     if result != SQLITE_OK {
       let message = errorMessage.map { String(cString: $0) } ?? "未知错误"
       sqlite3_free(errorMessage)
@@ -167,8 +119,8 @@ actor TaggingDatabase {
     return 0
   }
 
-  private func setUserVersion(_ value: Int) async throws {
-    try await execute("PRAGMA user_version = \(value);")
+  private func setUserVersion(_ value: Int, db: OpaquePointer) throws {
+    try execute("PRAGMA user_version = \(value);", db: db)
   }
 
   private func lastErrorMessage(from handle: OpaquePointer? = nil) -> String {
@@ -177,6 +129,85 @@ actor TaggingDatabase {
       return String(cString: cString)
     }
     return "unknown"
+  }
+
+  private func configureDatabaseIfNeeded() throws {
+    guard let handle else { throw TaggingDatabaseError.uninitialized }
+    guard !didConfigurePragmas else { return }
+    try execute("PRAGMA foreign_keys = ON;", db: handle)
+    try execute("PRAGMA journal_mode = WAL;", db: handle)
+    try execute("PRAGMA synchronous = NORMAL;", db: handle)
+    try execute("PRAGMA temp_store = MEMORY;", db: handle)
+    try execute("PRAGMA busy_timeout = 5000;", db: handle)
+    didConfigurePragmas = true
+  }
+}
+
+private struct DatabaseMigration {
+  let version: Int
+  let name: String
+  let apply: (OpaquePointer) throws -> Void
+}
+
+extension TaggingDatabase {
+  private static let migrations: [DatabaseMigration] = [
+    DatabaseMigration(version: 1, name: "Initial schema") { db in
+      let statements = [
+        """
+        CREATE TABLE IF NOT EXISTS tags (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          color_hex TEXT,
+          created_at REAL NOT NULL,
+          updated_at REAL NOT NULL
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS images (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          path TEXT NOT NULL UNIQUE,
+          file_name TEXT NOT NULL,
+          directory TEXT NOT NULL,
+          created_at REAL NOT NULL,
+          updated_at REAL NOT NULL
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS image_tags (
+          image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
+          tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+          created_at REAL NOT NULL,
+          PRIMARY KEY(image_id, tag_id)
+        );
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name COLLATE NOCASE);",
+        "CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id ON image_tags(tag_id);",
+        "CREATE INDEX IF NOT EXISTS idx_image_tags_image_id ON image_tags(image_id);"
+      ]
+      try runStatements(statements, on: db)
+    },
+    DatabaseMigration(version: 2, name: "Image metadata columns") { db in
+      let statements = [
+        "ALTER TABLE images ADD COLUMN file_identifier TEXT;",
+        "ALTER TABLE images ADD COLUMN bookmark BLOB;",
+        "CREATE INDEX IF NOT EXISTS idx_images_file_identifier ON images(file_identifier);"
+      ]
+      try runStatements(statements, on: db)
+    }
+  ]
+
+  private static func runStatements(_ statements: [String], on db: OpaquePointer) throws {
+    for statement in statements {
+      let trimmed = statement.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !trimmed.isEmpty else { continue }
+      var errorMessage: UnsafeMutablePointer<Int8>?
+      let result = sqlite3_exec(db, trimmed, nil, nil, &errorMessage)
+      if result != SQLITE_OK {
+        let message = errorMessage.map { String(cString: $0) } ?? "未知错误"
+        sqlite3_free(errorMessage)
+        throw TaggingDatabaseError.executionFailed(code: result, message: message, sql: trimmed)
+      }
+    }
   }
 }
 

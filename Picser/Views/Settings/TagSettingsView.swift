@@ -7,45 +7,47 @@
 import SwiftUI
 
 struct TagSettingsView: View {
-  @EnvironmentObject var tagService: TagService
+  @ObservedObject private var tagService: TagService
+  @StateObject private var store: TagSettingsStore
+  @ObservedObject private var localizationManager = LocalizationManager.shared
+
+  init(tagService: TagService) {
+    _tagService = ObservedObject(wrappedValue: tagService)
+    _store = StateObject(wrappedValue: TagSettingsStore(tagService: tagService))
+  }
 
   // MARK: - 视图状态
   @State private var editingTag: TagRecord?
   @State private var deletingTag: TagRecord?
   @State private var isInspecting = false
-  // 批量编辑相关的控制状态
-  @State private var batchMode = false
-  @State private var selectedTagIDs: Set<Int64> = []
-  @State private var batchColor: Color = .accentColor
-  @State private var showingBatchDeleteConfirm = false
-  @State private var showingClearAssignmentsConfirm = false
+  // 批量新增弹窗
   @State private var showingBatchAddSheet = false
-  @State private var showingMergeSheet = false
   @State private var showingCleanupConfirm = false
   @State private var batchAddInput: String = ""
-  @State private var mergeTargetName: String = ""
-  @State private var searchText: String = ""
-  @State private var colorDrafts: [Int64: Color] = [:]
   // 智能筛选命名/删除状态
   @State private var renamingSmartFilter: TagSmartFilter?
   @State private var smartFilterRenameText: String = ""
   @State private var deletingSmartFilter: TagSmartFilter?
+  @State private var dismissedFeedbackID: TagOperationFeedback.ID?
+  @State private var showingFeedbackHistory = false
+  @State private var showingTelemetry = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
-      inspectionSummaryCard
-      statsCard
-      smartFilterCard
-      batchControls
-      searchField
-
-      if tagService.allTags.isEmpty {
-        emptyState
-      } else if filteredTags.isEmpty {
-        filteredEmptyState
-      } else {
-        tagListSection
-      }
+      feedbackBanner
+      TagInspectionCard(
+        summary: tagService.lastInspection,
+        isInspecting: isInspecting,
+        descriptionText: inspectionDescription,
+        onInspect: runInspectionNow
+      )
+      TagStatsCard(
+        total: totalTags,
+        used: usedTags,
+        unused: unusedTags
+      )
+      smartFilterPanel
+      tagManagementSurface
 
       HStack(spacing: 12) {
         Button {
@@ -57,13 +59,21 @@ struct TagSettingsView: View {
         Spacer()
 
         Button {
-          Task { await tagService.refreshAllTags() }
+          Task { await tagService.refreshAllTags(immediate: true) }
         } label: {
           Label(L10n.string("tag_settings_refresh_button"), systemImage: "arrow.clockwise.circle")
         }
+#if DEBUG
+        Button {
+          showingTelemetry = true
+        } label: {
+          Label("推荐统计", systemImage: "chart.bar")
+        }
+#endif
       }
     }
     .settingsContentContainer()
+    .onDisappear { store.teardown() }
     .sheet(item: $editingTag) { tag in
       TagRenameSheet(tag: tag) { newName in
         Task { await tagService.rename(tagID: tag.id, to: newName) }
@@ -74,12 +84,12 @@ struct TagSettingsView: View {
         Task { await tagService.addTags(names: names) }
       }
     }
-    .sheet(isPresented: $showingMergeSheet) {
+    .sheet(isPresented: $store.isShowingMergeSheet) {
       TagMergeSheet(
-        mergeTarget: $mergeTargetName,
-        selectedCount: selectedTagIDs.count
+        mergeTarget: $store.mergeTargetName,
+        selectedCount: store.selectedTagIDs.count
       ) { target in
-        performMerge(targetName: target)
+        store.performMerge(targetName: target)
       }
     }
     .sheet(item: $renamingSmartFilter) { filter in
@@ -89,10 +99,16 @@ struct TagSettingsView: View {
         placeholderKey: "tag_filter_smart_sheet_placeholder",
         actionKey: "tag_settings_smart_sheet_save_button"
       ) { newName in
-        tagService.renameSmartFilter(id: filter.id, to: newName)
+        try tagService.renameSmartFilter(id: filter.id, to: newName)
         renamingSmartFilter = nil
       }
       .frame(width: 320)
+    }
+    .sheet(isPresented: $showingTelemetry) {
+      TagRecommendationDebugView(
+        allTags: tagService.allTags,
+        dismiss: { showingTelemetry = false }
+      )
     }
     .alert(
       L10n.string("tag_settings_delete_title"),
@@ -123,14 +139,14 @@ struct TagSettingsView: View {
     }
     .confirmationDialog(
       L10n.string("tag_settings_clear_assignments_title"),
-      isPresented: $showingClearAssignmentsConfirm,
+      isPresented: $store.isShowingClearAssignmentsConfirm,
       titleVisibility: .visible
     ) {
       Button(L10n.string("tag_settings_clear_assignments_button"), role: .destructive) {
-        performClearAssignments()
+        store.performClearAssignments()
       }
       Button(L10n.key("cancel_button"), role: .cancel) {
-        showingClearAssignmentsConfirm = false
+        store.isShowingClearAssignmentsConfirm = false
       }
     }
     .confirmationDialog(
@@ -150,14 +166,14 @@ struct TagSettingsView: View {
     }
     .confirmationDialog(
       L10n.string("tag_settings_batch_delete_dialog_title"),
-      isPresented: $showingBatchDeleteConfirm,
+      isPresented: $store.isShowingDeleteConfirm,
       titleVisibility: .visible
     ) {
       Button(L10n.string("tag_settings_batch_delete_button"), role: .destructive) {
-        performBatchDelete()
+        store.performBatchDelete()
       }
       Button(L10n.key("cancel_button"), role: .cancel) {
-        showingBatchDeleteConfirm = false
+        store.isShowingDeleteConfirm = false
       }
     }
     .confirmationDialog(
@@ -181,127 +197,165 @@ struct TagSettingsView: View {
     }
     .onChange(of: tagService.allTags) { _, tags in
       let existingIDs = Set(tags.map(\.id))
-      selectedTagIDs = selectedTagIDs.intersection(existingIDs)
-      colorDrafts = colorDrafts.filter { existingIDs.contains($0.key) }
+      store.pruneSelection(availableIDs: existingIDs)
+      store.pruneColorDrafts(using: tags)
+    }
+    .onAppear {
+      if store.isBatchModeEnabled {
+        store.isBatchPanelExpanded = true
+      }
+    }
+    .onChange(of: store.isBatchModeEnabled) { _, newValue in
+      withAnimation(SettingsAnimations.collapse) {
+        store.isBatchPanelExpanded = newValue
+      }
     }
   }
 
-  /// 初始无标签时的占位提示
-  private var emptyState: some View {
-    VStack(spacing: 12) {
-      Image(systemName: "tag.slash")
-        .font(.system(size: 42))
-        .foregroundColor(.secondary)
-      Text(L10n.string("tag_settings_empty"))
-        .font(.callout)
-        .foregroundColor(.secondary)
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-  }
-
-  /// 搜索结果为空时的提示
-  private var filteredEmptyState: some View {
-    VStack(spacing: 8) {
-      Image(systemName: "magnifyingglass")
-        .font(.system(size: 32))
-        .foregroundColor(.secondary)
-      Text(L10n.string("tag_settings_search_empty"))
-        .font(.callout)
-        .foregroundColor(.secondary)
-    }
-    .frame(maxWidth: .infinity, minHeight: 160)
-  }
-
-  /// 展示后台巡检状态的卡片
-  private var inspectionSummaryCard: some View {
-    GroupBox {
-      VStack(alignment: .leading, spacing: 12) {
-        HStack(alignment: .firstTextBaseline, spacing: 16) {
-          VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.string("tag_settings_inspection_title"))
-              .font(.headline)
-            Text(inspectionDescription)
-              .font(.caption)
-              .foregroundColor(.secondary)
-          }
-          Spacer()
-          Button {
-            runInspectionNow()
-          } label: {
-            Label {
-              Text(
-                L10n.string(
-                  isInspecting
-                    ? "tag_settings_inspection_running"
-                    : "tag_settings_inspection_button"
-                )
-              )
-            } icon: {
-              ZStack {
-                Image(systemName: "stethoscope")
-                  .opacity(isInspecting ? 0 : 1)
-                ProgressView()
-                  .progressViewStyle(.circular)
-                  .controlSize(.small)
-                  .opacity(isInspecting ? 1 : 0)
-              }
-              .frame(width: 18, height: 18)
+  @ViewBuilder
+  private var feedbackBanner: some View {
+    if tagService.feedbackEvent != nil || !tagService.feedbackHistory.isEmpty {
+      HStack(alignment: .center, spacing: 12) {
+        if let feedback = tagService.feedbackEvent,
+           dismissedFeedbackID != feedback.id {
+          TagFeedbackBanner(feedback: feedback) {
+            withAnimation(.easeOut(duration: 0.2)) {
+              dismissedFeedbackID = feedback.id
             }
-            .labelStyle(.titleAndIcon)
           }
-          .buttonStyle(.borderedProminent)
-          .disabled(isInspecting)
+          .transition(.move(edge: .top).combined(with: .opacity))
         }
-
-        if !tagService.lastInspection.missingPaths.isEmpty && !isInspecting {
-          Divider()
-          missingPathsView
+        Spacer(minLength: 8)
+        if !tagService.feedbackHistory.isEmpty {
+          Button {
+            showingFeedbackHistory = true
+          } label: {
+            Label(L10n.string("tag_settings_feedback_history_button"), systemImage: "clock.arrow.circlepath")
+          }
+          .buttonStyle(.borderless)
         }
       }
-      .padding(12)
+      .sheet(isPresented: $showingFeedbackHistory) {
+        FeedbackHistorySheet(
+          feedbacks: tagService.feedbackHistory,
+          dismiss: { showingFeedbackHistory = false }
+        )
+        .frame(minWidth: 360, minHeight: 320)
+      }
     }
   }
 
-  /// 标签数量相关统计卡片
-  private var statsCard: some View {
-    GroupBox {
-      VStack(alignment: .leading, spacing: 12) {
-        Text(L10n.string("tag_settings_stats_title"))
-          .font(.headline)
-        HStack {
-          statColumn(title: L10n.string("tag_settings_stats_total"), value: totalTags)
-          statColumn(title: L10n.string("tag_settings_stats_used"), value: usedTags)
-          statColumn(title: L10n.string("tag_settings_stats_unused"), value: unusedTags)
-        }
-      }
-      .padding(12)
+  /// 智能筛选面板，保持可折叠
+  private var smartFilterPanel: some View {
+    CollapsibleToolSection(
+      title: L10n.string("tag_settings_smart_filters_title"),
+      summary: smartFilterSummary,
+      iconName: "line.3.horizontal.decrease.circle",
+      isExpanded: $store.isSmartPanelExpanded,
+      appearance: .grouped
+    ) {
+      smartFilterCard
     }
+  }
+
+  /// 标签管理主区域：包含批量工具、搜索与列表
+  private var tagManagementSurface: some View {
+    let inset: CGFloat = 16
+    return VStack(spacing: 0) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(L10n.string("tag_settings_tools_section_title"))
+          .font(.title3.bold())
+        Text(L10n.string("tag_settings_tools_section_subtitle"))
+          .font(.caption)
+          .foregroundColor(.secondary)
+      }
+      .padding(.horizontal, inset)
+      .padding(.top, inset)
+
+      CollapsibleToolSection(
+        title: L10n.string("tag_settings_batch_mode_toggle"),
+        summary: batchToolsSummary,
+        iconName: "square.stack.3d.up",
+        isExpanded: $store.isBatchPanelExpanded,
+        appearance: .embedded,
+        trailing: {
+          HStack(spacing: 12) {
+            Button(action: onShowBatchAddSheet) {
+              Label(L10n.string("tag_settings_batch_add_button"), systemImage: "plus.circle")
+                .labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(.borderless)
+            .help(L10n.string("tag_settings_batch_add_button"))
+
+            Spacer(minLength: 8)
+
+            Toggle(L10n.string("tag_settings_batch_toggle_short"), isOn: $store.isBatchModeEnabled)
+          }
+        }
+      ) {
+        TagBatchControlsView(
+          store: store,
+          onShowBatchAddSheet: onShowBatchAddSheet,
+          showsHeader: false
+        )
+      }
+      .padding(.horizontal, inset)
+      .padding(.bottom, 8)
+
+      Divider()
+        .padding(.horizontal, inset)
+
+      searchField
+        .padding(.horizontal, inset)
+        .padding(.vertical, 12)
+
+      Divider()
+        .padding(.horizontal, inset)
+
+      tagContentSection
+        .padding(.horizontal, inset)
+        .padding(.vertical, 12)
+    }
+    .background(
+      RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .fill(Color(.windowBackgroundColor))
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .stroke(Color.secondary.opacity(0.15))
+    )
+  }
+
+  private func onShowBatchAddSheet() {
+    showingBatchAddSheet = true
   }
 
   /// 智能筛选列表与操作入口
   private var smartFilterCard: some View {
-    GroupBox {
-      VStack(alignment: .leading, spacing: 12) {
-        Text(L10n.string("tag_settings_smart_filters_title"))
-          .font(.headline)
-        smartFilterList
-      }
-      .padding(12)
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
+    TagSmartFilterSection(
+      filters: tagService.smartFilters,
+      tagNameLookup: tagNameLookup,
+      activeFilterID: activeSmartFilterID,
+      onApply: { tagService.applySmartFilter($0) },
+      onRename: { startRenamingSmartFilter($0) },
+      onDelete: { deletingSmartFilter = $0 },
+      showsContainer: false,
+      showsTitle: false
+    )
   }
 
   /// 顶部搜索框，支持清空按钮
   private var searchField: some View {
-    HStack {
+    let binding = store.searchBinding
+    return HStack {
       Image(systemName: "magnifyingglass")
         .foregroundColor(.secondary)
-      TextField(L10n.string("tag_settings_search_placeholder"), text: $searchText)
+      TextField(L10n.string("tag_settings_search_placeholder"), text: binding)
         .textFieldStyle(.plain)
         .autocorrectionDisabled()
-      if !searchText.isEmpty {
+      if !binding.wrappedValue.isEmpty {
         Button {
-          searchText = ""
+          binding.wrappedValue = ""
         } label: {
           Image(systemName: "xmark.circle.fill")
             .foregroundColor(.secondary)
@@ -316,131 +370,35 @@ struct TagSettingsView: View {
     )
   }
 
-  /// 批量操作控制区：切换模式、统一调色、批量删除
-  private var batchControls: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      HStack {
-        Toggle(isOn: Binding(
-          get: { batchMode },
-          set: { value in
-            batchMode = value
-            if !value {
-              selectedTagIDs.removeAll()
-            }
-          }
-        )) {
-          Label(L10n.string("tag_settings_batch_mode_toggle"), systemImage: "square.stack.3d.up")
-        }
-        .toggleStyle(.switch)
-
-        Spacer()
-
-        Button {
-          showingBatchAddSheet = true
-        } label: {
-          Label(L10n.string("tag_settings_batch_add_button"), systemImage: "plus.circle")
-        }
-      }
-
-      if batchMode {
-        // 只有开启批量模式才展示颜色/删除等批处理控件
-        VStack(alignment: .leading, spacing: 8) {
-          HStack(spacing: 12) {
-            Text(
-              String(
-                format: L10n.string("tag_settings_batch_selection_count"),
-                selectedTagIDs.count
-              )
-            )
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-            ColorPicker(
-              L10n.string("tag_settings_batch_color_picker"),
-              selection: $batchColor,
-              supportsOpacity: false
-            )
-            .labelsHidden()
-
-            Button {
-              applyBatchColor()
-            } label: {
-              Label(L10n.string("tag_settings_batch_apply_color"), systemImage: "paintpalette")
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(selectedTagIDs.isEmpty)
-
-            Button {
-              clearBatchColor()
-            } label: {
-              Label(L10n.string("tag_settings_batch_clear_color"), systemImage: "eraser")
-            }
-            .buttonStyle(.bordered)
-            .disabled(selectedTagIDs.isEmpty)
-
-            Spacer()
-          }
-
-          HStack(spacing: 12) {
-            Button {
-              showingClearAssignmentsConfirm = true
-            } label: {
-              Label(L10n.string("tag_settings_clear_assignments_button"), systemImage: "minus.circle")
-            }
-            .disabled(selectedTagIDs.isEmpty)
-
-            Button {
-              mergeTargetName = ""
-              showingMergeSheet = true
-            } label: {
-              Label(L10n.string("tag_settings_merge_button"), systemImage: "arrow.triangle.merge")
-            }
-            .disabled(selectedTagIDs.count < 2)
-
-            Spacer()
-
-            Button(role: .destructive) {
-              showingBatchDeleteConfirm = true
-            } label: {
-              Label(L10n.string("tag_settings_batch_delete_button"), systemImage: "trash")
-            }
-            .disabled(selectedTagIDs.isEmpty)
-          }
-        }
-      }
-    }
-  }
-
-  private var missingPathsView: some View {
-    let summary = tagService.lastInspection
-    let preview = Array(summary.missingPaths.prefix(5))
-    return VStack(alignment: .leading, spacing: 6) {
-      Text(
-        String(
-          format: L10n.string("tag_settings_inspection_missing_title"),
-          summary.missingPaths.count
-        )
+  @ViewBuilder
+  private var tagContentSection: some View {
+    if tagService.allTags.isEmpty {
+      TagEmptyStateView(
+        systemImage: "tray",
+        message: L10n.string("tag_settings_empty")
       )
-      .font(.caption)
-      .foregroundColor(.secondary)
-
-      ForEach(preview, id: \.self) { path in
-        Label(path, systemImage: "exclamationmark.triangle")
-          .font(.caption2)
-          .lineLimit(1)
-          .foregroundColor(.secondary)
-      }
-
-      if summary.missingPaths.count > preview.count {
-        Text(
-          String(
-            format: L10n.string("tag_settings_inspection_missing_more"),
-            summary.missingPaths.count - preview.count
-          )
-        )
-        .font(.caption2)
+      .frame(minHeight: 220)
+      .frame(maxWidth: .infinity)
+      Text(L10n.string("tag_settings_empty_hint"))
+        .font(.caption)
         .foregroundColor(.secondary)
-      }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, 8)
+    } else if filteredTags.isEmpty {
+      TagEmptyStateView(
+        systemImage: "magnifyingglass",
+        message: L10n.string("tag_settings_search_empty"),
+        minHeight: 160
+      )
+      .frame(maxWidth: .infinity)
+      Text(L10n.string("tag_settings_search_hint"))
+        .font(.caption)
+        .foregroundColor(.secondary)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, 8)
+    } else {
+      tagListSection(embedInContainer: true)
+        .frame(maxWidth: .infinity)
     }
   }
 
@@ -468,258 +426,78 @@ struct TagSettingsView: View {
 
   @ViewBuilder
   /// 主列表：展示所有标签、支持单条操作
-  private var tagListSection: some View {
-    let height = listHeight
+  private func tagListSection(embedInContainer: Bool) -> some View {
+    let tags = filteredTags
+    let height = listHeight(for: tags.count)
     ScrollView {
-      VStack(spacing: 0) {
-        ForEach(filteredTags) { tag in
-          tagRow(for: tag)
-          if tag.id != filteredTags.last?.id {
+      LazyVStack(spacing: 0) {
+        ForEach(tags) { tag in
+          TagManagementRow(
+            tag: tag,
+            isBatchMode: store.isBatchModeEnabled,
+            selectionBinding: store.isBatchModeEnabled ? store.selectionBinding(for: tag.id) : nil,
+            usageText: tagUsageSummary(for: tag.usageCount),
+            colorBinding: store.colorBinding(for: tag),
+            canClearColor: store.canClearColor(for: tag),
+            onClearColor: { store.clearColor(for: tag) },
+            onRename: { editingTag = tag },
+            onDelete: { deletingTag = tag }
+          )
+          if tag.id != tags.last?.id {
             Divider()
           }
         }
       }
-      .padding(.vertical, 6)
+      .padding(.vertical, embedInContainer ? 0 : 6)
       .background(
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-          .fill(.quaternary)
+        Group {
+          if !embedInContainer {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+              .fill(.quaternary)
+          }
+        }
       )
-      .padding(.horizontal, 2)
+      .padding(.horizontal, embedInContainer ? 0 : 2)
     }
     .frame(height: height)
     .scrollIndicators(.automatic)
   }
 
-  private func tagRow(for tag: TagRecord) -> some View {
-    HStack(alignment: .center, spacing: 12) {
-      if batchMode {
-        Toggle("", isOn: selectionBinding(for: tag))
-          .toggleStyle(.checkbox)
-          .labelsHidden()
-      }
-      VStack(alignment: .leading, spacing: 4) {
-        Text(tag.name)
-          .font(.headline)
-        Text(
-          String(
-            format: L10n.string("tag_settings_usage_format"),
-            tag.usageCount
-          )
-        )
-        .font(.caption)
-        .foregroundColor(.secondary)
-      }
-      Spacer()
-      colorControl(for: tag)
-      Button {
-        editingTag = tag
-      } label: {
-        Label(L10n.string("tag_settings_rename_button"), systemImage: "pencil")
-          .labelStyle(.iconOnly)
-      }
-      .buttonStyle(.borderless)
-      .help(L10n.string("tag_settings_rename_button"))
-
-      Button(role: .destructive) {
-        deletingTag = tag
-      } label: {
-        Label(L10n.string("tag_settings_delete_button"), systemImage: "trash")
-          .labelStyle(.iconOnly)
-      }
-      .buttonStyle(.borderless)
-      .help(L10n.string("tag_settings_delete_button"))
-    }
-    .padding(.horizontal, 12)
-    .padding(.vertical, 8)
-  }
-
-  private var listHeight: CGFloat {
+  private func listHeight(for count: Int) -> CGFloat {
     let rowHeight: CGFloat = 56
-    let totalHeight = CGFloat(filteredTags.count) * rowHeight + 12
+    let totalHeight = CGFloat(count) * rowHeight + 12
     let maxHeight: CGFloat = 360
     return min(max(totalHeight, rowHeight * 2), maxHeight)
   }
 
-  private var smartFilterList: some View {
-    let filters = tagService.smartFilters
-    let height = smartFilterListHeight(count: filters.count)
-    return ScrollView {
-      VStack(spacing: 0) {
-        if filters.isEmpty {
-          Text(L10n.string("tag_settings_smart_filters_empty"))
-            .font(.footnote)
-            .foregroundColor(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 16)
-        } else {
-          ForEach(filters) { filter in
-            smartFilterRow(for: filter)
-            if filter.id != filters.last?.id {
-              Divider()
-            }
-          }
-        }
-      }
-      .padding(.vertical, 6)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .background(
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-          .fill(.quaternary)
+  private func tagUsageSummary(for count: Int) -> String {
+    String(format: L10n.string("tag_usage_format"), count)
+  }
+
+  private var smartFilterSummary: String {
+    if tagService.smartFilters.isEmpty {
+      return L10n.string("tag_settings_smart_filters_empty")
+    }
+    if let activeName = activeSmartFilterName {
+      return String(
+        format: L10n.string("tag_settings_smart_summary_active"),
+        activeName
       )
-      .padding(.horizontal, 2)
     }
-    .frame(height: height)
-    .scrollIndicators(.automatic)
-  }
-
-  private func smartFilterListHeight(count: Int) -> CGFloat {
-    let rowHeight: CGFloat = 56
-    if count == 0 {
-      return rowHeight * 2
-    }
-    let minHeight = rowHeight * min(CGFloat(count), 3)
-    let totalHeight = CGFloat(count) * rowHeight + 12
-    let maxHeight: CGFloat = 320
-    return min(max(totalHeight, minHeight), maxHeight)
-  }
-
-  private func selectionBinding(for tag: TagRecord) -> Binding<Bool> {
-    Binding(
-      get: { selectedTagIDs.contains(tag.id) },
-      set: { newValue in
-        if newValue {
-          selectedTagIDs.insert(tag.id)
-        } else {
-          selectedTagIDs.remove(tag.id)
-        }
-      }
+    return String(
+      format: L10n.string("tag_settings_smart_summary_count"),
+      tagService.smartFilters.count
     )
   }
 
-  private func colorControl(for tag: TagRecord) -> some View {
-    HStack(spacing: 8) {
-      ColorPicker(
-        L10n.string("tag_settings_color_picker_label"),
-        selection: colorBinding(for: tag),
-        supportsOpacity: false
-      )
-      .labelsHidden()
-      .frame(width: 34)
-      .help(L10n.string("tag_settings_color_picker_label"))
-
-      if tag.colorHex != nil {
-        Button {
-          clearColor(for: tag)
-        } label: {
-          Image(systemName: "gobackward")
-        }
-        .buttonStyle(.borderless)
-        .padding(.leading, 4)
-        .help(L10n.string("tag_settings_color_clear_button"))
-      }
-    }
-  }
-
-  private func colorBinding(for tag: TagRecord) -> Binding<Color> {
-    Binding(
-      get: {
-        if let cached = colorDrafts[tag.id] {
-          return cached
-        }
-        return Color(hexString: tag.colorHex) ?? .accentColor
-      },
-      set: { newValue in
-        colorDrafts[tag.id] = newValue
-        Task {
-          await tagService.updateColor(tagID: tag.id, hex: newValue.hexString())
-          await MainActor.run {
-            colorDrafts[tag.id] = nil
-          }
-        }
-      }
-    )
-  }
-
-  private func smartFilterRow(for filter: TagSmartFilter) -> some View {
-    HStack(alignment: .center, spacing: 12) {
-      VStack(alignment: .leading, spacing: 4) {
-        Text(filter.name)
-          .font(.headline)
-          .lineLimit(1)
-        let summary = smartFilterSummary(filter)
-        if !summary.isEmpty {
-          Text(summary)
-            .font(.caption)
-            .foregroundColor(.secondary)
-        }
-      }
-      Spacer()
-      Button {
-        tagService.applySmartFilter(filter)
-      } label: {
-        Label(L10n.string("tag_settings_smart_filters_apply"), systemImage: "checkmark.circle")
-          .labelStyle(.iconOnly)
-      }
-      .buttonStyle(.borderless)
-      .help(L10n.string("tag_settings_smart_filters_apply"))
-
-      Button {
-        startRenamingSmartFilter(filter)
-      } label: {
-        Label(L10n.string("tag_settings_smart_filters_rename"), systemImage: "pencil")
-          .labelStyle(.iconOnly)
-      }
-      .buttonStyle(.borderless)
-      .help(L10n.string("tag_settings_smart_filters_rename"))
-
-      Button(role: .destructive) {
-        deletingSmartFilter = filter
-      } label: {
-        Label(L10n.string("tag_settings_smart_filters_delete"), systemImage: "trash")
-          .labelStyle(.iconOnly)
-      }
-      .buttonStyle(.borderless)
-      .help(L10n.string("tag_settings_smart_filters_delete"))
-    }
-    .padding(.horizontal, 12)
-    .padding(.vertical, 8)
-  }
-
-  private func smartFilterSummary(_ filter: TagSmartFilter) -> String {
-    var parts: [String] = []
-    let modeText = filterModeDescription(filter.filter.mode)
-    parts.append(String(format: L10n.string("tag_settings_smart_filters_summary_mode"), modeText))
-
-    if !filter.filter.tagIDs.isEmpty {
-      let names = filter.filter.tagIDs.compactMap { tagNameLookup[$0] }.sorted()
-      let label: String
-      if names.isEmpty {
-        label = String(
-          format: L10n.string("tag_settings_smart_filters_summary_tags_fallback"),
-          filter.filter.tagIDs.count
-        )
-      } else {
-        label = names.joined(separator: " / ")
-      }
-      parts.append(String(format: L10n.string("tag_settings_smart_filters_summary_tags"), label))
-    }
-
-    let keyword = filter.filter.keyword.trimmingCharacters(in: .whitespacesAndNewlines)
-    if !keyword.isEmpty {
-      parts.append(
-        String(format: L10n.string("tag_settings_smart_filters_summary_keyword"), keyword)
+  private var batchToolsSummary: String {
+    if store.isBatchModeEnabled {
+      return String(
+        format: L10n.string("tag_settings_batch_selection_count"),
+        store.selectedTagIDs.count
       )
     }
-
-    if !filter.filter.colorHexes.isEmpty {
-      let colors = filter.filter.colorHexes.sorted().joined(separator: ", ")
-      parts.append(
-        String(format: L10n.string("tag_settings_smart_filters_summary_colors"), colors)
-      )
-    }
-
-    return parts.joined(separator: " · ")
+    return L10n.string("tag_settings_batch_disabled_summary")
   }
 
   /// 打开智能筛选命名弹窗，并预填原名称
@@ -728,86 +506,18 @@ struct TagSettingsView: View {
     renamingSmartFilter = filter
   }
 
-  /// 将筛选模式转换为本地化字符串
-  private func filterModeDescription(_ mode: TagFilterMode) -> String {
-    switch mode {
-    case .any:
-      return L10n.string("tag_filter_mode_any")
-    case .all:
-      return L10n.string("tag_filter_mode_all")
-    case .exclude:
-      return L10n.string("tag_filter_mode_exclude")
-    }
+  private var activeSmartFilterID: TagSmartFilter.ID? {
+    tagService.smartFilters.first(where: { $0.filter == tagService.activeFilter })?.id
+  }
+
+  private var activeSmartFilterName: String? {
+    guard let activeSmartFilterID else { return nil }
+    return tagService.smartFilters.first(where: { $0.id == activeSmartFilterID })?.name
   }
 
   /// 方便在列表和批量操作中根据 ID 查找名称
   private var tagNameLookup: [Int64: String] {
     Dictionary(uniqueKeysWithValues: tagService.allTags.map { ($0.id, $0.name) })
-  }
-
-  /// 清除单个标签的颜色并刷新内存草稿
-  private func clearColor(for tag: TagRecord) {
-    colorDrafts[tag.id] = nil
-    Task {
-      await tagService.updateColor(tagID: tag.id, hex: nil)
-    }
-  }
-
-  /// 把颜色选择器的值批量下发到选中标签
-  private func applyBatchColor() {
-    guard !selectedTagIDs.isEmpty else { return }
-    let hex = batchColor.hexString()
-    Task {
-      await tagService.updateColor(tagIDs: selectedTagIDs, hex: hex)
-    }
-  }
-
-  /// 批量恢复默认颜色
-  private func clearBatchColor() {
-    guard !selectedTagIDs.isEmpty else { return }
-    Task {
-      await tagService.updateColor(tagIDs: selectedTagIDs, hex: nil)
-    }
-  }
-
-  /// 删除批量选择的标签，并重置模式
-  private func performBatchDelete() {
-    guard !selectedTagIDs.isEmpty else { return }
-    let ids = selectedTagIDs
-    Task {
-      await tagService.deleteTags(ids)
-      await MainActor.run {
-        selectedTagIDs.removeAll()
-        batchMode = false
-        showingBatchDeleteConfirm = false
-      }
-    }
-  }
-
-  /// 清空选中标签的图片关联关系
-  private func performClearAssignments() {
-    guard !selectedTagIDs.isEmpty else { return }
-    let ids = selectedTagIDs
-    Task {
-      await tagService.clearAssignments(for: ids)
-      await MainActor.run {
-        showingClearAssignmentsConfirm = false
-      }
-    }
-  }
-
-  /// 将选中标签合并到指定名称（可新建）
-  private func performMerge(targetName: String) {
-    guard !selectedTagIDs.isEmpty else { return }
-    Task {
-      await tagService.mergeTags(sourceIDs: selectedTagIDs, targetName: targetName)
-      await MainActor.run {
-        mergeTargetName = ""
-        showingMergeSheet = false
-        batchMode = false
-        selectedTagIDs.removeAll()
-      }
-    }
   }
 }
 
@@ -929,10 +639,182 @@ private struct TagMergeSheet: View {
   }
 }
 
+private struct FeedbackHistorySheet: View {
+  let feedbacks: [TagOperationFeedback]
+  let dismiss: () -> Void
+
+  var body: some View {
+    NavigationStack {
+      List(feedbacks) { feedback in
+        VStack(alignment: .leading, spacing: 4) {
+          HStack(spacing: 6) {
+            Image(systemName: feedback.isSuccess ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+              .foregroundColor(feedback.isSuccess ? .green : .orange)
+            Text(feedback.message)
+              .font(.subheadline)
+          }
+          Text(localizedTimestamp(for: feedback))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 4)
+      }
+      .navigationTitle(L10n.string("tag_settings_feedback_history_title"))
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button(L10n.string("tag_settings_feedback_history_close")) { dismiss() }
+        }
+      }
+    }
+  }
+
+  private func localizedTimestamp(for feedback: TagOperationFeedback) -> String {
+    LocalizedDateFormatter.shortTimestamp(for: feedback.timestamp)
+  }
+}
+
+enum SettingsAnimations {
+  static let collapse = Animation.spring(
+    response: 0.24,
+    dampingFraction: 0.92,
+    blendDuration: 0.08
+  )
+}
+
+private struct CollapsibleToolSection<Content: View, Trailing: View>: View {
+  enum Appearance {
+    case grouped
+    case embedded
+
+    var contentInsets: EdgeInsets {
+      switch self {
+      case .grouped:
+        return EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
+      case .embedded:
+        return EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0)
+      }
+    }
+  }
+
+  let title: String
+  let summary: String
+  let iconName: String
+  @Binding var isExpanded: Bool
+  let appearance: Appearance
+  let trailing: () -> Trailing
+  let content: () -> Content
+  let animation: Animation
+
+  init(
+    title: String,
+    summary: String,
+    iconName: String,
+    isExpanded: Binding<Bool>,
+    appearance: Appearance = .grouped,
+    animation: Animation = SettingsAnimations.collapse,
+    @ViewBuilder trailing: @escaping () -> Trailing,
+    @ViewBuilder content: @escaping () -> Content
+  ) {
+    self.title = title
+    self.summary = summary
+    self.iconName = iconName
+    _isExpanded = isExpanded
+    self.appearance = appearance
+    self.animation = animation
+    self.trailing = trailing
+    self.content = content
+  }
+
+  init(
+    title: String,
+    summary: String,
+    iconName: String,
+    isExpanded: Binding<Bool>,
+    appearance: Appearance = .grouped,
+    animation: Animation = SettingsAnimations.collapse,
+    @ViewBuilder content: @escaping () -> Content
+  ) where Trailing == EmptyView {
+    self.init(
+      title: title,
+      summary: summary,
+      iconName: iconName,
+      isExpanded: isExpanded,
+      appearance: appearance,
+      animation: animation,
+      trailing: { EmptyView() },
+      content: content
+    )
+  }
+
+  var body: some View {
+    container
+      .animation(animation, value: isExpanded)
+  }
+
+  private var container: some View {
+    Group {
+      if appearance == .grouped {
+        GroupBox {
+          innerStack
+        }
+      } else {
+        innerStack
+      }
+    }
+  }
+
+  private var header: some View {
+    HStack(alignment: .center, spacing: 8) {
+      Button {
+        withAnimation(animation) {
+          isExpanded.toggle()
+        }
+      } label: {
+        HStack(alignment: .center, spacing: 8) {
+          Image(systemName: iconName)
+            .font(.headline)
+          VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+              .font(.headline)
+            Text(summary)
+              .font(.caption)
+              .foregroundColor(.secondary)
+              .lineLimit(1)
+          }
+          Spacer(minLength: 8)
+          Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+            .foregroundColor(.secondary)
+        }
+      }
+      .buttonStyle(.plain)
+
+      trailing()
+    }
+  }
+
+  private var innerStack: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      header
+      contentWrapper
+    }
+    .padding(appearance.contentInsets)
+  }
+
+  private var contentWrapper: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      content()
+        .opacity(isExpanded ? 1 : 0)
+        .animation(animation, value: isExpanded)
+    }
+    .frame(maxHeight: isExpanded ? .none : 0, alignment: .top)
+    .clipped()
+  }
+}
+
 private extension TagSettingsView {
   var filteredTags: [TagRecord] {
-    let base = tagService.allTags
-    let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    let base = tagService.allTagsSortedByName
+    let keyword = store.debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !keyword.isEmpty else { return base }
     return base.filter { tag in
       tag.name.localizedCaseInsensitiveContains(keyword)
@@ -949,16 +831,5 @@ private extension TagSettingsView {
 
   var unusedTags: Int {
     max(0, totalTags - usedTags)
-  }
-
-  func statColumn(title: String, value: Int) -> some View {
-    VStack {
-      Text("\(value)")
-        .font(.title3.bold())
-      Text(title)
-        .font(.caption)
-        .foregroundColor(.secondary)
-    }
-    .frame(maxWidth: .infinity)
   }
 }
