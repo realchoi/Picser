@@ -185,7 +185,7 @@ actor TaggingDatabase {
     var errorMessage: UnsafeMutablePointer<Int8>?
     let result = sqlite3_exec(db, sql, nil, nil, &errorMessage)
     if result != SQLITE_OK {
-      let message = errorMessage.map { String(cString: $0) } ?? "未知错误"
+      let message = errorMessage.map { String(cString: $0) } ?? L10n.string("database_error_unknown")
       sqlite3_free(errorMessage)
       throw TaggingDatabaseError.executionFailed(code: result, message: message, sql: sql)
     }
@@ -359,7 +359,7 @@ extension TaggingDatabase {
       var errorMessage: UnsafeMutablePointer<Int8>?
       let result = sqlite3_exec(db, trimmed, nil, nil, &errorMessage)
       if result != SQLITE_OK {
-        let message = errorMessage.map { String(cString: $0) } ?? "未知错误"
+        let message = errorMessage.map { String(cString: $0) } ?? L10n.string("database_error_unknown")
         sqlite3_free(errorMessage)
         throw TaggingDatabaseError.executionFailed(code: result, message: message, sql: trimmed)
       }
@@ -395,13 +395,25 @@ enum TaggingDatabaseError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .uninitialized:
-      return "数据库尚未初始化"
+      return L10n.string("database_error_uninitialized")
     case let .openFailed(code, message):
-      return "打开数据库失败 (\(code))：\(message)"
+      return String(
+        format: L10n.string("database_error_open_failed"),
+        code,
+        message
+      )
     case let .executionFailed(code, message, sql):
-      return "执行 SQL 失败 (\(code))：\(message)\nSQL: \(sql)"
+      return String(
+        format: L10n.string("database_error_execution_failed"),
+        code,
+        message,
+        sql
+      )
     case let .prepareFailed(message):
-      return "预编译 SQL 失败：\(message)"
+      return String(
+        format: L10n.string("database_error_prepare_failed"),
+        message
+      )
     }
   }
 }
