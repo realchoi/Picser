@@ -178,22 +178,6 @@
         }
       }
     },
-    "behavior_tab": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Behavior"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "行为"
-          }
-        }
-      }
-    },
     "cache_actions_description": {
       "localizations": {
         "en": {
@@ -1826,22 +1810,6 @@
         }
       }
     },
-    "navigation_custom_option_label": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Custom (active)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "自定义（当前）"
-          }
-        }
-      }
-    },
     "navigate_previous_action_name": {
       "localizations": {
         "en": {
@@ -2702,22 +2670,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "暂无最近记录"
-          }
-        }
-      }
-    },
-    "not_available": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not Available"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "不可用"
           }
         }
       }
@@ -3586,22 +3538,6 @@
         }
       }
     },
-    "purchase_keychain_prompt": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Authenticate to read or update your purchase license."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请验证身份以读取或更新购买凭证"
-          }
-        }
-      }
-    },
     "purchase_primary_lifetime_button": {
       "localizations": {
         "en": {
@@ -3710,70 +3646,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在加载商品信息..."
-          }
-        }
-      }
-    },
-    "purchase_product_name": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Product: %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "商品：%@"
-          }
-        }
-      }
-    },
-    "purchase_product_price": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Price: %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "价格：%@"
-          }
-        }
-      }
-    },
-    "purchase_prompt_confirm": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confirm Purchase"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "确定购买"
-          }
-        }
-      }
-    },
-    "purchase_prompt_confirm_note": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "App Store will charge your current Apple ID; verify the account and amount before confirming."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "App Store 将通过您的 Apple ID 完成支付，请确认账户信息与金额无误。"
           }
         }
       }
@@ -4194,22 +4066,6 @@
         }
       }
     },
-    "resolution_unit_label": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Resolution Unit"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "分辨率单位"
-          }
-        }
-      }
-    },
     "resolution_unit_none": {
       "localizations": {
         "en": {
@@ -4318,22 +4174,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "请在左侧选择一张图片"
-          }
-        }
-      }
-    },
-    "settings_title": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Settings"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "偏好设置"
           }
         }
       }
@@ -4578,70 +4418,6 @@
         }
       }
     },
-    "transform_conflict_duplicate_item": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ and %@ both set to %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 与 %@ 的快捷键相同：%@"
-          }
-        }
-      }
-    },
-    "transform_conflict_reserved_item": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ uses macOS-reserved shortcut %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 使用了可能与系统保留快捷键冲突的组合：%@"
-          }
-        }
-      }
-    },
-    "transform_shortcut_conflict": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Some transform shortcuts conflict. Please adjust."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "检测到图像变换快捷键冲突，请调整。"
-          }
-        }
-      }
-    },
-    "transform_shortcut_reserved": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "One or more shortcuts may conflict with macOS standard shortcuts."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "部分快捷键可能与 macOS 系统快捷键冲突。"
-          }
-        }
-      }
-    },
     "transform_shortcuts_title": {
       "localizations": {
         "en": {
@@ -4802,38 +4578,6 @@
         }
       }
     },
-    "subscription_lapsed_subtitle": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your subscription has expired. Renew or restore to keep using premium features."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "订阅已到期，请续订或恢复购买以继续使用高级功能。"
-          }
-        }
-      }
-    },
-    "subscription_lapsed_title": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Subscription expired"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "订阅已到期"
-          }
-        }
-      }
-    },
     "subscription_grace_title": {
       "localizations": {
         "en": {
@@ -4958,38 +4702,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "试用期已结束，请购买完整版以继续使用高级功能。"
-          }
-        }
-      }
-    },
-    "unlock_alert_cancel": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maybe later"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "稍后再说"
-          }
-        }
-      }
-    },
-    "unlock_alert_title": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unlock Full Version"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "解锁完整版"
           }
         }
       }
@@ -5282,22 +4994,6 @@
         }
       }
     },
-    "tag_filter_mode_picker": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Filter Mode"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "筛选模式"
-          }
-        }
-      }
-    },
     "tag_filter_mode_button": {
       "localizations": {
         "en": {
@@ -5310,22 +5006,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "模式"
-          }
-        }
-      }
-    },
-    "tag_filter_select_button": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select Tags"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择标签"
           }
         }
       }
@@ -5634,22 +5314,6 @@
         }
       }
     },
-    "tag_filter_hide_button": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hide tag filter"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "收起标签筛选"
-          }
-        }
-      }
-    },
     "tag_filter_mode_any": {
       "localizations": {
         "en": {
@@ -5758,22 +5422,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "标签库"
-          }
-        }
-      }
-    },
-    "tag_editor_library_search_placeholder": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search library"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "搜索标签库"
           }
         }
       }
@@ -6542,22 +6190,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "设置颜色"
-          }
-        }
-      }
-    },
-    "tag_editor_chip_color_clear": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear Color"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "清除颜色"
           }
         }
       }
