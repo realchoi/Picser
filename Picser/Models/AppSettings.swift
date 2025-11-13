@@ -192,6 +192,9 @@ class AppSettings: ObservableObject {
   /// 是否递归扫描子目录寻找图片（UserDefaults 存储）
   @AppStorage("imageScanRecursively") var imageScanRecursively: Bool = true
 
+  /// 打开单个图片时是否自动加载所在目录的所有图片（UserDefaults 存储）
+  @AppStorage("loadDirectoryForSingleImage") var loadDirectoryForSingleImage: Bool = false
+
   // MARK: - 裁剪设置
 
   /// 自定义裁剪比例（持久化 JSON）
@@ -355,6 +358,7 @@ class AppSettings: ObservableObject {
       showMinimap = true
       minimapAutoHideSeconds = 0.0
       imageScanRecursively = true
+      loadDirectoryForSingleImage = false
     case .tags:
       break  // 标签设置页暂不需要默认值重置
     case .cache:

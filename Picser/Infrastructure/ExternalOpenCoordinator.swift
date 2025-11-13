@@ -20,13 +20,19 @@ final class ExternalOpenCoordinator: ObservableObject {
 
   func handleIncoming(urls: [URL], recordRecents: Bool = true) async {
     guard !urls.isEmpty else { return }
-    let normalized = urls.map { $0.standardizedFileURL }
+
+    // 应用单图片目录扩展逻辑
+    let (inputs, scopedInputs, initialImage) = await FileOpenService.applySingleImageDirectoryExpansion(
+      urls: urls,
+      context: "External"
+    )
 
     // 同步处理外部打开
     let batch = await FileOpenService.loadImageBatch(
-      from: normalized,
+      from: inputs,
       recordRecents: recordRecents,
-      securityScopedInputs: urls
+      securityScopedInputs: scopedInputs,
+      initiallySelectedImage: initialImage
     )
 
     // 设置latestBatch，等待ContentView消费

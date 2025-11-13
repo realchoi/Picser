@@ -123,6 +123,16 @@ struct DisplaySettingsView: View {
         Toggle(isOn: $appSettings.imageScanRecursively) {
           Text(l10n: "image_scan_recursive_toggle")
         }
+
+        Toggle(isOn: $appSettings.loadDirectoryForSingleImage) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text(l10n: "load_directory_for_single_image_toggle")
+              .fontWeight(.medium)
+            Text(l10n: "load_directory_for_single_image_description")
+              .font(.caption)
+              .foregroundColor(.secondary)
+          }
+        }
       }
 
       // 重置按钮

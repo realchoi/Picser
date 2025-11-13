@@ -178,6 +178,102 @@
         }
       }
     },
+    "bookmarks_count_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Directory Bookmarks:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录授权书签:"
+          }
+        }
+      }
+    },
+    "bookmarks_items_unit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "items"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "项"
+          }
+        }
+      }
+    },
+    "bookmarks_description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved directory permissions for single image auto-loading feature"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存的目录访问权限，用于打开单个图片时自动加载目录功能"
+          }
+        }
+      }
+    },
+    "clear_bookmarks_button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Bookmarks"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除书签"
+          }
+        }
+      }
+    },
+    "clear_bookmarks_alert_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Directory Bookmarks"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除目录授权书签"
+          }
+        }
+      }
+    },
+    "clear_bookmarks_alert_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clearing bookmarks will remove all saved directory permissions. You'll need to grant permission again when opening images. Continue?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除书签将移除所有已保存的目录访问权限，下次打开图片时需要重新授权。确定继续吗？"
+          }
+        }
+      }
+    },
     "cache_actions_description": {
       "localizations": {
         "en": {
@@ -2446,6 +2542,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "扫描图片时包含子目录"
+          }
+        }
+      }
+    },
+    "load_directory_for_single_image_toggle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load all images from directory when opening a single image"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开单个图片时加载所在目录的所有图片"
+          }
+        }
+      }
+    },
+    "load_directory_for_single_image_description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When opening a single image file, automatically load all images from the same directory (requires granting directory access)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开单个图片文件时，自动加载该目录下的所有图片（需要授予目录访问权限）"
+          }
+        }
+      }
+    },
+    "directory_access_for_single_image_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To load all images from this directory, please grant access to the folder."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要加载该目录下的所有图片，请授予文件夹访问权限。"
+          }
+        }
+      }
+    },
+    "directory_access_grant_button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grant Access"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授予权限"
           }
         }
       }

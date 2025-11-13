@@ -9,8 +9,11 @@ import SwiftUI
 
 struct CacheSettingsView: View {
   @State private var cacheSize: Int64 = 0
+  @State private var bookmarkCount: Int = 0
+  @State private var bookmarkSize: Int64 = 0
   @State private var isLoading = false
   @State private var showingClearConfirmation = false
+  @State private var showingClearBookmarksConfirmation = false
   @State private var refreshTask: Task<Void, Never>? = nil
   @State private var refreshGeneration: UInt = 0
   @Environment(\.isSettingsMeasurement) private var isMeasurement
@@ -47,6 +50,17 @@ struct CacheSettingsView: View {
           } message: {
             Text(l10n: "clear_cache_alert_message")
           }
+          .alert(
+            L10n.key("clear_bookmarks_alert_title"),
+            isPresented: $showingClearBookmarksConfirmation
+          ) {
+            Button(L10n.key("cancel_button"), role: .cancel) {}
+            Button(L10n.key("clear_button"), role: .destructive) {
+              clearBookmarks()
+            }
+          } message: {
+            Text(l10n: "clear_bookmarks_alert_message")
+          }
       }
     }
   }
@@ -67,6 +81,7 @@ struct CacheSettingsView: View {
         Text(l10n: "cache_info_group")
           .fontWeight(.medium)
 
+        // 图片缓存大小
         HStack {
           Text(l10n: "cache_size_label")
             .frame(width: 120, alignment: .leading)
@@ -91,6 +106,20 @@ struct CacheSettingsView: View {
         }
 
         Text(l10n: "cache_size_description")
+          .font(.caption)
+          .foregroundColor(.secondary)
+
+        // 目录授权书签
+        HStack {
+          Text(l10n: "bookmarks_count_label")
+            .frame(width: 120, alignment: .leading)
+
+          Text("\(bookmarkCount) \(L10n.string("bookmarks_items_unit")) (\(FormatUtils.fileSizeString(bookmarkSize)))")
+            .font(.system(.body, design: .monospaced))
+            .frame(height: 20, alignment: .leading)
+        }
+
+        Text(l10n: "bookmarks_description")
           .font(.caption)
           .foregroundColor(.secondary)
       }
@@ -120,6 +149,15 @@ struct CacheSettingsView: View {
             }
           }
           .buttonStyle(.bordered)
+
+          Button(action: { showingClearBookmarksConfirmation = true }) {
+            HStack(spacing: 6) {
+              Image(systemName: "bookmark.slash")
+              Text(l10n: "clear_bookmarks_button")
+            }
+          }
+          .buttonStyle(.bordered)
+          .disabled(bookmarkCount == 0)
         }
 
         Text(l10n: "cache_actions_description")
@@ -145,6 +183,12 @@ struct CacheSettingsView: View {
       await MainActor.run {
         guard refreshGeneration == currentGeneration else { return }
         cacheSize = size
+
+        // 同时更新书签统计
+        let manager = DirectoryBookmarkManager.shared
+        bookmarkCount = manager.getBookmarkCount()
+        bookmarkSize = manager.getBookmarkSize()
+
         isLoading = false
         refreshTask = nil
       }
@@ -178,6 +222,12 @@ struct CacheSettingsView: View {
         NSWorkspace.shared.open(cacheURL)
       }
     }
+  }
+
+  private func clearBookmarks() {
+    DirectoryBookmarkManager.shared.clearAllBookmarks()
+    bookmarkCount = 0
+    bookmarkSize = 0
   }
 
 }

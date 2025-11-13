@@ -29,6 +29,12 @@ extension ContentView {
       return
     }
 
+    // 优先选中用户最初选择的图片（当开启"打开单个图片时加载所在目录"功能时）
+    if let initialImage = batch.initiallySelectedImage, batch.imageURLs.contains(initialImage) {
+      selectedImageURL = initialImage
+      return
+    }
+
     if let selection, batch.imageURLs.contains(selection) {
       selectedImageURL = selection
       return
@@ -55,7 +61,8 @@ extension ContentView {
         from: inputs,
         recordRecents: false,
         recursive: appSettings.imageScanRecursively,
-        securityScopedInputs: scopedInputs.isEmpty ? nil : scopedInputs
+        securityScopedInputs: scopedInputs.isEmpty ? nil : scopedInputs,
+        initiallySelectedImage: nil
       )
       await MainActor.run {
         let currentSelection = selectedImageURL
@@ -107,7 +114,8 @@ extension ContentView {
         from: [standardizedDirectory],
         recordRecents: false,
         recursive: appSettings.imageScanRecursively,
-        securityScopedInputs: scopedInputs
+        securityScopedInputs: scopedInputs,
+        initiallySelectedImage: nil
       )
       applyImageBatch(batch)
     }
