@@ -64,7 +64,16 @@ struct PicserApp: App {
         .ignoresSafeArea(.all, edges: .top)
         // 处理外部打开的图片批次
         .onReceive(externalOpenCoordinator.latestBatchPublisher) { batch in
-          if let window = NSApp.keyWindow ?? NSApp.mainWindow {
+          // 查找应用窗口（包含可见和最小化的窗口，排除 Panel）
+          let appWindow = NSApp.windows.first { window in
+            (window.isVisible || window.isMiniaturized) && !window.isKind(of: NSPanel.self)
+          }
+
+          if let window = appWindow {
+            // 如果窗口被最小化，先恢复
+            if window.isMiniaturized {
+              window.deminiaturize(nil)
+            }
             window.makeKeyAndOrderFront(nil)
           }
         }

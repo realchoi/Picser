@@ -16,9 +16,12 @@ final class PicserAppDelegate: NSObject, NSApplicationDelegate {
 
   func application(_ application: NSApplication, open urls: [URL]) {
     // 如果有多个窗口，只保留keyWindow，其他窗口关闭
-    let visibleWindows = NSApp.windows.filter { $0.isVisible }
-    if visibleWindows.count > 1 {
-      for (i, window) in visibleWindows.enumerated() {
+    // 包含可见窗口和最小化窗口，排除 Panel 等系统窗口
+    let appWindows = NSApp.windows.filter { window in
+      (window.isVisible || window.isMiniaturized) && !window.isKind(of: NSPanel.self)
+    }
+    if appWindows.count > 1 {
+      for (i, window) in appWindows.enumerated() {
         if i > 0 {  // 保留第1个窗口，关闭其他的
           window.close()
         }
