@@ -36,7 +36,7 @@ struct ExifInfoView: View {
 
       // 内容区域
       ScrollView(.vertical, showsIndicators: true) {
-        LazyVStack(alignment: .leading, spacing: InfoTableLayout.sectionSpacing, pinnedViews: []) {
+        VStack(alignment: .leading, spacing: InfoTableLayout.sectionSpacing) {
           // 基本信息部分
           InfoSection(
             title: L10n.string("basic_info_section"),
