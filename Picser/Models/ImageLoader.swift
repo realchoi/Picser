@@ -132,14 +132,21 @@ final class ImageLoader {
 
   /// 根据图片格式进行差异化加载
   private func loadImageByFormat(for url: URL) async -> NSImage? {
-    // GIF处理
-    if url.pathExtension.lowercased() == "gif" {
+    let ext = url.pathExtension.lowercased()
+
+    // 矢量格式特殊处理：使用 NSImage 原生支持
+    if FormatUtils.supports(.isVector, fileExtension: ext) {
+      return await loadSVGImage(from: url)
+    }
+
+    // 动画格式特殊处理：保留动画数据
+    if FormatUtils.supports(.supportsAnimation, fileExtension: ext) {
       if let data = await readFileData(from: url) {
         return NSImage(data: data)
       }
     }
 
-    // 静态图处理：EXIF方向矫正
+    // 静态位图处理：EXIF 方向矫正
     if let cgImage = await decodeOrientedCGImage(from: url) {
       let size = NSSize(width: cgImage.width, height: cgImage.height)
       return NSImage(cgImage: cgImage, size: size)
@@ -153,8 +160,13 @@ final class ImageLoader {
   func loadOptimizedImage(for url: URL, targetLongSidePixels: Int) async -> NSImage? {
     guard targetLongSidePixels > 0 else { return nil }
 
-    // GIF 直接返回完整图
-    if url.pathExtension.lowercased() == "gif" {
+    let ext = url.pathExtension.lowercased()
+
+    // 矢量格式和动画格式直接返回完整图
+    // 矢量格式：无需下采样
+    // 动画格式：保留动画数据
+    if FormatUtils.supports(.isVector, fileExtension: ext)
+       || FormatUtils.supports(.supportsAnimation, fileExtension: ext) {
       return await loadFullImage(for: url)
     }
 
@@ -228,6 +240,35 @@ final class ImageLoader {
 
   /// 从原始图片文件创建一个小尺寸、高压缩率的缩略图二进制数据 (Data)
   nonisolated private func createThumbnailData(from url: URL, maxPixelSize: Int) -> Data? {
+    let ext = url.pathExtension.lowercased()
+
+    // 矢量格式特殊处理：先加载为 NSImage，再缩放
+    if FormatUtils.supports(.isVector, fileExtension: ext) {
+      guard let data = try? Data(contentsOf: url, options: .mappedIfSafe),
+            let svgImage = NSImage(data: data) else {
+        return nil
+      }
+
+      // 处理无尺寸 SVG
+      if svgImage.size.width == 0 || svgImage.size.height == 0 {
+        svgImage.size = NSSize(width: 512, height: 512)
+      }
+
+      // 缩放 SVG
+      guard let resized = resizeImage(svgImage, maxSize: maxPixelSize) else {
+        return nil
+      }
+
+      // 转换为 PNG 数据（SVG 通常有透明背景）
+      guard let tiffData = resized.tiffRepresentation,
+            let bitmapRep = NSBitmapImageRep(data: tiffData) else {
+        return nil
+      }
+
+      return bitmapRep.representation(using: .png, properties: [:])
+    }
+
+    // 位图格式：使用 ImageIO 高效下采样
     guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
 
     let options: [CFString: Any] = [
@@ -297,6 +338,55 @@ final class ImageLoader {
         continuation.resume(returning: result)
       }
     }
+  }
+
+  /// SVG 加载：使用 NSImage 原生支持（macOS 10.15+）
+  ///
+  /// **已知限制**：
+  /// - 不支持 SVG 动画（SMIL/CSS）
+  /// - 如果 SVG 文件使用实体引用（如 `&ns_svg;`）而非标准 namespace URI，
+  ///   会产生 "namespace warning: xmlns: URI is not absolute" 警告。
+  ///   这是底层 libxml2 解析器的警告，不影响功能，可忽略。
+  private func loadSVGImage(from url: URL) async -> NSImage? {
+    guard let data = await readFileData(from: url) else { return nil }
+
+    // macOS 原生支持 SVG 加载
+    guard let image = NSImage(data: data) else { return nil }
+
+    // 处理无尺寸 SVG：设置合理的默认尺寸
+    if image.size.width == 0 || image.size.height == 0 {
+      image.size = NSSize(width: 512, height: 512)
+    }
+
+    return image
+  }
+
+  /// 将 NSImage 缩放到指定最大尺寸（保持宽高比）
+  nonisolated private func resizeImage(_ image: NSImage, maxSize: Int) -> NSImage? {
+    let size = image.size
+    guard size.width > 0 && size.height > 0 else { return nil }
+
+    // 计算缩放后的尺寸（保持宽高比）
+    let aspectRatio = size.width / size.height
+    var newSize: NSSize
+    if size.width > size.height {
+      newSize = NSSize(width: CGFloat(maxSize), height: CGFloat(maxSize) / aspectRatio)
+    } else {
+      newSize = NSSize(width: CGFloat(maxSize) * aspectRatio, height: CGFloat(maxSize))
+    }
+
+    // 创建缩放后的图片
+    let newImage = NSImage(size: newSize)
+    newImage.lockFocus()
+    image.draw(
+      in: NSRect(origin: .zero, size: newSize),
+      from: NSRect(origin: .zero, size: size),
+      operation: .copy,
+      fraction: 1.0
+    )
+    newImage.unlockFocus()
+
+    return newImage
   }
 
   /// 估算 NSImage 的内存开销（nonisolated 避免 actor 隔离）

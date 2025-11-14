@@ -12,7 +12,7 @@ enum ImageDiscovery {
   /// Enumerate image URLs from mixed inputs (files or folders),
   /// de-duplicate by standardized path, and return a stable, Finder-like sorted list.
   static func computeImageURLs(from inputs: [URL], recursive: Bool) async -> [URL] {
-    let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "heic", "tiff", "webp"]
+    let imageExtensions = FormatUtils.supportedImageExtensions
     let resourceKeys: Set<URLResourceKey> = [
       .isDirectoryKey, .isRegularFileKey, .isPackageKey, .isHiddenKey, .typeIdentifierKey
     ]

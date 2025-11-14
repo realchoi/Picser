@@ -52,73 +52,119 @@ struct MetadataCache: Codable {
 
   /// 便利的构造器，用于创建一个新的缓存对象
   init?(fromUrl url: URL, thumbnailData: Data) {
+    // 获取文件属性
     guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
-      let modificationDate = attributes[.modificationDate] as? Date,
-      let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
-      let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any],
-      let width = properties[kCGImagePropertyPixelWidth] as? Int,
-      let height = properties[kCGImagePropertyPixelHeight] as? Int
-    else {
+          let modificationDate = attributes[.modificationDate] as? Date else {
       return nil
     }
 
     self.originalFileTimestamp = modificationDate.timeIntervalSince1970
-    self.originalWidth = width
-    self.originalHeight = height
     self.thumbnailData = thumbnailData
 
-    // 根据文件后缀判断格式
-    switch url.pathExtension.lowercased() {
-    case "jpg", "jpeg":
-      self.originalFormat = .jpeg
-    case "png":
-      self.originalFormat = .png
-    case "gif":
-      self.originalFormat = .gif
-    case "heic":
-      self.originalFormat = .heic
-    default:
-      self.originalFormat = .other
-    }
+    let ext = url.pathExtension.lowercased()
 
-    // 提取 EXIF 数据并序列化
-    var exifDict: [String: Any] = [:]
+    // 尝试用 CGImageSource 读取（位图格式）
+    if let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
+       let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any],
+       let width = properties[kCGImagePropertyPixelWidth] as? Int,
+       let height = properties[kCGImagePropertyPixelHeight] as? Int {
 
-    // 从 properties 中提取各种元数据
-    if let exifProperties = properties[kCGImagePropertyExifDictionary] as? [CFString: Any] {
-      for (key, value) in exifProperties {
-        exifDict["Exif_\(key)"] = value
+      // 位图格式：成功读取尺寸和 EXIF
+      self.originalWidth = width
+      self.originalHeight = height
+
+      // 根据文件后缀判断格式
+      switch ext {
+      case "jpg", "jpeg":
+        self.originalFormat = .jpeg
+      case "png":
+        self.originalFormat = .png
+      case "gif":
+        self.originalFormat = .gif
+      case "heic":
+        self.originalFormat = .heic
+      default:
+        self.originalFormat = .other
       }
-    }
 
-    if let tiffProperties = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any] {
-      for (key, value) in tiffProperties {
-        exifDict["TIFF_\(key)"] = value
+      // 提取 EXIF 数据并序列化
+      var exifDict: [String: Any] = [:]
+
+      // 从 properties 中提取各种元数据
+      if let exifProperties = properties[kCGImagePropertyExifDictionary] as? [CFString: Any] {
+        for (key, value) in exifProperties {
+          exifDict["Exif_\(key)"] = value
+        }
       }
-    }
 
-    if let gpsProperties = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any] {
-      for (key, value) in gpsProperties {
-        exifDict["GPS_\(key)"] = value
+      if let tiffProperties = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any] {
+        for (key, value) in tiffProperties {
+          exifDict["TIFF_\(key)"] = value
+        }
       }
-    }
 
-    // 添加基础属性
-    exifDict["ImageWidth"] = width
-    exifDict["ImageHeight"] = height
-    exifDict["FileSize"] = attributes[.size] as? Int64 ?? 0
-    exifDict["FileModificationDate"] = modificationDate.timeIntervalSince1970
+      if let gpsProperties = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any] {
+        for (key, value) in gpsProperties {
+          exifDict["GPS_\(key)"] = value
+        }
+      }
 
-    // 序列化 EXIF 数据
-    do {
-      self.exifData = try PropertyListSerialization.data(
-        fromPropertyList: exifDict,
-        format: .binary,
-        options: 0
-      )
-    } catch {
-      // 如果序列化失败，使用空数据
-      self.exifData = Data()
+      // 添加基础属性
+      exifDict["ImageWidth"] = width
+      exifDict["ImageHeight"] = height
+      exifDict["FileSize"] = attributes[.size] as? Int64 ?? 0
+      exifDict["FileModificationDate"] = modificationDate.timeIntervalSince1970
+
+      // 序列化 EXIF 数据
+      do {
+        self.exifData = try PropertyListSerialization.data(
+          fromPropertyList: exifDict,
+          format: .binary,
+          options: 0
+        )
+      } catch {
+        // 如果序列化失败，使用空数据
+        self.exifData = Data()
+      }
+
+    } else if FormatUtils.supports(.isVector, fileExtension: ext) {
+      // 矢量格式：用 NSImage 读取尺寸
+      guard let data = try? Data(contentsOf: url, options: .mappedIfSafe),
+            let image = NSImage(data: data) else {
+        return nil
+      }
+
+      var size = image.size
+      // 处理无尺寸 SVG
+      if size.width == 0 || size.height == 0 {
+        size = NSSize(width: 512, height: 512)
+      }
+
+      self.originalWidth = Int(size.width)
+      self.originalHeight = Int(size.height)
+      self.originalFormat = .other  // 矢量格式归类为 other
+
+      // 矢量格式：只存储基础文件信息，无相机 EXIF
+      var exifDict: [String: Any] = [:]
+      exifDict["ImageWidth"] = self.originalWidth
+      exifDict["ImageHeight"] = self.originalHeight
+      exifDict["FileSize"] = attributes[.size] as? Int64 ?? 0
+      exifDict["FileModificationDate"] = modificationDate.timeIntervalSince1970
+
+      // 序列化基础信息
+      do {
+        self.exifData = try PropertyListSerialization.data(
+          fromPropertyList: exifDict,
+          format: .binary,
+          options: 0
+        )
+      } catch {
+        self.exifData = Data()
+      }
+
+    } else {
+      // 不支持的格式或读取失败
+      return nil
     }
   }
 

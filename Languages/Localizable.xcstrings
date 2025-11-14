@@ -818,6 +818,54 @@
         }
       }
     },
+    "crop_save_error_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Failed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存失败"
+          }
+        }
+      }
+    },
+    "crop_save_error_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An error occurred while saving the cropped image."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存裁剪后的图片时发生错误。"
+          }
+        }
+      }
+    },
+    "crop_save_unsupported_format": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ format does not support cropping."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 格式不支持裁剪操作。"
+          }
+        }
+      }
+    },
     "delete_button": {
       "localizations": {
         "en": {

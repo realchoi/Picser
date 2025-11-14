@@ -15,11 +15,19 @@ enum ImageCropperError: Error {
   case invalidCropRect
   case cannotCreateDestination
   case cannotFinalize
+  case unsupportedFormat  // 矢量格式（如 SVG）不支持裁剪或保存
 }
 
 enum ImageCropper {
   /// 从源 URL 裁剪原图（按像素坐标，原始方向），返回 NSImage
   static func crop(url: URL, cropRect: CGRect) throws -> NSImage {
+    let ext = url.pathExtension.lowercased()
+
+    // 检查格式是否支持裁剪（矢量格式无法通过 CGImageSource 进行像素级裁剪）
+    if !FormatUtils.supports(.supportsCropping, fileExtension: ext) {
+      throw ImageCropperError.unsupportedFormat
+    }
+
     guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       throw ImageCropperError.cannotOpenSource
     }
@@ -42,6 +50,11 @@ enum ImageCropper {
   /// 保存图像到指定 URL（维持原扩展名格式，或按 URL 扩展名推断）
   static func save(image: NSImage, to destURL: URL) throws {
     let ext = destURL.pathExtension.lowercased()
+
+    // 检查格式是否支持保存（矢量格式：编辑后的位图无法还原为矢量）
+    if !FormatUtils.supports(.supportsCropping, fileExtension: ext) {
+      throw ImageCropperError.unsupportedFormat
+    }
 
     // 优先处理 HEIC：用 ImageIO 按 UTI 写入
     if ext == "heic" {

@@ -4,6 +4,7 @@
 //  Extracted from ContentView to keep view logic minimal.
 //
 
+import AppKit
 import Foundation
 import ImageIO
 
@@ -33,6 +34,14 @@ enum ExifExtractor {
   /// 直接从文件提取 EXIF 信息
   static func extractExifInfoFromFile(url: URL) async throws -> ExifInfo {
     return try await Task.detached(priority: .userInitiated) {
+      let ext = url.pathExtension.lowercased()
+
+      // 不支持 EXIF 的格式特殊处理：只提供基础文件信息
+      if !FormatUtils.supports(.supportsEXIF, fileExtension: ext) {
+        return try extractBasicInfoWithoutExif(url: url)
+      }
+
+      // 支持 EXIF 的位图格式：使用 CGImageSource 读取完整 EXIF
       guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
         throw ExifExtractionError.failedToCreateImageSource
       }
@@ -68,5 +77,39 @@ enum ExifExtractor {
 
       return ExifInfo.from(exifDictionary: exifDict, fileURL: url)
     }.value
+  }
+
+  /// 为不支持 EXIF 的格式提取基础信息（仅文件属性和尺寸，无相机元数据）
+  private static func extractBasicInfoWithoutExif(url: URL) throws -> ExifInfo {
+    // 获取文件属性
+    let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+
+    // 尝试加载图片获取尺寸
+    var width = 0
+    var height = 0
+    if let data = try? Data(contentsOf: url, options: .mappedIfSafe),
+       let image = NSImage(data: data) {
+      let size = image.size
+      // 矢量格式特殊处理：如果没有明确尺寸，设置默认值
+      let ext = url.pathExtension.lowercased()
+      if FormatUtils.supports(.isVector, fileExtension: ext) && (size.width == 0 || size.height == 0) {
+        width = 512
+        height = 512
+      } else {
+        width = Int(size.width)
+        height = Int(size.height)
+      }
+    }
+
+    // 构建基础信息字典（仅文件级别信息，无相机 EXIF）
+    var exifDict: [String: Any] = [:]
+    exifDict["ImageWidth"] = width
+    exifDict["ImageHeight"] = height
+    exifDict["FileSize"] = attributes[.size] as? Int64 ?? 0
+    if let modificationDate = attributes[.modificationDate] as? Date {
+      exifDict["FileModificationDate"] = modificationDate.timeIntervalSince1970
+    }
+
+    return ExifInfo.from(exifDictionary: exifDict, fileURL: url)
   }
 }

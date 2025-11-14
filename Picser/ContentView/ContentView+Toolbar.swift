@@ -98,12 +98,7 @@ extension ContentView {
       ToolbarItem {
         Button {
           performIfEntitled(.crop) {
-            withAnimation(Motion.Anim.standard) {
-              isCropping.toggle()
-              if !isCropping {
-                cropAspect = .freeform
-              }
-            }
+            startCropping()
           }
         } label: {
           let isActive = isCropping

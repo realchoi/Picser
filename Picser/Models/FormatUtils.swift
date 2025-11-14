@@ -6,7 +6,30 @@
 
 import Foundation
 
+/// 图片格式能力枚举
+enum ImageFormatCapability {
+  case supportsCropping  // 支持像素级裁剪
+  case supportsEXIF      // 支持 EXIF 元数据
+  case isVector          // 是矢量格式
+  case supportsAnimation // 支持动画
+}
+
 enum FormatUtils {
+  // MARK: - 支持的图片格式
+
+  /// 应用支持的所有图片格式扩展名（小写）
+  static let supportedImageExtensions: Set<String> = [
+    "jpg", "jpeg",  // JPEG
+    "png",          // PNG
+    "gif",          // GIF（动画）
+    "heic",         // HEIC
+    "tiff", "tif",  // TIFF
+    "webp",         // WebP
+    "svg"           // SVG（矢量）
+  ]
+
+  // MARK: - 格式化方法
+
   /// 统一的文件大小格式化方法（KB/MB/GB，文件风格）
   static func fileSizeString(_ bytes: Int64) -> String {
     let formatter = ByteCountFormatter()
@@ -58,6 +81,7 @@ enum FormatUtils {
     case "HEIC": return "HEIC"
     case "TIFF": return "TIFF"
     case "WEBP": return "WebP"
+    case "SVG": return "SVG"
     default: return ext.isEmpty ? L10n.string("unknown_format") : ext
     }
   }
@@ -210,5 +234,44 @@ enum FormatUtils {
     case 3: return L10n.string("resolution_unit_centimeter")
     default: return String(format: L10n.string("exif_other_format"), unit)
     }
+  }
+
+  // MARK: - 格式能力查询
+
+  /// 检查文件扩展名对应的格式是否支持指定能力
+  ///
+  /// - Parameters:
+  ///   - capability: 要查询的能力类型
+  ///   - ext: 文件扩展名（大小写不敏感）
+  /// - Returns: 是否支持该能力
+  static func supports(_ capability: ImageFormatCapability, fileExtension ext: String) -> Bool {
+    let ext = ext.lowercased()
+    switch capability {
+    case .supportsCropping:
+      // 矢量格式不支持像素级裁剪（无法通过 CGImageSource 处理）
+      return !["svg"].contains(ext)
+
+    case .supportsEXIF:
+      // 矢量格式和动画格式通常不包含标准 EXIF 元数据
+      return !["svg", "gif"].contains(ext)
+
+    case .isVector:
+      // 矢量图形格式
+      return ["svg"].contains(ext)
+
+    case .supportsAnimation:
+      // 支持动画的格式
+      return ["gif"].contains(ext)
+    }
+  }
+
+  /// 检查 URL 对应的文件格式是否支持指定能力
+  ///
+  /// - Parameters:
+  ///   - capability: 要查询的能力类型
+  ///   - url: 文件 URL
+  /// - Returns: 是否支持该能力
+  static func supports(_ capability: ImageFormatCapability, url: URL) -> Bool {
+    return supports(capability, fileExtension: url.pathExtension)
   }
 }
