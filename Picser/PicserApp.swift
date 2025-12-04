@@ -39,8 +39,8 @@ struct PicserApp: App {
       sharedSecret: sharedSecret
     )
     _purchaseManager = StateObject(wrappedValue: manager)
-    // 配置功能权限守卫，允许未购买用户访问部分功能
-    let policy = FeatureAccessPolicy(freeFeatures: [.exif])
+    // 配置功能权限守卫，旋转/镜像功能免费，其他高级功能需要订阅
+    let policy = FeatureAccessPolicy(freeFeatures: [.transform])
     _featureGatekeeper = StateObject(
       wrappedValue: FeatureGatekeeper(
         purchaseManager: manager,

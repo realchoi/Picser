@@ -51,6 +51,7 @@ extension ContentView {
             }
           }
           .frame(width: 24, height: 24)
+          .proBadge(isEntitled: purchaseManager.isEntitled)
         }
         .disabled(isLoadingExif)
         .help(
@@ -104,6 +105,7 @@ extension ContentView {
           let isActive = isCropping
           HStack(spacing: 6) {
             Image(systemName: isActive ? "crop.rotate" : "crop")
+              .proBadge(isEntitled: purchaseManager.isEntitled)
           }
           .foregroundStyle(isActive ? Color.accentColor : Color.primary)
         }
@@ -116,12 +118,10 @@ extension ContentView {
         } label: {
           let isPlaying = isSlideshowActive
           // 幻灯片播放按钮：根据当前状态切换文案与图标
-          Label(
-            isPlaying
-              ? L10n.string("slideshow_toolbar_pause")
-              : L10n.string("slideshow_toolbar_play"),
-            systemImage: isPlaying ? "pause.circle.fill" : "play.circle"
-          )
+          HStack(spacing: 0) {
+            Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle")
+              .proBadge(isEntitled: purchaseManager.isEntitled)
+          }
           .foregroundStyle(isPlaying ? Color.accentColor : Color.primary)
         }
         .disabled(visibleImageURLs.isEmpty)
@@ -136,12 +136,10 @@ extension ContentView {
             }
           }
         } label: {
-          Label(
-            showingTagEditorPanel
-              ? L10n.string("tag_editor_toolbar_hide")
-              : L10n.string("tag_editor_toolbar_show"),
-            systemImage: showingTagEditorPanel ? "tag.fill" : "tag"
-          )
+          HStack(spacing: 0) {
+            Image(systemName: showingTagEditorPanel ? "tag.fill" : "tag")
+              .proBadge(isEntitled: purchaseManager.isEntitled)
+          }
           .foregroundStyle(showingTagEditorPanel ? Color.accentColor : Color.primary)
         }
         // 允许用户随时展开/收起标签编辑器
@@ -165,3 +163,4 @@ extension ContentView {
     }
   }
 }
+
