@@ -275,6 +275,43 @@ final class TagService: ObservableObject {
     }
   }
 
+  /// 预测删除指定图片后将变成孤立的标签
+  ///
+  /// 分析给定图片的标签，找出仅被这些图片使用的标签。
+  /// 这些标签在图片删除后将变成孤立标签。
+  ///
+  /// 算法：
+  /// 1. 收集所有给定图片使用的标签
+  /// 2. 对每个标签，检查其 usageCount 是否等于出现次数
+  /// 3. 如果相等，说明该标签仅被这些图片使用，删除后将成为孤立标签
+  ///
+  /// - Parameter urls: 将要删除的图片 URL 列表
+  /// - Returns: 将变成孤立标签的标签名称列表（按字母序排序）
+  func predictOrphanTags(for urls: [URL]) -> [String] {
+    let paths = Set(urls.map { $0.standardizedFileURL.path })
+    
+    // 收集所有图片使用的标签及其出现次数
+    var tagUsageInSelection: [Int64: Int] = [:]
+    for path in paths {
+      let tags = assignmentCache.tags(for: URL(fileURLWithPath: path))
+      for tag in tags {
+        tagUsageInSelection[tag.id, default: 0] += 1
+      }
+    }
+    
+    // 找出删除后将成为孤立标签的标签
+    var orphanTagNames: [String] = []
+    for tag in allTags {
+      guard let usageInSelection = tagUsageInSelection[tag.id] else { continue }
+      // 如果标签的全部使用次数等于选中图片中的使用次数，删除后将成为孤立标签
+      if tag.usageCount == usageInSelection {
+        orphanTagNames.append(tag.name)
+      }
+    }
+    
+    return orphanTagNames.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+  }
+
   /// 刷新当前作用域（ContentView 的图片集合）
   ///
   /// 当用户切换目录或筛选条件变化时调用，更新作用域内的标签统计。

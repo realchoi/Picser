@@ -299,6 +299,22 @@ struct TagSettingsView: View {
       Button(L10n.key("cancel_button"), role: .cancel) {
         store.isShowingDeleteConfirm = false
       }
+    } message: {
+      let names = store.selectedTagNames
+      let displayedNames = names.prefix(5).joined(separator: ", ")
+      let remaining = names.count - 5
+      if remaining > 0 {
+        Text(String(
+          format: L10n.string("tag_settings_batch_delete_message_more"),
+          displayedNames,
+          remaining
+        ))
+      } else {
+        Text(String(
+          format: L10n.string("tag_settings_batch_delete_message"),
+          displayedNames
+        ))
+      }
     }
     /// 删除智能筛选器的确认对话框
     /// 显示智能筛选器名称，警告用户操作不可逆

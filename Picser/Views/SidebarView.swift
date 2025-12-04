@@ -88,6 +88,15 @@ private extension SidebarView {
             Text(selectionSummary)
               .font(.caption)
               .foregroundColor(.secondary)
+            // 清除筛选按钮，省去用户打开面板的步骤
+            Button {
+              tagService.clearFilter()
+            } label: {
+              Image(systemName: "xmark.circle.fill")
+                .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(L10n.string("tag_filter_clear_button"))
           }
         }
       }
@@ -111,9 +120,30 @@ private extension SidebarView {
     .padding(.horizontal, 6)
   }
 
-  /// 显示当前选中的标签数量或“无筛选”
+  /// 显示当前筛选条件下匹配的标签数量
+  ///
+  /// 计算逻辑：
+  /// - 直接选中的标签 ID 数量
+  /// - 加上通过颜色筛选匹配的标签数量（从 scopedTags 中提取）
+  /// - 两者取并集后去重，避免重复计数
   var selectionSummary: String {
-    let count = tagService.activeFilter.tagIDs.count
+    let filter = tagService.activeFilter
+    
+    // 直接选中的标签 ID
+    var matchedTagIDs = filter.tagIDs
+    
+    // 通过颜色筛选匹配的标签
+    if !filter.colorHexes.isEmpty {
+      let colorMatchedIDs = tagService.scopedTags
+        .filter { tag in
+          guard let hex = tag.colorHex?.normalizedHexColor() else { return false }
+          return filter.colorHexes.contains(hex)
+        }
+        .map(\.id)
+      matchedTagIDs.formUnion(colorMatchedIDs)
+    }
+    
+    let count = matchedTagIDs.count
     if count == 0 {
       return L10n.string("tag_filter_selection_summary_none")
     }

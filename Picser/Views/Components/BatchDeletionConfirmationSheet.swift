@@ -44,6 +44,9 @@ struct BatchDeletionConfirmationSheet: View {
   /// 获取失败的文件列表
   let getFailedURLs: () -> [(URL, Error)]
 
+  /// 即将变成孤立的标签名称列表
+  let orphanTagNames: [String]
+
   // MARK: - 视图状态
 
   /// 选中的删除模式
@@ -358,11 +361,41 @@ struct BatchDeletionConfirmationSheet: View {
       .pickerStyle(.radioGroup)
 
       // 删除孤立标签选项
-      Toggle(
-        L10n.string("batch_delete_option_remove_orphan_tags"),
-        isOn: $removeOrphanTags
-      )
-      .toggleStyle(.checkbox)
+      VStack(alignment: .leading, spacing: 6) {
+        Toggle(
+          L10n.string("batch_delete_option_remove_orphan_tags"),
+          isOn: $removeOrphanTags
+        )
+        .toggleStyle(.checkbox)
+
+        // 显示即将删除的孤立标签名称
+        if !orphanTagNames.isEmpty {
+          let displayedNames = orphanTagNames.prefix(5).joined(separator: ", ")
+          let remaining = orphanTagNames.count - 5
+          HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "tag.fill")
+              .font(.caption)
+              .foregroundColor(.secondary)
+            if remaining > 0 {
+              Text(String(
+                format: L10n.string("batch_delete_orphan_tags_more"),
+                displayedNames,
+                remaining
+              ))
+              .font(.caption)
+              .foregroundColor(.secondary)
+            } else {
+              Text(String(
+                format: L10n.string("batch_delete_orphan_tags"),
+                displayedNames
+              ))
+              .font(.caption)
+              .foregroundColor(.secondary)
+            }
+          }
+          .padding(.leading, 20)
+        }
+      }
 
       // 警告提示
       HStack(spacing: 8) {

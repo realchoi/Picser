@@ -320,7 +320,8 @@ struct ContentView: View {
             },
             getProgress: { batchDeletionProgress },
             isDeleting: { isPerformingBatchDeletion },
-            getFailedURLs: { batchDeletionFailedURLs }
+            getFailedURLs: { batchDeletionFailedURLs },
+            orphanTagNames: tagService.predictOrphanTags(for: pendingBatchDeletionURLs)
           )
         }
         .alert(

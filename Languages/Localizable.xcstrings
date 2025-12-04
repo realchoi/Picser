@@ -5246,7 +5246,7 @@
           "stringUnit": {
             "state": "translated",
             "value": "已选 %d 个标签"
-          }
+           }
         }
       }
     },
@@ -6318,6 +6318,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "确定删除所选标签？"
+          }
+        }
+      }
+    },
+    "tag_settings_batch_delete_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The following tags will be permanently deleted: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即将永久删除以下标签：%@"
+          }
+        }
+      }
+    },
+    "tag_settings_batch_delete_message_more": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The following tags will be permanently deleted: %@, and %d more..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即将永久删除以下标签：%@，以及另外 %d 个..."
           }
         }
       }
@@ -7454,6 +7486,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "同时删除不再使用的标签"
+          }
+        }
+      }
+    },
+    "batch_delete_orphan_tags": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags to be removed: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即将删除的标签：%@"
+          }
+        }
+      }
+    },
+    "batch_delete_orphan_tags_more": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags to be removed: %@, and %d more..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即将删除的标签：%@，以及另外 %d 个..."
           }
         }
       }

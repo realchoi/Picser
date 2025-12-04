@@ -35,6 +35,15 @@ final class TagSettingsStore: ObservableObject {
   }
 
   @Published var selectedTagIDs: Set<Int64> = []
+
+  /// 获取选中标签的名称列表（按字母序排序）
+  var selectedTagNames: [String] {
+    tagService.allTags
+      .filter { selectedTagIDs.contains($0.id) }
+      .map(\.name)
+      .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+  }
+
   @Published var batchColor: Color = .accentColor
   @Published var isShowingDeleteConfirm = false
   @Published var isShowingClearAssignmentsConfirm = false
