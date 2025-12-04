@@ -8,6 +8,7 @@ enum UpgradePromptContext: String, Identifiable {
   case slideshow
   case generic
   case purchase
+  case tags
 
   var id: String { rawValue }
 

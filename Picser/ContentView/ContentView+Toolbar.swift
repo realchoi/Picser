@@ -130,8 +130,10 @@ extension ContentView {
 
       ToolbarItem {
         Button {
-          withAnimation(Motion.Anim.standard) {
-            showingTagEditorPanel.toggle()
+          performIfEntitled(.tags) {
+            withAnimation(Motion.Anim.standard) {
+              showingTagEditorPanel.toggle()
+            }
           }
         } label: {
           Label(

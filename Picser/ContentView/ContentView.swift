@@ -160,12 +160,12 @@ struct ContentView: View {
     // )
 
     // 调试代码：重置为“试用过期”状态
-    // view = AnyView(
-    //   view
-    //     .onAppear(perform: {
-    //       purchaseManager.simulateTrialExpiration()
-    //     })
-    // )
+    view = AnyView(
+      view
+        .onAppear(perform: {
+          purchaseManager.simulateTrialExpiration()
+        })
+    )
 
     #endif
 
@@ -421,7 +421,8 @@ struct ContentView: View {
         selectedImageURL = url
       },
       onRequestBatchDeletion: { requestBatchDeletion() },
-      isFilteringImages: isFilteringImages
+      isFilteringImages: isFilteringImages,
+      onRequestUpgrade: { context in requestUpgrade(context) }
     )
     .frame(
       minWidth: LayoutMetrics.sidebarMinWidth,

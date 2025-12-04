@@ -15,7 +15,9 @@ struct SidebarView: View {
   let onSelect: (URL) -> Void
   let onRequestBatchDeletion: () -> Void  // 批量删除回调
   let isFilteringImages: Bool  // 是否正在筛选图片
+  let onRequestUpgrade: (UpgradePromptContext) -> Void  // 升级提示回调
   @EnvironmentObject var tagService: TagService
+  @EnvironmentObject var purchaseManager: PurchaseManager
 
   private enum LayoutMetrics {
     static let thumbnailWidth: CGFloat = 220
@@ -76,7 +78,11 @@ private extension SidebarView {
   var filterHeader: some View {
     VStack(alignment: .leading, spacing: 8) {
       Button {
-        showingFilterPopover.toggle()
+        if purchaseManager.isEntitled {
+          showingFilterPopover.toggle()
+        } else {
+          onRequestUpgrade(.tags)
+        }
       } label: {
         HStack {
           Label(

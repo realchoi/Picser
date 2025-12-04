@@ -9,6 +9,7 @@ import SwiftUI
 struct SettingsView: View {
   @ObservedObject var appSettings: AppSettings
   @EnvironmentObject private var tagService: TagService
+  @EnvironmentObject private var purchaseManager: PurchaseManager
   @State private var validationErrors: [String] = []
   @State private var selectedTab: SettingsTab = .general
   @State private var desiredContentHeight: CGFloat = 0
@@ -70,7 +71,11 @@ struct SettingsView: View {
         IntrinsicTabContainer(tab: .tags, shouldScroll: {
           tabScrollNeeds[.tags] ?? false
         }) {
-          TagSettingsView(tagService: tagService)
+          if purchaseManager.isEntitled {
+            TagSettingsView(tagService: tagService)
+          } else {
+            TagSettingsLockedView(purchaseManager: purchaseManager)
+          }
         }
         .tag(SettingsTab.tags)
           .tabItem {

@@ -7,6 +7,7 @@ enum AppFeature: Hashable {
   case generic
   case exif
   case slideshow
+  case tags
 }
 
 /// 功能访问策略：配置未购买用户可访问的功能集合

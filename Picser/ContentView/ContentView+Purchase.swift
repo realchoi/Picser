@@ -156,6 +156,8 @@ private extension UpgradePromptContext {
       return .exif
     case .slideshow:
       return .slideshow
+    case .tags:
+      return .tags
     case .generic, .purchase:
       return .generic
     }

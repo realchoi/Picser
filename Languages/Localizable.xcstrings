@@ -5906,6 +5906,102 @@
         }
       }
     },
+    "tag_settings_locked_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag Management"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签管理"
+          }
+        }
+      }
+    },
+    "tag_settings_locked_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upgrade to unlock the full tag management features and organize your photo library more efficiently."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "升级解锁完整的标签管理功能，更高效地整理您的图片库。"
+          }
+        }
+      }
+    },
+    "tag_settings_locked_feature_1": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create and manage tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建和管理标签"
+          }
+        }
+      }
+    },
+    "tag_settings_locked_feature_2": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter photos by tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按标签筛选图片"
+          }
+        }
+      }
+    },
+    "tag_settings_locked_feature_3": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smart filters and batch operations"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "智能筛选和批量操作"
+          }
+        }
+      }
+    },
+    "tag_settings_locked_button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock Now"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即解锁"
+          }
+        }
+      }
+    },
     "tag_settings_tab": {
       "localizations": {
         "en": {
