@@ -400,7 +400,6 @@ private extension TagEditorView {
   ///
   /// 交互功能：
   /// - 点击推荐标签：添加到当前图片（单张）
-  /// - 同时记录推荐选择事件，用于改进推荐算法
   ///
   /// 视觉设计：
   /// - 标题使用次要色调和小字号
@@ -417,9 +416,6 @@ private extension TagEditorView {
               ForEach(recommendedSuggestions, id: \.id) { tag in
                 RecommendedTagChip(tag: tag) {
                   Task {
-                    await MainActor.run {
-                      tagService.recordRecommendationSelection(tagID: tag.id, for: imageURL)
-                    }
                     await tagService.assign(tagNames: [tag.name], to: [imageURL])
                   }
                 }

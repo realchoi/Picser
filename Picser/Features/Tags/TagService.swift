@@ -1177,38 +1177,7 @@ final class TagService: ObservableObject {
     )
   }
 
-  /// 记录用户选择了推荐标签
-  ///
-  /// 收集推荐标签的使用情况，用于改进推荐算法。
-  ///
-  /// 记录内容：
-  /// - **tagID**：被选中的标签 ID
-  /// - **imagePath**：图片路径
-  /// - **directory**：所在目录
-  /// - **scopeSignature**：作用域快照（用于区分不同场景）
-  ///
-  /// 使用场景：
-  /// - 用户点击推荐标签并应用
-  /// - 推荐引擎根据反馈调整权重
-  ///
-  /// 注意事项：
-  /// - 异步记录，不影响主流程
-  /// - 数据用于本地优化，不上传服务器
-  ///
-  /// - Parameters:
-  ///   - tagID: 被选中的标签 ID
-  ///   - url: 图片 URL
-  func recordRecommendationSelection(tagID: Int64, for url: URL) {
-    let normalized = url.standardizedFileURL
-    let context = TagRecommendationContext(
-      imagePath: normalized.path,
-      directory: normalized.deletingLastPathComponent().path,
-      scopeSignature: scopedTags.hashValue
-    )
-    Task {
-      await TagRecommendationTelemetry.shared.recordSelection(tagID: tagID, context: context)
-    }
-  }
+
 
   /// 更新缓存中的标签颜色
   ///

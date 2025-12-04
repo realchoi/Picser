@@ -123,8 +123,7 @@ struct TagSettingsView: View {
   /// 操作历史记录弹窗显示状态
   @State private var showingFeedbackHistory = false
 
-  /// 推荐统计调试视图显示状态（仅 Debug 模式）
-  @State private var showingTelemetry = false
+
 
   /// 主视图布局
   ///
@@ -136,12 +135,12 @@ struct TagSettingsView: View {
   /// 3. **TagStatsCard**：统计卡片，显示标签总数、已使用、未使用
   /// 4. **smartFilterPanel**：智能筛选器管理面板（可折叠）
   /// 5. **tagManagementSurface**：标签管理主区域，包含批量工具、搜索、列表
-  /// 6. **底部按钮行**：清理未使用标签、刷新、推荐统计（仅 Debug）
+  /// 6. **底部按钮行**：清理未使用标签、刷新
   ///
   /// 修饰符和交互：
   /// - **settingsContentContainer()**：应用设置页面的标准容器样式
   /// - **onDisappear**：离开页面时清理 store 状态
-  /// - **sheet**：多个弹窗（重命名、批量添加、合并、推荐统计）
+  /// - **sheet**：多个弹窗（重命名、批量添加、合并）
   /// - **alert**：删除标签确认对话框
   /// - **confirmationDialog**：危险操作确认（清空关联、清理未使用、批量删除、删除智能筛选器）
   /// - **onChange**：监听标签列表变化，清理无效的选择和颜色草稿
@@ -181,13 +180,7 @@ struct TagSettingsView: View {
         } label: {
           Label(L10n.string("tag_settings_refresh_button"), systemImage: "arrow.clockwise.circle")
         }
-#if DEBUG
-        Button {
-          showingTelemetry = true
-        } label: {
-          Label("推荐统计", systemImage: "chart.bar")
-        }
-#endif
+
       }
     }
     .settingsContentContainer()
@@ -231,14 +224,7 @@ struct TagSettingsView: View {
       }
       .frame(width: 320)
     }
-    /// 推荐统计调试视图（仅 Debug 模式）
-    /// 显示标签推荐算法的统计数据
-    .sheet(isPresented: $showingTelemetry) {
-      TagRecommendationDebugView(
-        allTags: tagService.allTags,
-        dismiss: { showingTelemetry = false }
-      )
-    }
+
     // MARK: - 确认对话框修饰符
     /// 删除单个标签的确认对话框
     /// 显示标签名称和使用次数，警告用户操作不可逆

@@ -34,15 +34,8 @@ final class TagRecommendationEngine {
   /// 最低权重，作为辅助参考
   private let directoryUsageWeight: Double = 0.6
 
-  /// 遥测服务，用于记录推荐结果
-  private let telemetry: TagRecommendationTelemetry
-
   /// 初始化推荐引擎
-  ///
-  /// - Parameter telemetry: 遥测服务实例，用于记录推荐效果
-  init(telemetry: TagRecommendationTelemetry = .shared) {
-    self.telemetry = telemetry
-  }
+  init() {}
 
   /// 为指定图片推荐标签
   ///
@@ -87,14 +80,6 @@ final class TagRecommendationEngine {
     guard !availableTags.isEmpty else { return [] }
 
     let directory = normalized.deletingLastPathComponent().path
-    let scopeSignature = scopedTags.hashValue
-
-    // 构建推荐上下文，用于遥测记录
-    let context = TagRecommendationContext(
-      imagePath: normalized.path,
-      directory: directory,
-      scopeSignature: scopeSignature
-    )
 
     // 构建标签 ID 到标签对象的索引
     let index = Dictionary(uniqueKeysWithValues: allTags.map { ($0.id, $0) })
@@ -157,10 +142,7 @@ final class TagRecommendationEngine {
       candidates += fallback
     }
 
-    // 异步记录推荐结果到遥测服务
-    Task {
-      await telemetry.recordServed(tagIDs: candidates.map(\.id), context: context)
-    }
+
 
     return candidates
   }
