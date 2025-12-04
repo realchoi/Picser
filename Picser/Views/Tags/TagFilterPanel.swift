@@ -50,6 +50,19 @@ struct TagFilterPanel: View {
   /// 当前语言环境，用于刷新菜单显示
   @Environment(\.locale) private var locale
 
+  // MARK: - 批量操作回调
+
+  /// 当前筛选结果的图片数量
+  let visibleImageCount: Int
+
+  /// 批量删除回调
+  /// 当用户点击"删除 N 张图片"按钮时调用
+  let onRequestBatchDeletion: () -> Void
+
+  /// 是否正在筛选图片
+  /// 筛选期间隐藏批量删除按钮，避免数字闪动
+  let isFilteringImages: Bool
+
   // MARK: - 视图状态
 
   /// 智能筛选器命名草稿
@@ -369,25 +382,49 @@ struct TagFilterPanel: View {
   /// 底部清除按钮区域
   ///
   /// 功能：
+  /// - 批量删除筛选结果的图片
   /// - 清除所有筛选条件，恢复显示全部图片
   ///
   /// 布局：
-  /// - 右对齐的清除按钮
+  /// - 左侧：批量删除按钮（新增）
+  /// - 右侧：清除筛选按钮
   ///
   /// 按钮状态：
-  /// - 有筛选条件时：可点击，不透明
-  /// - 无筛选条件时：禁用，半透明
+  /// - 有筛选条件且有可见图片时：批量删除按钮可用
+  /// - 筛选期间：隐藏批量删除按钮，避免数字闪动
+  /// - 有筛选条件时：清除筛选按钮可用
   ///
   /// 交互：
-  /// - 点击按钮：调用 tagService.clearFilter() 清除所有条件
+  /// - 批量删除按钮：调用 onRequestBatchDeletion 回调
+  /// - 清除筛选按钮：调用 tagService.clearFilter() 清除所有条件
   ///
   /// 使用场景：
+  /// - 用户筛选后想批量删除符合条件的图片
   /// - 用户筛选后想查看全部图片
   /// - 重置筛选条件重新开始
   private var footerRow: some View {
     let canClearAll = tagService.activeFilter.isActive
-    return HStack {
+    let canBatchDelete = canClearAll && visibleImageCount > 0 && !isFilteringImages
+    return HStack(spacing: 12) {
+      // 批量删除按钮（新增）
+      // 只在筛选完成且有结果时显示，避免闪动
+      if canBatchDelete {
+        Button {
+          onRequestBatchDeletion()
+        } label: {
+          Label(
+            String(format: L10n.string("batch_delete_button"), visibleImageCount),
+            systemImage: "trash.fill"
+          )
+        }
+        .buttonStyle(.borderless)
+        .foregroundColor(.red)
+        .help(L10n.string("batch_delete_button_tooltip"))
+      }
+
       Spacer()
+
+      // 清除筛选按钮（现有）
       Button {
         guard canClearAll else { return }
         tagService.clearFilter()

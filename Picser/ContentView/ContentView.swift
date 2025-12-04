@@ -58,7 +58,14 @@ struct ContentView: View {
   @State var pendingDeletionURL: URL?
   @State var showingDeletionOptions = false
   @State var isPerformingDeletion = false
+  // 批量删除流程状态
+  @State var pendingBatchDeletionURLs: [URL] = []  // 待批量删除的图片列表
+  @State var showingBatchDeletionConfirmation = false  // 是否显示批量删除确认对话框
+  @State var batchDeletionProgress: Double = 0.0  // 批量删除进度（0.0 - 1.0）
+  @State var isPerformingBatchDeletion = false  // 是否正在执行批量删除
+  @State var batchDeletionFailedURLs: [(URL, Error)] = []  // 批量删除失败的文件列表
   @State private var filteredImageURLs: [URL] = []
+  @State private var isFilteringImages = false  // 标记是否正在执行筛选任务
 
   // 购买解锁引导
   @State var upgradePromptContext: UpgradePromptContext?
@@ -195,6 +202,10 @@ struct ContentView: View {
         .onChange(of: selectedImageURL) { _, newURL in
           handleSelectionChange(newURL)
         }
+        .onChange(of: tagService.activeFilter) { _, _ in
+          // 筛选条件变化时，立即标记为正在筛选，避免按钮数字闪动
+          isFilteringImages = true
+        }
         .onChange(of: purchaseManager.state) { _, _ in
           if !purchaseManager.isEntitled {
             withAnimation(Motion.Anim.standard) {
@@ -229,9 +240,12 @@ struct ContentView: View {
         }
         .onAppear {
           filteredImageURLs = imageURLs
+          isFilteringImages = false
         }
         .task(id: filterTaskTrigger) {
+          isFilteringImages = true
           filteredImageURLs = await tagService.filteredImageURLs(from: imageURLs)
+          isFilteringImages = false
         }
     )
 
@@ -294,6 +308,20 @@ struct ContentView: View {
           }
         } message: { url in
           Text(String(format: L10n.string("delete_dialog_message"), url.lastPathComponent))
+        }
+        // 批量删除确认对话框
+        .sheet(isPresented: $showingBatchDeletionConfirmation) {
+          BatchDeletionConfirmationSheet(
+            urls: pendingBatchDeletionURLs,
+            onConfirm: { mode, removeOrphanTags in
+              Task {
+                await confirmBatchDeletion(mode: mode, removeOrphanTags: removeOrphanTags)
+              }
+            },
+            getProgress: { batchDeletionProgress },
+            isDeleting: { isPerformingBatchDeletion },
+            getFailedURLs: { batchDeletionFailedURLs }
+          )
         }
         .alert(
           L10n.string("delete_permission_title"),
@@ -387,10 +415,13 @@ struct ContentView: View {
     SidebarView(
       imageURLs: visibleImageURLs,
       selectedImageURL: selectedImageURL,
-      showingFilterPopover: $showingFilterPopover
-    ) { url in
-      selectedImageURL = url
-    }
+      showingFilterPopover: $showingFilterPopover,
+      onSelect: { url in
+        selectedImageURL = url
+      },
+      onRequestBatchDeletion: { requestBatchDeletion() },
+      isFilteringImages: isFilteringImages
+    )
     .frame(
       minWidth: LayoutMetrics.sidebarMinWidth,
       idealWidth: LayoutMetrics.sidebarIdealWidth,

@@ -13,6 +13,8 @@ struct SidebarView: View {
   let selectedImageURL: URL?
   @Binding var showingFilterPopover: Bool
   let onSelect: (URL) -> Void
+  let onRequestBatchDeletion: () -> Void  // 批量删除回调
+  let isFilteringImages: Bool  // 是否正在筛选图片
   @EnvironmentObject var tagService: TagService
 
   private enum LayoutMetrics {
@@ -93,9 +95,13 @@ private extension SidebarView {
       .padding(.horizontal, 10)
       .padding(.top, 8)
       .popover(isPresented: $showingFilterPopover, arrowEdge: .bottom) {
-        TagFilterPanel()
-          .frame(width: 340)
-          .padding()
+        TagFilterPanel(
+          visibleImageCount: imageURLs.count,
+          onRequestBatchDeletion: onRequestBatchDeletion,
+          isFilteringImages: isFilteringImages
+        )
+        .frame(width: 340)
+        .padding()
       }
 
       Divider()
