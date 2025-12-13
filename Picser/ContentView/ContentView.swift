@@ -151,7 +151,7 @@ struct ContentView: View {
 
     #if DEBUG
 
-    // // 调试代码：重置为“试用进行中”状态
+    // 调试代码：重置为“试用进行中”状态
     // view = AnyView(
     //   view
     //     .onAppear(perform: {
@@ -160,12 +160,12 @@ struct ContentView: View {
     // )
 
     // 调试代码：重置为“试用过期”状态
-    view = AnyView(
-      view
-        .onAppear(perform: {
-          purchaseManager.simulateTrialExpiration()
-        })
-    )
+    // view = AnyView(
+    //   view
+    //     .onAppear(perform: {
+    //       purchaseManager.simulateTrialExpiration()
+    //     })
+    // )
 
     #endif
 
