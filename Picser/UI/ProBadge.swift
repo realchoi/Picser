@@ -27,17 +27,33 @@ struct ProBadgeModifier: ViewModifier {
 
 /// 小型 PRO 标识
 ///
-/// 使用紧凑的星形设计，避免文字被截断问题。
+/// 使用 "PRO" 文字胶囊设计，简洁现代，配合金色渐变。
 struct ProBadge: View {
   var body: some View {
-    Image(systemName: "star.fill")
-      .font(.system(size: 8, weight: .bold))
+    Text("PRO")
+      .font(.system(size: 6, weight: .black, design: .rounded))
+      .fixedSize()
       .foregroundStyle(.white)
-      .padding(2)
+      .padding(.horizontal, 3)
+      .padding(.vertical, 1)
       .background(
-        Circle()
-          .fill(Color.orange.gradient)
+        RoundedRectangle(cornerRadius: 3)
+          .fill(
+            LinearGradient(
+              colors: [
+                Color(red: 1.0, green: 0.85, blue: 0.3), // 金色高光
+                Color(red: 1.0, green: 0.6, blue: 0.0)   // 深金色阴影
+              ],
+              startPoint: .topLeading,
+              endPoint: .bottomTrailing
+            )
+          )
       )
+      .overlay(
+        RoundedRectangle(cornerRadius: 3)
+          .strokeBorder(.white, lineWidth: 1)
+      )
+      .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
   }
 }
 
