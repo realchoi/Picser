@@ -1,3 +1,58 @@
+## [2.0.0(5)] - 2025-12-14
+
+### Added
+- 新增幻灯片播放功能，支持自动循环浏览图片，让图片欣赏更便捷。（模块：SlideshowService, ContentView）
+- 新增标签管理功能（需要高级订阅），可为图片添加标签以便分类、快速检索以及批量删除。（模块：TagService, TagEditorView, SidebarView）
+- 新增 SVG 矢量图格式支持，可查看和浏览 SVG 文件。（模块：ImageLoader）
+- 新增围绕指针缩放功能，缩放时以鼠标指针位置为中心，操作更加直观。（模块：ZoomableImageView, AppSettings）
+- 新增设置项：打开单张图片时可选择是否自动加载所在目录下的所有图片。（模块：AppSettings, DisplaySettingsView）
+- 新增付费功能 PRO 标识，明确区分免费与高级功能。（模块：ProBadge）
+- 侧边栏新增图片切换时的滚动同步功能，当前图片始终保持可见。（模块：SidebarView）
+
+### Changed
+- 免费开放旋转、镜像功能，降低使用门槛，提升用户体验。（模块：ContentView）
+- 优化图片导航快捷键与删除快捷键，现支持多选操作。（模块：KeyboardShortcutCatalog）
+- 优化 EXIF 信息面板加载状态显示，增加进度指示。（模块：ExifInfoView）
+- 优化图片手动及幻灯片切换时的加载状态，过渡更加平滑。（模块：DetailView, SlideshowService）
+- 优化滚轮缩放事件处理，滚动响应更加自然。（模块：ZoomableImageView）
+
+### Fixed
+- 修复 EXIF 信息面板滚动时界面卡死的问题。（模块：ExifInfoView）
+- 修复右键打开图片时重复创建窗口的问题。（模块：ExternalOpenCoordinator）
+- 修复右键同时打开多张图片时创建多个窗口的问题，现统一在单一窗口中显示。（模块：ExternalOpenCoordinator）
+
+### Removed
+- 移除冗余的本地化语言配置，清理代码。（模块：Localizable.xcstrings）
+
+---
+
+## [2.0.0(5)] - 2025-12-14 (English)
+
+### Added
+- Added slideshow playback feature with auto-cycling for easier image browsing. (Module: SlideshowService, ContentView)
+- Added tag management feature for categorizing images and quick retrieval (need advanced subscription). (Module: TagService, TagEditorView, SidebarView)
+- Added SVG vector format support for viewing and browsing SVG files. (Module: ImageLoader)
+- Added zoom-around-cursor feature, centering zoom on mouse pointer position for more intuitive operation. (Module: ZoomableImageView, AppSettings)
+- Added setting option to auto-load all images in directory when opening a single image. (Module: AppSettings, DisplaySettingsView)
+- Added scroll sync in sidebar when switching images, keeping the current image always visible. (Module: SidebarView)
+
+### Changed
+- Made rotate and mirror features free, lowering the barrier to entry and improving user experience. (Module: ContentView)
+- Enhanced navigation and delete shortcuts to support multi-selection. (Module: KeyboardShortcutCatalog)
+- Improved EXIF panel loading state with progress indicators. (Module: ExifInfoView)
+- Improved loading state during manual and slideshow image transitions for smoother experience. (Module: DetailView, SlideshowService)
+- Optimized scroll wheel zoom event handling for more natural response. (Module: ZoomableImageView)
+
+### Fixed
+- Fixed UI freeze when scrolling the EXIF information panel. (Module: ExifInfoView)
+- Fixed duplicate window creation when opening images via right-click. (Module: ExternalOpenCoordinator)
+- Fixed multiple windows opening when right-clicking to open multiple images; now displays in a single window. (Module: ExternalOpenCoordinator)
+
+### Removed
+- Removed redundant localization configurations for cleaner code. (Module: Localizable.xcstrings)
+
+---
+
 ## [1.1.0(4)] - 2025-11-01
 ### Added
 - 新增图片删除功能，可选择移至废纸篓或直接删除，缺少权限时会弹出完整磁盘访问引导。（模块：ContentView+Deletion, FullDiskAccessChecker）
