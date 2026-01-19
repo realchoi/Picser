@@ -162,10 +162,7 @@ final class ImageLoader {
     // 3. 缓存到内存
     await setCachedImage(image, for: url, suffix: "_thumb")
 
-    // 4. 异步缓存到磁盘（不阻塞当前操作）
-    Task.detached(priority: .background) {
-      await self.createAndCacheMetadata(for: url)
-    }
+    createAndCacheMetadata(for: url)
 
     return image
   }
@@ -278,20 +275,12 @@ final class ImageLoader {
   // MARK: - 磁盘缓存管理
 
   /// 创建并存储图片元数据到磁盘缓存
-  private func createAndCacheMetadata(for url: URL) async {
-    let thumbnailData = await withCheckedContinuation { continuation in
-      processingQueue.async {
-        continuation.resume(returning: self.createThumbnailData(from: url, maxPixelSize: 256))
+  private func createAndCacheMetadata(for url: URL) {
+    Task.detached(priority: .utility) {
+      guard let data = self.createThumbnailData(from: url, maxPixelSize: 256),
+            let metadata = MetadataCache(fromUrl: url, thumbnailData: data) else {
+        return
       }
-    }
-
-    guard let data = thumbnailData,
-          let metadata = MetadataCache(fromUrl: url, thumbnailData: data) else {
-      return
-    }
-
-    // 异步存储到磁盘，不阻塞当前操作
-    Task {
       await DiskCache.shared.store(metadata: metadata, forKey: url.path)
     }
   }
