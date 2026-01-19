@@ -12,6 +12,7 @@ private enum DownsampleRequestConstants {
   // 上限以像素为单位；用于根据屏幕 scale 换算为点
   static let maxLongSidePixels: CGFloat = 3200.0
   // 短边像素下限，避免模糊
+  static let viewportStep: CGFloat = 24.0
 }
 
 /// 渐进式加载主图：先显示快速缩略图，再无缝切换到全尺寸已解码图像
@@ -66,7 +67,7 @@ struct AsyncZoomableImageContainer: View {
       }
       .onAppear {
         // 记录初始视口尺寸
-        self.viewportSize = geometry.size
+        self.viewportSize = quantizedViewportSize(geometry.size)
         Task { @MainActor in
           updateBackingScaleFactor()
         }
@@ -87,8 +88,9 @@ struct AsyncZoomableImageContainer: View {
         }
       }
       .onChange(of: geometry.size) { _, newSize in
-        // 视口尺寸变化时更新
-        self.viewportSize = newSize
+        let quantized = quantizedViewportSize(newSize)
+        guard quantized != viewportSize else { return }
+        self.viewportSize = quantized
       }
       .onChange(of: isSlideshowActive) { _, newValue in
         guard !newValue else { return }
@@ -185,6 +187,21 @@ struct AsyncZoomableImageContainer: View {
 
 // MARK: - Helpers
 extension AsyncZoomableImageContainer {
+  private func quantizedViewportSize(_ size: CGSize) -> CGSize {
+    let step = DownsampleRequestConstants.viewportStep
+    let widthRatio = size.width / step
+    let heightRatio = size.height / step
+    let widthRounded = size.width >= viewportSize.width
+      ? widthRatio.rounded(.up)
+      : widthRatio.rounded(.down)
+    let heightRounded = size.height >= viewportSize.height
+      ? heightRatio.rounded(.up)
+      : heightRatio.rounded(.down)
+    let w = max(step, widthRounded * step)
+    let h = max(step, heightRounded * step)
+    return CGSize(width: w, height: h)
+  }
+
   @MainActor
   private func updateBackingScaleFactor() {
     let resolved = Self.resolveBackingScaleFactor(for: windowToken)
