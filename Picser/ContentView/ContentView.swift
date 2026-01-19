@@ -194,10 +194,7 @@ struct ContentView: View {
             await tagService.refreshScope(with: newURLs)
           }
           filteredImageURLs = newURLs
-          // 目录切换后需要重新确保选中项在可见集合里
-          ensureSelectionVisible()
           updateSidebarVisibility()
-          handleSlideshowImageListChange()
         }
         .onChange(of: selectedImageURL) { _, newURL in
           handleSelectionChange(newURL)
