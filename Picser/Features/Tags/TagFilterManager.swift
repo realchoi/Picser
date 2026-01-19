@@ -86,12 +86,25 @@ actor TagFilterManager {
     let hasKeyword = !keyword.isEmpty
     let tagIDs = filter.tagIDs
     let selectedColors = Set(filter.colorHexes.compactMap { $0.normalizedHexColor() })
+    let requiresColorMatch = !selectedColors.isEmpty
+
+    // 本次筛选内的轻量缓存，避免反复构建集合
+    var tagIDCache: [String: Set<Int64>] = [:]
+    var colorCache: [String: Set<String>] = [:]
 
     // 执行筛选逻辑
     let filtered = urls.filter { url in
       let normalizedURL = url.standardizedFileURL
-      let assignedRecords = assignments[normalizedURL.path] ?? []
-      let assignedIDs = Set(assignedRecords.map(\.id))
+      let path = normalizedURL.path
+      let assignedRecords = assignments[path] ?? []
+      let assignedIDs: Set<Int64>
+      if let cached = tagIDCache[path] {
+        assignedIDs = cached
+      } else {
+        let built = Set(assignedRecords.map(\.id))
+        tagIDCache[path] = built
+        assignedIDs = built
+      }
 
       // 1. 标签筛选
       if !tagIDs.isEmpty {
@@ -111,8 +124,15 @@ actor TagFilterManager {
       }
 
       // 2. 颜色筛选：图片至少有一个指定颜色的标签
-      if !selectedColors.isEmpty {
-        let assignedColors = Set(assignedRecords.compactMap { $0.colorHex.normalizedHexColor() })
+      if requiresColorMatch {
+        let assignedColors: Set<String>
+        if let cached = colorCache[path] {
+          assignedColors = cached
+        } else {
+          let built = Set(assignedRecords.compactMap { $0.colorHex.normalizedHexColor() })
+          colorCache[path] = built
+          assignedColors = built
+        }
         guard !assignedColors.isDisjoint(with: selectedColors) else { return false }
       }
 

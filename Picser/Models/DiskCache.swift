@@ -11,6 +11,10 @@ actor DiskCache {
   private let baseURL: URL
   private let fileManager = FileManager.default
   private var byteLimit: Int = 500 * 1024 * 1024  // 默认 500MB，因为元数据缓存通常更小
+  // 清理节流：避免每次写入都触发完整目录扫描
+  private let trimInterval: TimeInterval = 8
+  private var lastTrimTimestamp: TimeInterval = 0
+  private var scheduledTrimTask: Task<Void, Never>?
 
   private init() {
     // 将缓存目录更改为 "MetadataCache" 以避免与旧缓存冲突
@@ -53,8 +57,8 @@ actor DiskCache {
       }
     }.value
 
-    // 在主 actor 上执行清理
-    await trimIfNeeded()  // 检查是否需要清理旧缓存
+    // 在 actor 上调度清理，避免频繁触发
+    await scheduleTrimIfNeeded()
   }
 
   /// 从磁盘读取二进制文件，并将其反序列化回 MetadataCache 对象
@@ -186,6 +190,38 @@ actor DiskCache {
         }
       }
     }.value
+  }
+
+  /// 节流触发清理：合并频繁写入带来的多次清理请求
+  private func scheduleTrimIfNeeded() async {
+    let now = Date().timeIntervalSince1970
+    let elapsed = now - lastTrimTimestamp
+    if elapsed >= trimInterval {
+      lastTrimTimestamp = now
+      scheduledTrimTask?.cancel()
+      scheduledTrimTask = nil
+      await trimIfNeeded()
+      return
+    }
+
+    guard scheduledTrimTask == nil else { return }
+    let delay = max(0, trimInterval - elapsed)
+    scheduledTrimTask = Task { [weak self] in
+      guard let self else { return }
+      do {
+        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+      } catch {
+        return
+      }
+      await self.runScheduledTrim()
+    }
+  }
+
+  /// 执行已计划的清理任务
+  private func runScheduledTrim() async {
+    scheduledTrimTask = nil
+    lastTrimTimestamp = Date().timeIntervalSince1970
+    await trimIfNeeded()
   }
 
   /// 异步获取当前磁盘使用量

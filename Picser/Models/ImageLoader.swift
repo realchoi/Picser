@@ -5,6 +5,36 @@ import Foundation
 import ImageIO
 import CoreImage
 
+// 并发限流器：用于控制同时进行的异步任务数量
+private actor ConcurrencyLimiter {
+  private let maxConcurrent: Int
+  private var current: Int = 0
+  private var waiters: [CheckedContinuation<Void, Never>] = []
+
+  init(maxConcurrent: Int) {
+    self.maxConcurrent = max(1, maxConcurrent)
+  }
+
+  func acquire() async {
+    if current < maxConcurrent {
+      current += 1
+      return
+    }
+    await withCheckedContinuation { continuation in
+      waiters.append(continuation)
+    }
+  }
+
+  func release() {
+    if waiters.isEmpty {
+      current = max(0, current - 1)
+      return
+    }
+    let continuation = waiters.removeFirst()
+    continuation.resume()
+  }
+}
+
 /// 优化的图片加载器，使用统一内存缓存和智能加载策略
 @MainActor
 final class ImageLoader {
@@ -13,6 +43,10 @@ final class ImageLoader {
   // 统一内存缓存：缓存所有尺寸的图片，统一管理
   private let imageCache = NSCache<NSString, NSImage>()
   private var memoryPressureSource: DispatchSourceMemoryPressure?
+  // 缩略图并发控制，避免滚动时同时解码过多图片
+  private let thumbnailLimiter = ConcurrencyLimiter(maxConcurrent: 4)
+  // 去重中的缩略图任务，避免重复加载同一图片
+  private var thumbnailLoadTasks: [NSString: Task<NSImage?, Never>] = [:]
 
   // 后台处理队列
   private let processingQueue = DispatchQueue(
@@ -78,6 +112,27 @@ final class ImageLoader {
       return cached
     }
 
+    let key = cacheKey(for: url, suffix: "_thumb")
+    if let existing = thumbnailLoadTasks[key] {
+      return await existing.value
+    }
+
+    let task = Task { [weak self] () -> NSImage? in
+      guard let self else { return nil }
+      return await self.loadThumbnailInternal(for: url)
+    }
+    thumbnailLoadTasks[key] = task
+    let image = await task.value
+    thumbnailLoadTasks[key] = nil
+    return image
+  }
+
+  /// 缩略图加载核心逻辑（带限流与去重）
+  private func loadThumbnailInternal(for url: URL) async -> NSImage? {
+    if let cached = cachedThumbnail(for: url) {
+      return cached
+    }
+
     // 2. 尝试从磁盘缓存快速加载
     if let metadata = await DiskCache.shared.retrieve(forKey: url.path),
        let image = NSImage(data: metadata.thumbnailData) {
@@ -85,12 +140,15 @@ final class ImageLoader {
       return image
     }
 
-    // 3. 重新生成缩略图
+    // 3. 重新生成缩略图（受并发限制）
     return await generateThumbnail(for: url)
   }
 
   /// 生成缩略图并缓存（优化版本）
   private func generateThumbnail(for url: URL) async -> NSImage? {
+    await thumbnailLimiter.acquire()
+    defer { Task { await self.thumbnailLimiter.release() } }
+
     // 1. 在后台队列生成缩略图数据
     let thumbnailData = await Task.detached(priority: .userInitiated) {
       self.createThumbnailData(from: url, maxPixelSize: 256)
@@ -399,10 +457,8 @@ final class ImageLoader {
   func prefetch(urls: [URL]) {
     Task.detached(priority: .background) {
       for url in urls {
-        // 如果缓存已存在，则跳过
-        if await DiskCache.shared.retrieve(forKey: url.path) == nil {
-          await self.createAndCacheMetadata(for: url)
-        }
+        // 优先触发缩略图缓存，确保切换更顺畅
+        _ = await self.loadThumbnail(for: url)
       }
     }
   }
